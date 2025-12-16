@@ -1,0 +1,427 @@
+{% extends 'base.html' %}
+
+{% block title %}Pasons Dashboard - Modern Inventory Dashboard{% endblock %}
+{% load static %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- CSRF Token for AJAX requests -->
+{% csrf_token %}
+
+<div id="talabat-dashboard-content">
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
+    <div class="p-6 border rounded-lg hover:shadow-md transition-shadow" style="background-color: #FFFFFF; border-color: #C5C5C5; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-3 h-3 rounded-full" style="background-color: #5B9BD5;"></div>
+                    <span class="text-sm md:text-base font-medium" style="color: #4D4D4D; font-family: Arial, sans-serif;">Total Items</span>
+                </div>
+                <div class="text-2xl md:text-3xl font-bold mb-1" id="total-products" style="color: #000000; font-family: Arial, sans-serif;">{{ total_items }}</div>
+
+            </div>
+            <div class="w-12 h-12 md:w-14 md:h-14 flex items-center justify-center rounded-md" style="background-color: #E8EEF4; border: 1px solid #C5C5C5;">
+                <i class="bi bi-box-seam-fill text-xl md:text-2xl" style="color: #0066CC;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="p-6 border rounded-lg" style="background-color: #FFFFFF; border-color: #C5C5C5; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-3 h-3 rounded-full" style="background-color: #FFFF00;"></div>
+                    <span class="text-sm font-medium" style="color: #4D4D4D; font-family: Arial, sans-serif;">Low Stock</span>
+                </div>
+                <div class="text-3xl font-bold mb-1" id="low-stock" style="color: #000000; font-family: Arial, sans-serif;">{{ low_stock_items }}</div>
+
+            </div>
+            <div class="w-14 h-14 flex items-center justify-center rounded-md" style="background-color: #E8EEF4; border: 1px solid #C5C5C5;">
+                <i class="bi bi-exclamation-triangle-fill text-2xl" style="color: #FF9800;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="p-6 border rounded-lg" style="background-color: #FFFFFF; border-color: #C5C5C5; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div class="flex items-center justify-between">
+            <div>
+                <div class="flex items-center gap-2 mb-3">
+                    <div class="w-3 h-3 rounded-full" style="background-color: #70AD47;"></div>
+                    <span class="text-sm font-medium" style="color: #4D4D4D; font-family: Arial, sans-serif;">Active Products</span>
+                </div>
+                <div class="text-3xl font-bold mb-1" id="active-products" style="color: #000000; font-family: Arial, sans-serif;">{{ active_items }}</div>
+
+            </div>
+            <div class="w-14 h-14 flex items-center justify-center rounded-md" style="background-color: #E8EEF4; border: 1px solid #C5C5C5;">
+                 <i class="bi bi-check-circle-fill text-2xl" style="color: #4CAF50;"></i>
+             </div>
+          </div>
+        </div>
+    </div>
+</div>
+
+<!-- Form Section -->
+<div class="p-6 mb-8 rounded-lg border" style="background-color: #E8EEF4; border: 1px solid #C5C5C5; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+    <!-- Item Master Header -->
+    <div class="section-title section-title--line"><span>Item Master</span></div>
+
+    <!-- Two Column Form -->
+    <form id="product-form">
+        {% csrf_token %}
+        
+        <!-- Search Field -->
+        <div class="mb-8 flex justify-center">
+            <div class="flex flex-wrap items-center gap-2 w-full max-w-3xl px-2">
+                <div class="relative w-full sm:w-80 mb-2 sm:mb-0">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <i class="bi bi-search" style="color: #666666; font-size: 14px;"></i>
+                    </div>
+                    <input type="text" id="search-input" placeholder="Item Code / SKU/Barcode" 
+                           style="width: 100%; padding: 8px 12px 8px 32px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
+                </div>
+                <button type="button" id="search-btn" class="w-full sm:w-auto" style="display: flex; align-items: center; background-color: #0066CC; color: white; border-radius: 4px; padding: 8px 12px; font-family: Arial, sans-serif; font-size: 14px; border: 1px solid #0055AA;">
+                    <i class="bi bi-search mr-1" style="font-size: 14px;"></i>
+                    <span style="font-weight: 500;">Search</span>
+                </button>
+                <button type="button" id="clear-search" class="w-full sm:w-auto" style="display: flex; align-items: center; background-color: #9BB4D0; color: #333333; border-radius: 4px; padding: 8px 12px; font-family: Arial, sans-serif; font-size: 14px; border: 1px solid #8AA3BF;">
+                    <i class="bi bi-x mr-1" style="font-size: 14px;"></i>
+                    <span style="font-weight: 500;">Clear</span>
+                </button>
+                <button type="button" id="reset-form" class="w-full sm:w-auto" style="display: flex; align-items: center; background-color: #C8D8E8; color: #333333; border-radius: 4px; padding: 8px 12px; font-family: Arial, sans-serif; font-size: 14px; border: 1px solid #B7C7D7;">
+                    <i class="bi bi-arrow-repeat mr-1" style="font-size: 14px;"></i>
+                    <span style="font-weight: 500;">Reset</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Six-line paired layout -->
+        
+        <!-- Line 1: Item Code + Description (Item Name) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
+            <div>
+                <label class="block text-sm font-medium text-black mb-1" style="font-family: 'Poppins', sans-serif; letter-spacing: 0.3px; font-weight: 600;">📋 Item Code</label>
+                <input type="text" name="item_code" placeholder="Item code" 
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+            </div>
+            <div>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Description (Item Name)</label>
+                <input type="text" name="name" placeholder="Description / Item Name" 
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
+            </div>
+        </div>
+
+        <!-- Line 2: SKU + Barcode -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mt-4">
+            <div>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">SKU</label>
+                <input type="text" name="sku" placeholder="SKU" 
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
+            </div>
+            <div>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Barcode</label>
+                <input type="text" name="barcode" placeholder="Barcode" 
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
+            </div>
+        </div>
+
+        <!-- Line 3: Pack Description + Units (paired per request) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mt-4">
+            <div>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Pack Description</label>
+                <input type="text" name="pack_description" placeholder="Pack Description" 
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
+            </div>
+            <div>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Units</label>
+                <input type="text" name="units" placeholder="e.g., pcs, kg, ltr" 
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
+            </div>
+        </div>
+        <!-- Line 5: Stock Quantity + Stock Status (0 Disabled, 1 Enabled) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mt-4">
+            <div>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Stock Quantity</label>
+                <input type="number" name="stock_quantity" placeholder="Stock" 
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
+            </div>
+            <div>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Stock Status</label>
+                <input type="number" name="stock_status" placeholder="0 Disabled, 1 Enabled" min="0" max="1" 
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
+            </div>
+        </div>
+
+        <!-- Convert Units + Wrap (three fields in one line) -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-8 mt-4">
+            <div>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">WDF</label>
+                <input type="number" name="weight_division_factor" placeholder="Weight Division Factor" step="0.0001"
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
+            </div> 
+            <div> 
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">OCQ</label> 
+                <input type="number" name="outer_case_quantity" placeholder="Outer Case Quantity" 
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/> 
+            </div> 
+            <div> 
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Min Qty</label> 
+                <input type="number" name="minimum_qty" placeholder="Minimum Quantity" 
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/> 
+            </div> 
+            <div> 
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Wrap</label> 
+                <input type="text" name="wrap" placeholder="9900/10000" 
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/> 
+            </div> 
+        </div>
+        
+        <!-- Line 4: Cost + Converted Cost -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mt-4">
+            <div>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Cost</label>
+                <input type="number" name="cost_price" placeholder="0.00" step="0.01" 
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
+            </div>
+            <div>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Converted Cost</label>
+                <input type="number" name="converted_cost" placeholder="Auto: cost ÷ weight_division_factor" step="0.01"
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #999999;"/>
+            </div>
+        </div>
+
+        
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mt-4">
+            <div>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">MRP</label>
+                <input type="number" name="mrp" placeholder="MRP" step="0.01"
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
+            </div>
+            <div>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">S.Price (Final)</label>
+                <input type="number" name="selling_price" placeholder="Sell.Price" step="0.01"
+                       style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
+            </div>
+        </div>
+        
+
+        <!-- Central Locking System (CLS) -->
+        <div class="mt-6 pt-6" style="border-top: 1px solid #E5E5E5;">
+            <div class="section-title section-title--line"><span>Central Locking System (CLS)</span></div>
+            <div class="flex flex-wrap items-center gap-4 md:gap-6 mt-4">
+                <label class="flex items-center gap-3">
+                    <input type="checkbox" name="price_locked" style="width: 16px; height: 16px; accent-color: #0066CC;">
+                    <span style="font-size: 14px; font-weight: 500; color: #333333; font-family: Arial, sans-serif;">Price Lock</span>
+                </label>
+                <label class="flex items-center gap-3">
+                    <input type="checkbox" name="status_locked" style="width: 16px; height: 16px; accent-color: #0066CC;">
+                    <span style="font-size: 14px; font-weight: 500; color: #333333; font-family: Arial, sans-serif;">Status Lock</span>
+                </label>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Products panel intentionally omitted on Pasons dashboard -->
+
+<!-- Inventory Table -->
+<div class="outlet-panel rounded-lg border">
+    <div class="p-4 md:p-6 border-b" style="border-bottom: 1px solid #E5E5E5;">
+        <div class="section-title--line"><span>Outlet Availability</span></div>
+        <p class="text-xs md:text-sm mt-1 section-subtitle">Shows outlets and prices for the selected product</p>
+    </div>
+    
+    <div class="outlet-table-wrapper overflow-x-auto -mx-3 md:mx-0 mobile-card-table">
+        <table class="min-w-full outlet-table" style="border-collapse: separate; border-spacing: 0;">
+            <thead>
+                <tr>
+                    <th class="px-4 md:px-6 py-3 text-left text-[11px] md:text-xs" style="font-weight: 600; color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">Outlet</th>
+                    <th class="px-4 md:px-6 py-3 text-left text-[11px] md:text-xs" style="font-weight: 600; color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">MRP</th>
+                    <th class="px-4 md:px-6 py-3 text-left text-[11px] md:text-xs" style="font-weight: 600; color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">Stock</th>
+                    <th class="px-4 md:px-6 py-3 text-left text-[11px] md:text-xs" style="font-weight: 600; color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">Selling Price</th>
+                    <th class="px-4 md:px-6 py-3 text-left text-[11px] md:text-xs" style="font-weight: 600; color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">Stock Status</th>
+                    <th class="px-4 md:px-6 py-3 text-left text-[11px] md:text-xs" style="font-weight: 600; color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">Cost</th>
+                    <!-- Talabat Margin % (conditional) -->
+                    <th id="margin-header" class="px-4 md:px-6 py-3 text-left text-[11px] md:text-xs" style="font-weight: 600; color: #555555; text-transform: uppercase; font-family: Arial, sans-serif; display: none;">Margin %</th>
+                    <th class="px-4 md:px-6 py-3 text-left text-[11px] md:text-xs lock-cell" style="font-weight: 600; color: #555555; text-transform: uppercase; font-family: Arial, sans-serif; text-align:center;">BLS Price</th>
+                    <th class="px-4 md:px-6 py-3 text-left text-[11px] md:text-xs lock-cell" style="font-weight: 600; color: #555555; text-transform: uppercase; font-family: Arial, sans-serif; text-align:center;">BLS Status</th>
+                </tr>
+            </thead>
+            <tbody id="outlet-table">
+                <!-- Products will be loaded dynamically -->
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% load static %}
+{% block extra_js %}
+<script>
+  window.DASHBOARD_PLATFORM = '{{ active_nav }}';
+</script>
+<script src="{% static 'js/dashboard.js' %}"></script>
+
+<!-- Client-side form validation -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('product-form');
+    if (!form) return;
+    
+    // Define validation rules
+    const validationRules = {
+        'item_code': { required: true, minLength: 1, pattern: null, message: 'Item Code is required' },
+        'name': { required: true, minLength: 1, pattern: null, message: 'Description is required' },
+        'sku': { required: true, minLength: 1, pattern: null, message: 'SKU is required' },
+        'units': { required: true, minLength: 1, pattern: null, message: 'Units is required' },
+        'selling_price': { required: false, minValue: 0, pattern: /^\d+(\.\d{1,2})?$/, message: 'Please enter a valid price (e.g., 10.50)' },
+        'cost_price': { required: false, minValue: 0, pattern: /^\d+(\.\d{1,2})?$/, message: 'Please enter a valid cost (e.g., 5.00)' },
+        'mrp': { required: false, minValue: 0, pattern: /^\d+(\.\d{1,2})?$/, message: 'Please enter a valid MRP' },
+        'stock_quantity': { required: false, minValue: 0, pattern: /^\d+$/, message: 'Please enter a valid quantity' },
+        'weight_division_factor': { required: false, minValue: 0, pattern: /^\d+(\.\d{1,4})?$/, message: 'WDF must be a positive number' },
+        'outer_case_quantity': { required: false, minValue: 1, pattern: /^\d+$/, message: 'OCQ must be a positive integer (e.g., 4, 9)' },
+        'minimum_qty': { required: false, minValue: 1, pattern: /^\d+$/, message: 'Minimum Qty must be a positive integer' }
+    };
+    
+    // Add required attribute and placeholder indicator to required fields
+    Object.keys(validationRules).forEach(fieldName => {
+        const field = form.querySelector(`[name="${fieldName}"]`);
+        if (field && validationRules[fieldName].required) {
+            field.setAttribute('required', 'required');
+            field.setAttribute('data-required', 'true');
+            // Add visual indicator (red asterisk)
+            const label = field.closest('div')?.querySelector('label');
+            if (label && !label.textContent.includes('*')) {
+                label.innerHTML += ' <span style="color: #d32f2f; margin-left: 2px;">*</span>';
+            }
+        }
+    });
+    
+    // Validate individual field
+    function validateField(field) {
+        const fieldName = field.name;
+        const rule = validationRules[fieldName];
+        if (!rule) return true; // No rule, field is valid
+        
+        const value = field.value.trim();
+        let errorMsg = '';
+        let isValid = true;
+        
+        // Check required
+        if (rule.required && !value) {
+            errorMsg = rule.message || 'This field is required';
+            isValid = false;
+        }
+        // Check minLength
+        else if (rule.minLength && value && value.length < rule.minLength) {
+            errorMsg = `Minimum ${rule.minLength} characters required`;
+            isValid = false;
+        }
+        // Check pattern (for prices, quantities)
+        else if (rule.pattern && value && !rule.pattern.test(value)) {
+            errorMsg = rule.message || 'Invalid format';
+            isValid = false;
+        }
+        // Check minValue (numeric fields)
+        else if (rule.minValue !== undefined && value) {
+            const numValue = parseFloat(value);
+            if (isNaN(numValue) || numValue < rule.minValue) {
+                errorMsg = `Value must be at least ${rule.minValue}`;
+                isValid = false;
+            }
+        }
+        
+        // Update UI
+        const container = field.closest('div');
+        if (!isValid) {
+            field.style.borderColor = '#d32f2f';
+            field.style.boxShadow = '0 0 0 3px rgba(211, 47, 47, 0.1)';
+            field.setAttribute('data-valid', 'false');
+            field.title = errorMsg;
+            // Show error message below field
+            let errorEl = container.querySelector('.validation-error');
+            if (!errorEl) {
+                errorEl = document.createElement('div');
+                errorEl.className = 'validation-error';
+                errorEl.style.cssText = 'color: #d32f2f; font-size: 12px; margin-top: 4px; display: none;';
+                container.appendChild(errorEl);
+            }
+            errorEl.textContent = errorMsg;
+            errorEl.style.display = 'block';
+        } else {
+            field.style.borderColor = '#C5C5C5';
+            field.style.boxShadow = 'none';
+            field.setAttribute('data-valid', 'true');
+            field.title = '';
+            const errorEl = container.querySelector('.validation-error');
+            if (errorEl) errorEl.style.display = 'none';
+        }
+        
+        return isValid;
+    }
+    
+    // Attach validation listeners to all fields
+    Object.keys(validationRules).forEach(fieldName => {
+        const field = form.querySelector(`[name="${fieldName}"]`);
+        if (field) {
+            field.addEventListener('blur', function() {
+                validateField(this);
+            });
+            field.addEventListener('change', function() {
+                validateField(this);
+            });
+        }
+    });
+    
+    // Validate form on save attempt (hook into saveProduct)
+    const originalSaveProduct = window.saveProduct;
+    if (originalSaveProduct) {
+        window.saveProduct = function(itemCodeParam) {
+            // Validate critical fields
+            const criticalFields = ['item_code', 'name', 'sku', 'units'];
+            let allValid = true;
+            
+            criticalFields.forEach(fieldName => {
+                const field = form.querySelector(`[name="${fieldName}"]`);
+                if (field && !validateField(field)) {
+                    allValid = false;
+                }
+            });
+            
+            if (!allValid) {
+                showModal({ 
+                    title: 'Validation Error', 
+                    message: 'Please fill in all required fields correctly.', 
+                    type: 'warning' 
+                });
+                return;
+            }
+            
+            // Call original function
+            return originalSaveProduct.call(this, itemCodeParam);
+        };
+    }
+    
+    // Add CSS for validation error styling
+    const styleEl = document.createElement('style');
+    styleEl.textContent = `
+        input[data-required="true"]:invalid {
+            border-color: #d32f2f;
+        }
+        input[data-valid="false"] {
+            border-color: #d32f2f;
+        }
+        .validation-error {
+            color: #d32f2f;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+    `;
+    document.head.appendChild(styleEl);
+});
+</script>
+{% endblock %}

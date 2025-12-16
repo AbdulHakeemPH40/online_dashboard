@@ -1,0 +1,933 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Talabat Margin Update{% endblock %}
+
+{% block extra_head %}
+<style>
+/* Minimal Talabat Margin Update - Clean Design */
+
+/* Page Header */
+.page-header {
+    padding: 0 0 20px 0;
+    border-bottom: 1px solid #E5E5E5;
+    margin-bottom: 25px;
+}
+
+.page-title {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #333333;
+}
+
+.page-subtitle {
+    margin: 0;
+    font-size: 14px;
+    color: #666666;
+}
+
+/* Notice Box */
+.notice-box {
+    display: flex;
+    gap: 12px;
+    padding: 15px;
+    background-color: #FFF8E1;
+    border: 1px solid #FFD54F;
+    border-radius: 6px;
+    margin-bottom: 25px;
+}
+
+.notice-box i {
+    font-size: 20px;
+    color: #FF9500;
+    flex-shrink: 0;
+}
+
+.notice-box strong {
+    display: block;
+    color: #333333;
+    margin-bottom: 4px;
+}
+
+.notice-box p {
+    margin: 0;
+    font-size: 13px;
+    color: #666666;
+}
+
+.notice-box code {
+    background-color: rgba(255, 149, 0, 0.1);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-family: monospace;
+    color: #E65100;
+    font-size: 12px;
+}
+
+/* Form Sections */
+.form-section {
+    margin-bottom: 25px;
+}
+
+.form-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333333;
+    margin-bottom: 12px;
+}
+
+.form-label i {
+    color: #0066CC;
+    margin-right: 6px;
+}
+
+/* Upload Area */
+.upload-wrapper {
+    position: relative;
+}
+
+.file-input-hidden {
+    display: none;
+}
+
+.upload-area {
+    border: 2px dashed #D0D0D0;
+    border-radius: 6px;
+    padding: 35px;
+    text-align: center;
+    background-color: #FFFFFF;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.upload-area:hover {
+    border-color: #0066CC;
+    background-color: #F9F9F9;
+}
+
+.upload-area.dragover {
+    border-color: #0066CC;
+    background-color: #E3F2FD;
+    border-style: solid;
+}
+
+.upload-area i {
+    font-size: 40px;
+    color: #0066CC;
+    display: block;
+    margin-bottom: 12px;
+}
+
+.upload-area p {
+    margin: 0 0 6px 0;
+    font-size: 14px;
+    color: #333333;
+    font-weight: 500;
+}
+
+.upload-area span {
+    font-size: 12px;
+    color: #999999;
+}
+
+/* Selected File */
+.selected-file {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background-color: #F5F5F5;
+    border-radius: 6px;
+    border: 1px solid #E5E5E5;
+}
+
+.selected-file i.bx-file {
+    font-size: 28px;
+    color: #28a745;
+    flex-shrink: 0;
+}
+
+.file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.file-name {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333333;
+    margin-bottom: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-size {
+    display: block;
+    font-size: 12px;
+    color: #666666;
+}
+
+.remove-btn {
+    background: none;
+    border: none;
+    color: #C62828;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 4px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.remove-btn:hover {
+    background-color: rgba(198, 40, 40, 0.1);
+}
+
+/* CSV Box */
+.csv-box {
+    background-color: #FFFFFF;
+    border: 1px solid #E5E5E5;
+    border-radius: 6px;
+    padding: 15px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+}
+
+.csv-header {
+    color: #0066CC;
+    font-weight: 700;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #E5E5E5;
+}
+
+.csv-row {
+    color: #555555;
+    margin-bottom: 4px;
+}
+
+/* Modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0,0,0,0.5);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.show {
+    display: flex;
+}
+
+.modal-content {
+    background: #FFFFFF;
+    border-radius: 8px;
+    max-width: 1200px;
+    width: 95%;
+    max-height: 90vh;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+    overflow: hidden;
+}
+
+.modal-header {
+    padding: 20px 24px;
+    background-color: #0066CC;
+    color: #FFFFFF;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.modal-header i {
+    margin-right: 8px;
+    font-size: 20px;
+}
+
+.close-modal {
+    background: none;
+    border: none;
+    color: #FFFFFF;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.close-modal:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    background: #F5F5F5;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-footer {
+    padding: 16px 20px;
+    background: #FFFFFF;
+    border-top: 1px solid #E5E5E5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-footer-left {
+    color: #666666;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modal-footer-left i {
+    font-size: 16px;
+}
+
+.modal-footer-right {
+    display: flex;
+    gap: 10px;
+}
+
+.preview-stats {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    background: #FFFFFF;
+    border: 1px solid #E5E5E5;
+    border-radius: 6px;
+    padding: 16px;
+    text-align: center;
+    min-width: 140px;
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #0066CC;
+    line-height: 1;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #666666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.preview-table-container {
+    overflow-x: auto;
+    background: #FFFFFF;
+    border: 1px solid #E5E5E5;
+    border-radius: 6px;
+}
+
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.preview-table thead {
+    position: sticky;
+    top: 0;
+    background-color: #F5F5F5;
+    z-index: 1;
+}
+
+.preview-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #555555;
+    border-bottom: 2px solid #E5E5E5;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.preview-table td {
+    padding: 10px 12px;
+    color: #333333;
+    border-bottom: 1px solid #F5F5F5;
+}
+
+.preview-table tbody tr:hover {
+    background-color: #F9F9F9;
+}
+
+.preview-table th:first-child,
+.preview-table td:first-child {
+    width: 60px;
+    text-align: center;
+    color: #999999;
+}
+
+.preview-table td:last-child {
+    font-weight: 600;
+    color: #0066CC;
+}
+
+/* Buttons */
+.button-group {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding-top: 20px;
+    border-top: 1px solid #E5E5E5;
+}
+
+.btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn i {
+    font-size: 16px;
+}
+
+.btn-primary {
+    background-color: #0066CC;
+    color: #FFFFFF;
+}
+
+.btn-primary:hover {
+    background-color: #0055AA;
+}
+
+.btn-secondary {
+    background-color: #F5F5F5;
+    color: #333333;
+    border: 1px solid #C5C5C5;
+}
+
+.btn-secondary:hover {
+    background-color: #E5E5E5;
+}
+
+.btn-info {
+    background-color: #E3F2FD;
+    color: #0066CC;
+    border: 1px solid #BBDEFB;
+}
+
+.btn-info:hover {
+    background-color: #BBDEFB;
+    color: #0055AA;
+}
+
+.btn-outline {
+    background-color: #FFFFFF;
+    color: #666666;
+    border: 1px solid #C5C5C5;
+}
+
+.btn-outline:hover {
+    background-color: #F9F9F9;
+    border-color: #0066CC;
+    color: #0066CC;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .upload-area {
+        padding: 25px 15px;
+    }
+    
+    .button-group {
+        flex-direction: column;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+
+{% endblock %}
+
+
+{% block content %}
+<div class="bulk-operations-container">
+    <div class="bulk-row">
+        <div class="bulk-col-12">
+            <div class="bulk-card">
+                <!-- Simple Header -->
+                <div class="page-header">
+                    <h1 class="page-title">💰 Talabat Margin Update</h1>
+                    <p class="page-subtitle">Update Talabat platform pricing margins via CSV upload</p>
+                </div>
+
+                <div class="bulk-card-body">
+                    <!-- Notice -->
+                    <div class="notice-box">
+                        <i class="bx bx-info-circle"></i>
+                        <div>
+                            <strong>Talabat Platform Only</strong>
+                            <p>This endpoint exclusively updates the <code>talabat_margin</code> field for Talabat items.</p>
+                        </div>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data" id="priceRulesForm">
+                        {% csrf_token %}
+                        
+                        <!-- Hidden Platform Field -->
+                        <input type="hidden" name="platform" value="talabat">
+                        
+                        <!-- CSV File Upload -->
+                        <div class="form-section">
+                            <label class="form-label">
+                                <i class="bx bx-upload"></i> CSV File Upload
+                            </label>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                                Required format: <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace;">item_code, units, sku, margin</code>
+                            </div>
+                            
+                            <div class="upload-wrapper">
+                                <input type="file" id="csvFile" name="csv_file" accept=".csv" class="file-input-hidden" required>
+                                <div class="upload-area" id="fileUploadArea">
+                                    <i class="bx bx-cloud-upload"></i>
+                                    <p>Click to browse or drag & drop CSV file</p>
+                                    <span>Maximum file size: 10MB</span>
+                                </div>
+                                <div id="selectedFile" class="selected-file" style="display: none;">
+                                    <i class="bx bx-file"></i>
+                                    <div class="file-info">
+                                        <span class="file-name" id="fileName"></span>
+                                        <span class="file-size" id="fileSize"></span>
+                                    </div>
+                                    <button type="button" class="remove-btn" id="removeFile">
+                                        <i class="bx bx-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="button-group">
+                            <button type="button" class="btn btn-secondary" id="downloadSample">
+                                <i class="bx bx-download"></i> Download Sample
+                            </button>
+                            <button type="button" class="btn btn-info" id="previewBtn" style="display: none;">
+                                <i class="bx bx-show"></i> Preview CSV
+                            </button>
+                            <button type="button" class="btn btn-outline" id="resetForm">
+                                <i class="bx bx-reset"></i> Reset
+                            </button>
+                            <button type="submit" class="btn btn-primary" id="submitBtn">
+                                <i class="bx bx-check"></i> Update Margins
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal-overlay" id="previewModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span>
+                <i class="bx bx-show"></i>
+                CSV Preview
+            </span>
+            <button type="button" class="close-modal" id="closeModal">
+                <i class="bx bx-x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <!-- Validation Summary -->
+            <div class="preview-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalRowsCount">0</div>
+                    <div class="stat-label">Total Rows</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="validCount">0</div>
+                    <div class="stat-label">Valid</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="errorCount">0</div>
+                    <div class="stat-label">Errors</div>
+                </div>
+            </div>
+            
+            <!-- Data Table -->
+            <div class="preview-table-container">
+                <table class="preview-table">
+                    <thead>
+                        <tr>
+                            <th>Row</th>
+                            <th>Item Code</th>
+                            <th>Units</th>
+                            <th>SKU</th>
+                            <th>Margin %</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalPreviewBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <div class="modal-footer-left">
+                <i class="bx bx-info-circle"></i>
+                <span id="showingCount">Review the preview above before updating</span>
+            </div>
+            <div class="modal-footer-right">
+                <button type="button" class="btn btn-outline" id="closeModalBtn">
+                    <i class="bx bx-x"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="proceedUpdateBtn">
+                    <i class="bx bx-check"></i> Update <span id="proceedCount">0</span> Margins
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+// File upload handling
+const uploadArea = document.getElementById('fileUploadArea');
+const fileInput = document.getElementById('csvFile');
+const selectedFile = document.getElementById('selectedFile');
+const fileName = document.getElementById('fileName');
+const fileSize = document.getElementById('fileSize');
+const removeFileBtn = document.getElementById('removeFile');
+
+// Click to upload
+uploadArea.addEventListener('click', () => {
+    fileInput.click();
+});
+
+// Drag and drop
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('dragover');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        handleFileSelect(files[0]);
+    }
+});
+
+// File input change
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+    }
+});
+
+// Handle file selection
+let csvData = [];
+
+function handleFileSelect(file) {
+    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+        showModal({ title: 'CSV Required', message: 'Please select a CSV file.', type: 'warning' });
+        return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) {
+        showModal({ title: 'File Too Large', message: 'File size must be less than 10MB.', type: 'warning' });
+        return;
+    }
+    
+    const formatFileSize = (bytes) => {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    };
+    
+    fileName.textContent = file.name;
+    fileSize.textContent = formatFileSize(file.size);
+    uploadArea.style.display = 'none';
+    selectedFile.style.display = 'flex';
+    
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+    
+    // Show preview button
+    document.getElementById('previewBtn').style.display = 'inline-flex';
+    
+    // Read CSV for preview
+    readCSV(file);
+}
+
+// Read CSV file
+function readCSV(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const text = e.target.result;
+        parseCSV(text);
+    };
+    reader.readAsText(file);
+}
+
+// Parse CSV
+function parseCSV(text) {
+    const lines = text.split('\n').filter(line => line.trim());
+    csvData = [];
+    
+    // Skip header and parse rows
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        if (values.length >= 4) {
+            csvData.push({
+                item_code: values[0],
+                units: values[1],
+                sku: values[2],
+                margin: values[3]
+            });
+        }
+    }
+}
+
+// Preview button click
+document.getElementById('previewBtn').addEventListener('click', function() {
+    if (csvData.length === 0) {
+        showModal({ title: 'No Data', message: 'CSV file is empty or invalid.', type: 'warning' });
+        return;
+    }
+    
+    const modalPreviewBody = document.getElementById('modalPreviewBody');
+    const showingCount = document.getElementById('showingCount');
+    const previewModal = document.getElementById('previewModal');
+    
+    // Clear previous preview
+    modalPreviewBody.innerHTML = '';
+    
+    // Show first 100 rows
+    const displayRows = csvData.slice(0, 100);
+    displayRows.forEach((row, index) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${row.item_code}</td>
+            <td>${row.units}</td>
+            <td>${row.sku}</td>
+            <td>${row.margin}%</td>
+        `;
+        modalPreviewBody.appendChild(tr);
+    });
+    
+    // Update stat boxes
+    const total = csvData.length;
+    document.getElementById('totalRowsCount').textContent = total;
+    document.getElementById('validCount').textContent = total;
+    document.getElementById('errorCount').textContent = '0';
+    document.getElementById('proceedCount').textContent = total;
+    showingCount.textContent = total > 100 ? `Showing first 100 of ${total} rows` : `Showing all ${total} rows`;
+    
+    // Show modal
+    previewModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+});
+
+// Close modal handlers
+function closePreviewModal() {
+    const previewModal = document.getElementById('previewModal');
+    previewModal.classList.remove('show');
+    document.body.style.overflow = '';
+}
+
+document.getElementById('closeModal').addEventListener('click', closePreviewModal);
+document.getElementById('closeModalBtn').addEventListener('click', closePreviewModal);
+
+// Close modal on overlay click
+document.getElementById('previewModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closePreviewModal();
+    }
+});
+
+// Close modal on ESC key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const previewModal = document.getElementById('previewModal');
+        if (previewModal.classList.contains('show')) {
+            closePreviewModal();
+        }
+    }
+});
+
+// Remove file
+removeFileBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    fileInput.value = '';
+    uploadArea.style.display = 'block';
+    selectedFile.style.display = 'none';
+    document.getElementById('previewBtn').style.display = 'none';
+    csvData = [];
+});
+
+// Download sample CSV
+document.getElementById('downloadSample').addEventListener('click', function() {
+    // Simple CSV format for Talabat margin updates
+    const headers = 'item_code,units,sku,margin';
+    const sampleRow1 = '9900186,KGS,9900186500,17';
+    const sampleRow2 = '100012,PCS,100012001,15';
+    const sampleRow3 = '9900281,KGS,9900281500,20';
+    
+    const csvContent = headers + '\n' + sampleRow1 + '\n' + sampleRow2 + '\n' + sampleRow3;
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'talabat_margin_update_sample.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+});
+
+// Reset form function
+function resetForm() {
+    document.getElementById('priceRulesForm').reset();
+    uploadArea.style.display = 'block';
+    selectedFile.style.display = 'none';
+    document.getElementById('previewBtn').style.display = 'none';
+    csvData = [];
+}
+
+// Reset button event listener
+document.getElementById('resetForm').addEventListener('click', resetForm);
+
+// Proceed/Update button handler - submit the form with CSV
+document.getElementById('proceedUpdateBtn').addEventListener('click', function() {
+    const csvFile = document.getElementById('csvFile').files[0];
+    if (!csvFile) {
+        showModal({ title: 'No File Selected', message: 'Please select a CSV file first.', type: 'warning' });
+        return;
+    }
+    document.getElementById('priceRulesForm').submit();
+    closePreviewModal();
+});
+
+// Form submission validation
+document.getElementById('priceRulesForm').addEventListener('submit', function(e) {
+    const csvFile = document.getElementById('csvFile').files[0];
+    
+    if (!csvFile) {
+        e.preventDefault();
+        showModal({ title: 'Missing CSV File', message: 'Please select a CSV file to upload.', type: 'warning' });
+        return;
+    }
+    
+    // Show loading state
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Updating Margins...';
+});
+
+// Modal function for alerts
+function showModal(options) {
+    const { title, message, type } = options;
+    const iconMap = {
+        'success': 'bx-check-circle',
+        'error': 'bx-error-circle',
+        'warning': 'bx-error',
+        'info': 'bx-info-circle'
+    };
+    const colorMap = {
+        'success': '#28a745',
+        'error': '#C62828',
+        'warning': '#FF9500',
+        'info': '#0066CC'
+    };
+    
+    const icon = iconMap[type] || 'bx-info-circle';
+    const color = colorMap[type] || '#0066CC';
+    
+    const modalHTML = `
+        <div class="modal fade show" id="alertModal" tabindex="-1" style="display: block; background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header" style="background-color: ${color}; color: white;">
+                        <h5 class="modal-title"><i class="bx ${icon}"></i> ${title}</h5>
+                        <button type="button" class="btn-close btn-close-white" onclick="closeModal()"></button>
+                    </div>
+                    <div class="modal-body">
+                        ${message}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const existingModal = document.getElementById('alertModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+    
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+function closeModal() {
+    const modal = document.getElementById('alertModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+</script>
+{% endblock %}

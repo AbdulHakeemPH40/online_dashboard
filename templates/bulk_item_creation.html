@@ -1,0 +1,1809 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bulk Item Creation{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Simple Clean Design - Focused on Functionality */
+    
+    /* Page Header */
+    .page-header {
+        margin-bottom: 24px;
+    }
+    
+    .page-header h2 {
+        font-size: 20px;
+        font-weight: 600;
+        color: #333333;
+        font-family: Arial, sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    /* Alert Box */
+    .alert-box {
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        background-color: #FFF8E1;
+        border: 1px solid #FFD54F;
+    }
+    
+    .alert-box i {
+        font-size: 20px;
+        color: #FF9500;
+    }
+    
+    .alert-box-content {
+        flex: 1;
+    }
+    
+    .alert-box-title {
+        font-weight: 600;
+        color: #E65100;
+        margin-bottom: 4px;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .alert-box-text {
+        color: #666666;
+        font-size: 13px;
+        font-family: Arial, sans-serif;
+    }
+    
+    /* Form Section */
+    .form-section {
+        background: #FFFFFF;
+        border: 1px solid #D0D0D0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .form-section-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #333333;
+        margin-bottom: 16px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .form-group {
+        margin-bottom: 16px;
+    }
+    
+    .form-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #333333;
+        margin-bottom: 6px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .form-label .required {
+        color: #C62828;
+        margin-left: 4px;
+    }
+    
+    .form-control, .form-select {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #C5C5C5;
+        border-radius: 4px;
+        font-size: 14px;
+        color: #333333;
+        font-family: Arial, sans-serif;
+        background: #FFFFFF;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: #0066CC;
+        box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+    }
+    
+    .form-control::placeholder {
+        color: #999999;
+    }
+    
+    /* File Upload Area */
+    .file-upload-area {
+        border: 2px dashed #ccc;
+        border-radius: 4px;
+        padding: 20px;
+        text-align: center;
+        background: #f8f9fa;
+        cursor: pointer;
+    }
+    
+    .file-upload-area:hover {
+        border-color: #007bff;
+        background: #e3f2fd;
+    }
+    
+    .file-upload-area.dragover {
+        border-color: #007bff;
+        background: #e3f2fd;
+    }
+    
+    .upload-icon {
+        font-size: 32px;
+        color: #007bff;
+        margin-bottom: 8px;
+    }
+    
+    .upload-text {
+        font-size: 14px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 4px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .upload-subtext {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 4px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .upload-format {
+        font-size: 11px;
+        color: #999;
+        font-family: Arial, sans-serif;
+    }
+    
+    .file-input-hidden {
+        display: none;
+    }
+    
+    /* Selected File Display */
+    .selected-file-display {
+        margin-top: 12px;
+    }
+    
+    .file-preview {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .file-icon {
+        font-size: 24px;
+        color: #007bff;
+    }
+    
+    .file-details {
+        flex: 1;
+    }
+    
+    .file-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 2px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .file-size {
+        font-size: 11px;
+        color: #666;
+        margin-bottom: 4px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .file-status {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        color: #28a745;
+        font-family: Arial, sans-serif;
+    }
+    
+    .remove-file-btn {
+        padding: 6px 12px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .remove-file-btn:hover {
+        background: #c82333;
+    }
+    
+    /* Buttons */
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        font-family: Arial, sans-serif;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .btn-primary {
+        background-color: #0066CC;
+        color: white;
+        border: 1px solid #0055AA;
+    }
+    
+    .btn-primary:hover {
+        background-color: #0055AA;
+    }
+    
+    .btn-success {
+        background-color: #70AD47;
+        color: white;
+        border: 1px solid #5A8D38;
+    }
+    
+    .btn-success:hover {
+        background-color: #5A8D38;
+    }
+    
+    .btn-secondary {
+        background-color: #F5F5F5;
+        color: #333333;
+        border: 1px solid #C5C5C5;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #E5E5E5;
+    }
+    
+    .btn-info {
+        background-color: #0066CC;
+        color: white;
+        border: 1px solid #0055AA;
+    }
+    
+    .btn-info:hover {
+        background-color: #0055AA;
+    }
+    
+    .btn-danger {
+        background-color: #C62828;
+        color: white;
+        border: 1px solid #B71C1C;
+    }
+    
+    .btn-danger:hover {
+        background-color: #B71C1C;
+    }
+    
+    /* Button Actions */
+    .form-actions {
+        display: flex;
+        gap: 8px;
+        justify-content: center;
+        margin-top: 20px;
+        flex-wrap: wrap;
+        padding-top: 12px;
+        border-top: 1px solid #eee;
+    }
+    
+    /* CSV Guide */
+    .csv-guide {
+        background: #f8f9fa;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 16px;
+        margin-top: 20px;
+    }
+    
+    .csv-guide p {
+        margin: 8px 0;
+        font-size: 12px;
+        color: #666;
+        font-family: Arial, sans-serif;
+        line-height: 1.5;
+    }
+    
+    .csv-guide strong {
+        color: #333;
+        font-weight: 600;
+    }
+    
+    .csv-guide code {
+        background: #fff;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-family: 'Courier New', monospace;
+        font-size: 11px;
+        color: #dc3545;
+        border: 1px solid #eee;
+    }
+    
+    .csv-guide-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+        font-family: Arial, sans-serif;
+    }
+    
+    /* Stats Display */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    
+    .stat-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 12px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #007bff;
+        margin-bottom: 4px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .stat-label {
+        font-size: 11px;
+        color: #666;
+        font-family: Arial, sans-serif;
+    }
+    
+    /* Lists */
+    .error-list, .warning-list {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .error-list h4, .warning-list h4 {
+        font-size: 12px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 8px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .error-list h4 i {
+        color: #dc3545;
+    }
+    
+    .warning-list h4 i {
+        color: #ffc107;
+    }
+    
+    .error-list ul, .warning-list ul {
+        padding-left: 16px;
+        margin: 0;
+    }
+    
+    .error-list li, .warning-list li {
+        margin-bottom: 4px;
+        font-size: 11px;
+        color: #666;
+        font-family: Arial, sans-serif;
+    }
+    
+    /* Modal */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal-overlay.show {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        max-width: 1200px;
+        width: 95%;
+        max-height: 90vh;
+        margin: auto;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+        overflow: hidden;
+    }
+    
+    .modal-header {
+        padding: 20px 28px;
+        background: linear-gradient(135deg, #0066CC 0%, #0052A3 100%);
+        color: white;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 18px;
+        font-weight: 600;
+        font-family: Arial, sans-serif;
+    }
+    
+    .modal-header i {
+        margin-right: 10px;
+        font-size: 22px;
+    }
+    
+    .modal-body {
+        padding: 24px;
+        overflow-y: auto;
+        flex: 1;
+        background: #F8F9FA;
+    }
+    
+    .modal-footer {
+        padding: 16px 24px;
+        background: white;
+        border-top: 1px solid #E5E5E5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    .modal-footer-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #666;
+        font-size: 13px;
+    }
+    
+    .modal-footer-right {
+        display: flex;
+        gap: 10px;
+    }
+    
+    /* Preview Table */
+    .preview-table-container {
+        overflow-x: auto;
+        margin-top: 16px;
+        border: 1px solid #E0E0E0;
+        border-radius: 6px;
+        background: white;
+    }
+    
+    .preview-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        table-layout: auto;
+        min-width: 1200px;
+    }
+    
+    .preview-table thead {
+        background: linear-gradient(180deg, #F8F9FA 0%, #E9ECEF 100%);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    
+    .preview-table th {
+        padding: 12px 10px;
+        text-align: left;
+        font-size: 10px;
+        font-weight: 700;
+        color: #495057;
+        text-transform: uppercase;
+        font-family: Arial, sans-serif;
+        border-bottom: 2px solid #DEE2E6;
+        letter-spacing: 0.5px;
+    }
+    
+    .preview-table td {
+        padding: 10px;
+        border-bottom: 1px solid #F1F3F5;
+        color: #495057;
+        font-family: Arial, sans-serif;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: 12px;
+    }
+    
+    .preview-table tbody tr:hover {
+        background-color: #F8F9FA;
+        transition: background-color 0.2s ease;
+    }
+    
+    .preview-table tbody tr.error-row {
+        background-color: #FFF5F5;
+    }
+    
+    .preview-table tbody tr.error-row:hover {
+        background-color: #FFEBEE;
+    }
+    
+    /* Specific column widths for better readability */
+    .preview-table th:nth-child(1),
+    .preview-table td:nth-child(1) { width: 5%; }
+    .preview-table th:nth-child(2),
+    .preview-table td:nth-child(2) { width: 8%; }
+    .preview-table th:nth-child(3),
+    .preview-table td:nth-child(3) { width: 7%; }
+    .preview-table th:nth-child(4),
+    .preview-table td:nth-child(4) { width: 12%; }
+    .preview-table th:nth-child(5),
+    .preview-table td:nth-child(5) { width: 15%; }
+    .preview-table th:nth-child(6),
+    .preview-table td:nth-child(6) { width: 8%; }
+    .preview-table th:nth-child(7),
+    .preview-table td:nth-child(7) { width: 8%; }
+    .preview-table th:nth-child(8),
+    .preview-table td:nth-child(8) { width: 10%; }
+    .preview-table th:nth-child(9),
+    .preview-table td:nth-child(9) { width: 12%; }
+    .preview-table th:nth-child(10),
+    .preview-table td:nth-child(10) { width: 10%; }
+    .preview-table th:nth-child(11),
+    .preview-table td:nth-child(11) { width: 15%; }
+    
+    .preview-summary {
+        background: #d1ecf1;
+        border: 1px solid #bee5eb;
+        border-radius: 4px;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .preview-summary p {
+        margin: 4px 0;
+        font-size: 12px;
+        color: #333;
+        font-family: Arial, sans-serif;
+    }
+    
+    .preview-summary strong {
+        color: #007bff;
+        font-weight: 600;
+    }
+    
+    /* Preview Stats Grid */
+    .preview-stats {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+    
+    .stat-item {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        text-align: center;
+        min-width: 120px;
+    }
+    
+    .stat-label {
+        font-size: 11px;
+        color: #666;
+        margin-bottom: 4px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .stat-value {
+        font-size: 16px;
+        font-weight: 700;
+        color: #007bff;
+        font-family: Arial, sans-serif;
+    }
+    
+    /* Status Badges - Enhanced Design */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+    
+    .status-badge i {
+        font-size: 12px;
+    }
+    
+    .status-error {
+        background: linear-gradient(135deg, #FFE5E8 0%, #FFD6DB 100%);
+        color: #C62828;
+        border: 1px solid #EF9A9A;
+        box-shadow: 0 1px 3px rgba(198, 40, 40, 0.15);
+    }
+    
+    .status-warning {
+        background: linear-gradient(135deg, #FFF9E6 0%, #FFF3CD 100%);
+        color: #F57C00;
+        border: 1px solid #FFE082;
+        box-shadow: 0 1px 3px rgba(245, 124, 0, 0.15);
+    }
+    
+    .status-valid {
+        background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+        color: #2E7D32;
+        border: 1px solid #A5D6A7;
+        box-shadow: 0 1px 3px rgba(46, 125, 50, 0.15);
+    }
+    
+    /* Error Cell Styling */
+    .error-cell {
+        color: #C62828;
+        font-size: 11px;
+        font-weight: 500;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .error-cell:hover {
+        overflow: visible;
+        white-space: normal;
+        word-break: break-word;
+    }
+    
+    .modal-header .close {
+        font-size: 28px;
+        color: rgba(255,255,255,0.9);
+        cursor: pointer;
+        background: rgba(255,255,255,0.1);
+        border: none;
+        padding: 4px 10px;
+        line-height: 1;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+    }
+    
+    .modal-header .close:hover {
+        color: white;
+        background: rgba(255,255,255,0.2);
+        transform: scale(1.1);
+    }
+    
+    /* Validation Summary Card */
+    .validation-summary {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .validation-summary-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #333;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .validation-summary-title i {
+        font-size: 18px;
+        color: #0066CC;
+    }
+    
+    .summary-stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    
+    .summary-stat-card {
+        background: linear-gradient(135deg, #F8F9FA 0%, #E9ECEF 100%);
+        border: 1px solid #DEE2E6;
+        border-radius: 8px;
+        padding: 14px;
+        text-align: center;
+        transition: transform 0.2s ease;
+    }
+    
+    .summary-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .summary-stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #0066CC;
+        margin-bottom: 4px;
+    }
+    
+    .summary-stat-value.error-count {
+        color: #C62828;
+    }
+    
+    .summary-stat-value.warning-count {
+        color: #F57C00;
+    }
+    
+    .summary-stat-value.valid-count {
+        color: #2E7D32;
+    }
+    
+    .summary-stat-label {
+        font-size: 11px;
+        color: #666;
+        text-transform: uppercase;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+    }
+    
+    /* Error Panel */
+    .error-panel {
+        background: linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%);
+        border: 2px solid #EF5350;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .error-panel-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    
+    .error-panel-icon {
+        width: 36px;
+        height: 36px;
+        background: #C62828;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 18px;
+    }
+    
+    .error-panel-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #C62828;
+    }
+    
+    .error-panel-list {
+        background: white;
+        border-radius: 6px;
+        padding: 12px;
+        max-height: 150px;
+        overflow-y: auto;
+    }
+    
+    .error-panel-list ul {
+        margin: 0;
+        padding-left: 20px;
+        list-style: disc;
+    }
+    
+    .error-panel-list li {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 6px;
+        line-height: 1.5;
+    }
+    
+    /* Warning Panel */
+    .warning-panel {
+        background: linear-gradient(135deg, #FFF9E6 0%, #FFE082 100%);
+        border: 2px solid #FFB300;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .warning-panel-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 12px;
+    }
+    
+    .warning-panel-icon {
+        width: 36px;
+        height: 36px;
+        background: #F57C00;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 18px;
+    }
+    
+    .warning-panel-title {
+        font-size: 14px;
+        font-weight: 700;
+        color: #F57C00;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        /* Page Header */
+        .page-header h2 {
+            font-size: 18px;
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        /* Form Actions */
+        .form-actions {
+            flex-direction: column;
+        }
+        
+        .form-actions .btn {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        /* File Preview */
+        .file-preview {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .remove-file-btn {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        /* Form Sections */
+        .form-section {
+            padding: 16px;
+        }
+        
+        /* Alert Box */
+        .alert-box {
+            padding: 12px;
+        }
+        
+        .alert-box i {
+            font-size: 18px;
+        }
+        
+        /* Modal */
+        .modal-content {
+            width: 98%;
+            max-height: 95vh;
+            border-radius: 8px;
+        }
+        
+        .modal-header {
+            font-size: 16px;
+            padding: 16px 20px;
+        }
+        
+        .modal-header h3 {
+            font-size: 16px;
+        }
+        
+        .modal-body {
+            padding: 16px;
+        }
+        
+        .modal-footer {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .modal-footer-left {
+            justify-content: center;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        
+        .modal-footer-right {
+            flex-direction: column;
+        }
+        
+        .modal-footer .btn {
+            width: 100%;
+        }
+        
+        /* Preview Stats on Mobile */
+        .preview-stats {
+            flex-direction: column;
+        }
+        
+        .summary-stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        /* Preview Table on Mobile */
+        .preview-table {
+            font-size: 11px;
+            min-width: 900px;
+        }
+        
+        .preview-table th,
+        .preview-table td {
+            padding: 8px 6px;
+        }
+        
+        /* Error/Warning Panels */
+        .error-panel,
+        .warning-panel {
+            padding: 12px;
+        }
+        
+        .error-panel-icon,
+        .warning-panel-icon {
+            width: 30px;
+            height: 30px;
+            font-size: 16px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h2>
+        <i class="bi bi-plus-circle" style="color: #0066CC;"></i>
+        Bulk Item Creation
+    </h2>
+</div>
+
+<!-- Success Message -->
+<div id="successMessage" class="alert-box success" style="display: none;">
+    <i class="bi bi-check-circle-fill"></i>
+    <div class="alert-box-content">
+        <div class="alert-box-title">Success!</div>
+        <div class="alert-box-text" id="successMessageText">Your operation completed successfully.</div>
+    </div>
+</div>
+
+<!-- Error Message -->
+<div id="errorMessage" class="alert-box error" style="display: none;">
+    <i class="bi bi-x-circle-fill"></i>
+    <div class="alert-box-content">
+        <div class="alert-box-title">Error!</div>
+        <div class="alert-box-text" id="errorMessageText">An error occurred. Please try again.</div>
+    </div>
+</div>
+
+<!-- Success Summary (if available) -->
+{% if bulk_summary %}
+<div class="alert-box success">
+    <i class="bi bi-check-circle-fill"></i>
+    <div class="alert-box-content">
+        <div class="alert-box-title">Upload Complete</div>
+        <div class="alert-box-text">Your CSV file has been processed successfully.</div>
+    </div>
+</div>
+
+<div class="form-section">
+    <div class="form-section-title">Upload Result Summary</div>
+    
+    {{ bulk_summary|json_script:"bulk-summary-data" }}
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ bulk_summary.created_count }}</div>
+            <div class="stat-label">Created Items</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ bulk_summary.existing_count }}</div>
+            <div class="stat-label">Existing Items</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ bulk_summary.unique_csv_skus }}</div>
+            <div class="stat-label">Distinct SKUs</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ bulk_summary.duplicate_skus|length }}</div>
+            <div class="stat-label">Duplicate SKUs</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ bulk_summary.error_messages|length }}</div>
+            <div class="stat-label">Error Rows</div>
+        </div>
+    </div>
+    
+    {% if bulk_summary.duplicate_skus %}
+    <div class="warning-list">
+        <h4><i class="bi bi-exclamation-triangle"></i> Duplicate SKUs in CSV</h4>
+        <ul id="dupSkuList">
+            {% for sku in bulk_summary.duplicate_skus|slice:":10" %}
+                <li>{{ sku }}</li>
+            {% endfor %}
+        </ul>
+        {% if bulk_summary.duplicate_skus|length > 10 %}
+            <div style="margin-top: 12px; display: flex; gap: 10px;">
+                <button type="button" class="btn btn-secondary" id="showAllDupSkus">Show All ({{ bulk_summary.duplicate_skus|length }})</button>
+                <button type="button" class="btn btn-secondary" id="copyDupSkus">Copy List</button>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    {% if bulk_summary.error_messages %}
+    <div class="error-list">
+        <h4><i class="bi bi-x-circle"></i> Error Rows</h4>
+        <ul id="errorRowList">
+            {% for err in bulk_summary.error_messages|slice:":10" %}
+                <li>{{ err }}</li>
+            {% endfor %}
+        </ul>
+        {% if bulk_summary.error_messages|length > 10 %}
+            <div style="margin-top: 12px; display: flex; gap: 10px;">
+                <button type="button" class="btn btn-secondary" id="showAllErrors">Show All ({{ bulk_summary.error_messages|length }})</button>
+                <button type="button" class="btn btn-secondary" id="downloadErrorCSV">Download Errors CSV</button>
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <div style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button type="button" class="btn btn-info" id="downloadSummaryJson">
+            <i class="bi bi-download"></i>
+            Download Summary (JSON)
+        </button>
+    </div>
+</div>
+{% endif %}
+
+<!-- Info Alert -->
+<div class="alert-box info">
+    <i class="bi bi-info-circle-fill"></i>
+    <div class="alert-box-content">
+        <div class="alert-box-title">How It Works</div>
+        <div class="alert-box-text">Upload a CSV file with your items. You can preview the data before creating items in the database.</div>
+    </div>
+</div>
+
+<!-- Upload Form -->
+<div class="form-section">
+    <div class="form-section-title">Upload CSV File</div>
+    
+    <form method="post" enctype="multipart/form-data" id="bulkUploadForm">
+        {% csrf_token %}
+        
+        <!-- Platform Selection -->
+        <div class="form-group">
+            <label for="platform" class="form-label">
+                <i class="bi bi-shop"></i> Select Platform <span class="required">*</span>
+            </label>
+            <select id="platform" name="platform" class="form-select" required>
+                <option value="">Choose Platform...</option>
+                <option value="pasons" selected>Pasons Ecommerce</option>
+                <option value="talabat">Talabat Platform</option>
+            </select>
+        </div>
+        
+        <!-- File Upload -->
+        <div class="form-group">
+            <label for="csvFile" class="form-label">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Upload CSV File <span class="required">*</span>
+            </label>
+            <div class="file-upload-container">
+                <div class="file-upload-area" id="uploadArea">
+                    <input type="file" id="csvFile" name="csv_file" accept=".csv" class="file-input-hidden" required>
+                    <div class="upload-content">
+                        <i class="bi bi-cloud-upload upload-icon"></i>
+                        <div class="upload-text">
+                            <i class="bi bi-folder-open browse-icon"></i>
+                            Browse Files
+                        </div>
+                        <div class="upload-subtext">or drag and drop your CSV file here</div>
+                        <div class="upload-format">Supported format: .csv (Max size: 10MB)</div>
+                    </div>
+                </div>
+                <div id="fileInfo" class="selected-file-display" style="display: none;">
+                    <div class="file-preview">
+                        <div class="file-icon">
+                            <i class="bi bi-file-earmark-text"></i>
+                        </div>
+                        <div class="file-details">
+                            <div id="fileName" class="file-name"></div>
+                            <div id="fileSize" class="file-size"></div>
+                            <div class="file-status">
+                                <i class="bi bi-check-circle"></i>
+                                <span>Ready to upload</span>
+                            </div>
+                        </div>
+                        <button type="button" id="removeFile" class="remove-file-btn">
+                            <i class="bi bi-trash"></i>
+                            <span>Remove</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                <i class="bi bi-arrow-repeat"></i>
+                Reset
+            </button>
+            <button type="button" class="btn btn-info" onclick="downloadSampleCSV()">
+                <i class="bi bi-download"></i>
+                Download Sample CSV
+            </button>
+            <button type="button" class="btn btn-primary" id="previewBtn">
+                <i class="bi bi-eye"></i>
+                Preview Items
+            </button>
+            <button type="submit" class="btn btn-success" id="uploadBtn" style="display: none;">
+                <i class="bi bi-upload"></i>
+                Upload & Create Items
+            </button>
+        </div>
+        
+        <!-- CSV Guide -->
+        <div class="csv-guide">
+            <div class="csv-guide-title">
+                <i class="bi bi-info-circle"></i>
+                CSV File Requirements
+            </div>
+            <p><strong>Required CSV columns:</strong> <code>wrap</code>, <code>item_code</code>, <code>description</code>, <code>units</code>, <code>sku</code>, <code>pack_description</code></p>
+            <p><strong>Optional CSV columns:</strong> <code>barcode</code>, <code>weight_division_factor</code>, <code>outer_case_quantity</code>, <code>minimum_qty</code></p>
+            <p><strong>Rules:</strong> Include a header row with these exact names. <strong>Wrap must be either <code>9900</code> or <code>10000</code></strong>. Missing required headers or unknown columns will reject the file.</p>
+        </div>
+    </form>
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="bi bi-eye"></i> CSV Preview</h3>
+            <span class="close" onclick="closePreviewModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="previewSummary"></div>
+            <div id="previewTable" class="preview-table-container"></div>
+        </div>
+        <div class="modal-footer">
+            <div class="modal-footer-left">
+                <i class="bi bi-info-circle"></i>
+                <span id="footerValidationInfo">Review the preview above before creating items</span>
+            </div>
+            <div class="modal-footer-right">
+                <button type="button" class="btn btn-secondary" onclick="closePreviewModal()">
+                    <i class="bi bi-x"></i>
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-success" id="confirmCreateBtn">
+                    <i class="bi bi-check-circle"></i>
+                    Create Items
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // File upload handling
+    const fileInput = document.getElementById('csvFile');
+    const uploadArea = document.getElementById('uploadArea');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    const fileSize = document.getElementById('fileSize');
+    const removeFileBtn = document.getElementById('removeFile');
+
+    // Platform handling
+    const platformSelect = document.getElementById('platform');
+
+    // Summary actions (if present)
+    const showAllDupSkusBtn = document.getElementById('showAllDupSkus');
+    const copyDupSkusBtn = document.getElementById('copyDupSkus');
+    const showAllErrorsBtn = document.getElementById('showAllErrors');
+    const downloadErrorCSVBtn = document.getElementById('downloadErrorCSV');
+    const downloadSummaryJsonBtn = document.getElementById('downloadSummaryJson');
+
+    // Read bulk summary JSON injected by Django outside this script
+    const bulkSummaryEl = document.getElementById('bulk-summary-data');
+    let bulkSummaryData = {
+        duplicate_skus: [],
+        error_messages: [],
+        created_count: 0,
+        existing_count: 0,
+        unique_csv_skus: 0,
+        platform: '',
+        upload_file_name: ''
+    };
+    if (bulkSummaryEl) {
+        try {
+            bulkSummaryData = JSON.parse(bulkSummaryEl.textContent);
+        } catch (e) {
+            console.warn('Failed to parse bulk summary JSON', e);
+        }
+    }
+
+    if (showAllDupSkusBtn) {
+        showAllDupSkusBtn.addEventListener('click', function() {
+            const list = document.getElementById('dupSkuList');
+            list.innerHTML = bulkSummaryData.duplicate_skus.map(s => `<li>${s}</li>`).join('');
+            showAllDupSkusBtn.style.display = 'none';
+        });
+    }
+
+    if (copyDupSkusBtn) {
+        copyDupSkusBtn.addEventListener('click', async function() {
+            try {
+                await navigator.clipboard.writeText(bulkSummaryData.duplicate_skus.join(', '));
+                showModal({ title: 'Copied', message: 'Duplicate SKUs copied to clipboard', type: 'success' });
+            } catch (e) {
+                console.error(e);
+                showModal({ title: 'Copy Failed', message: 'Unable to copy to clipboard', type: 'error' });
+            }
+        });
+    }
+
+    if (showAllErrorsBtn) {
+        showAllErrorsBtn.addEventListener('click', function() {
+            const list = document.getElementById('errorRowList');
+            list.innerHTML = bulkSummaryData.error_messages.map(e => `<li>${e}</li>`).join('');
+            showAllErrorsBtn.style.display = 'none';
+        });
+    }
+
+    if (downloadErrorCSVBtn) {
+        downloadErrorCSVBtn.addEventListener('click', function() {
+            const header = 'Row,Message\n';
+            const rows = bulkSummaryData.error_messages.map(msg => {
+                const match = msg.match(/Row\s+(\d+):\s+(.*)/);
+                if (match) {
+                    return `${match[1]},"${match[2].replace(/"/g,'""')}"`;
+                }
+                return `,"${msg.replace(/"/g,'""')}"`;
+            }).join('\n');
+            const blob = new Blob([header + rows], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'bulk_creation_errors.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    if (downloadSummaryJsonBtn) {
+        downloadSummaryJsonBtn.addEventListener('click', function() {
+            const blob = new Blob([JSON.stringify(bulkSummaryData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'bulk_creation_summary.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    // Check if elements exist before adding event listeners
+    if (!fileInput || !uploadArea) {
+        console.error('Required elements not found');
+        return;
+    }
+
+    // File input change event
+    fileInput.addEventListener('change', handleFileSelect);
+
+    // Click to upload - simple approach
+    let isClicking = false;
+    uploadArea.addEventListener('click', (e) => {
+        if (isClicking) return;
+        isClicking = true;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        fileInput.click();
+        
+        // Reset flag after a short delay
+        setTimeout(() => {
+            isClicking = false;
+        }, 500);
+    });
+
+    // Drag and drop events
+    uploadArea.addEventListener('dragover', handleDragOver);
+    uploadArea.addEventListener('dragleave', handleDragLeave);
+    uploadArea.addEventListener('drop', handleDrop);
+
+    // Remove file button
+     if (removeFileBtn) {
+         removeFileBtn.addEventListener('click', removeFile);
+     }
+
+    // File size formatter
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function handleFileSelect(e) {
+        const file = e.target.files[0];
+        if (file) {
+            // Validate file size (10MB limit)
+            if (file.size > 10 * 1024 * 1024) {
+                showModal({ title: 'File Too Large', message: 'File size exceeds 10MB limit. Please select a smaller file.', type: 'warning' });
+                fileInput.value = '';
+                return;
+            }
+            displayFileInfo(file);
+        }
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    }
+
+    function handleDragLeave(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.type === 'text/csv' || file.name.endsWith('.csv')) {
+                // Validate file size (10MB limit)
+                if (file.size > 10 * 1024 * 1024) {
+                    showModal({ title: 'File Too Large', message: 'File size exceeds 10MB limit. Please select a smaller file.', type: 'warning' });
+                    return;
+                }
+                fileInput.files = files;
+                displayFileInfo(file);
+            } else {
+                showModal({ title: 'CSV Required', message: 'Please select a CSV file.', type: 'warning' });
+            }
+        }
+    }
+
+    function displayFileInfo(file) {
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        fileInfo.style.display = 'block';
+        uploadArea.style.display = 'none';
+    }
+
+    function removeFile() {
+        fileInput.value = '';
+        fileInfo.style.display = 'none';
+        uploadArea.style.display = 'block';
+    }
+
+    // Make functions globally accessible for form actions
+    window.resetForm = function() {
+        document.getElementById('bulkUploadForm').reset();
+        removeFile();
+    };
+
+    window.downloadSampleCSV = function() {
+        // Define CSV headers: required first, then optional
+        const headers = [
+            // Required
+            'wrap',
+            'item_code',
+            'description',
+            'units',
+            'sku',
+            'pack_description',
+            // Optional (configuration fields only)
+            'barcode',
+            'weight_division_factor',
+            'outer_case_quantity',
+            'minimum_qty'
+            // NOTE: mrp, selling_price, cost, stock are OUTLET-SPECIFIC
+            // Use /price-update/ and /stock-update/ endpoints instead
+        ];
+
+        // Sample row matching headers
+        const sampleData = [
+            // Required
+            '9900',
+            'ITEM001',
+            'Sample Product Name',
+            'pcs',
+            'SKU001',
+            'Pack of 12 units',
+            // Optional (configuration fields only)
+            '1234567890123',  // barcode
+            '2',              // weight_division_factor
+            '9',              // outer_case_quantity
+            '3'               // minimum_qty
+        ];
+
+        const csvContent = headers.join(',') + '\n' + sampleData.join(',');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'bulk_item_creation_sample.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    // Preview button event handler
+    document.getElementById('previewBtn').addEventListener('click', function() {
+        const platform = document.getElementById('platform').value;
+        const file = document.getElementById('csvFile').files[0];
+        
+        if (!platform) {
+            showModal({ title: 'Platform Required', message: 'Please select a platform.', type: 'warning' });
+            return;
+        }
+        
+        if (!file) {
+            showModal({ title: 'CSV Required', message: 'Please select a CSV file.', type: 'warning' });
+            return;
+        }
+        
+        // Show loading state
+        const previewBtn = document.getElementById('previewBtn');
+        previewBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Loading Preview...';
+        previewBtn.disabled = true;
+        
+        // Create FormData for preview API
+        const formData = new FormData();
+        formData.append('platform', platform);
+        formData.append('csv_file', file);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        // Call preview API
+        fetch('/integration/api/preview-csv/', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Hide any previous error messages
+                document.getElementById('errorMessage').style.display = 'none';
+                showPreviewModal(data);
+            } else {
+                const errorMessageElement = document.getElementById('errorMessage');
+                const errorMessageTextElement = document.getElementById('errorMessageText');
+                errorMessageTextElement.textContent = 'Error: ' + data.message;
+                errorMessageElement.style.display = 'flex';
+                
+                // Scroll to error message
+                errorMessageElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            const errorMessageElement = document.getElementById('errorMessage');
+            const errorMessageTextElement = document.getElementById('errorMessageText');
+            errorMessageTextElement.textContent = 'Error processing CSV file. Please try again.';
+            errorMessageElement.style.display = 'flex';
+            
+            // Scroll to error message
+            errorMessageElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        })
+        .finally(() => {
+            // Reset button state
+            previewBtn.innerHTML = '<i class="bx bx-show"></i> Preview Items';
+            previewBtn.disabled = false;
+        });
+    });
+    
+    // Confirm create button event handler
+    document.getElementById('confirmCreateBtn').addEventListener('click', function() {
+        closePreviewModal();
+        document.getElementById('uploadBtn').style.display = 'inline-block';
+        document.getElementById('uploadBtn').click();
+    });
+
+    // Form validation
+    document.getElementById('bulkUploadForm').addEventListener('submit', function(e) {
+        const platform = document.getElementById('platform').value;
+        const file = document.getElementById('csvFile').files[0];
+        
+        if (!platform) {
+            e.preventDefault();
+            showModal({ title: 'Platform Required', message: 'Please select a platform.', type: 'warning' });
+            return;
+        }
+        
+        if (!file) {
+            e.preventDefault();
+            showModal({ title: 'CSV Required', message: 'Please select a CSV file.', type: 'warning' });
+            return;
+        }
+        
+        // Show loading state
+        const uploadBtn = document.getElementById('uploadBtn');
+        uploadBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Processing...';
+        uploadBtn.disabled = true;
+    });
+    
+    // Global functions for modal
+    window.showPreviewModal = function(data) {
+        const modal = document.getElementById('previewModal');
+        const summaryDiv = document.getElementById('previewSummary');
+        const tableDiv = document.getElementById('previewTable');
+        
+        // Count statuses
+        const errorCount = data.preview_data.filter(r => r.status === 'error').length;
+        const warningCount = data.preview_data.filter(r => r.status === 'warning').length;
+        const validCount = data.preview_data.filter(r => r.status === 'valid').length;
+        
+        // Create enhanced summary with validation stats
+        let summaryHtml = `
+            <div class="validation-summary">
+                <div class="validation-summary-title">
+                    <i class="bi bi-clipboard-data"></i>
+                    Validation Summary
+                </div>
+                <div class="summary-stats-grid">
+                    <div class="summary-stat-card">
+                        <div class="summary-stat-value">${data.total_rows}</div>
+                        <div class="summary-stat-label">Total Rows</div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="summary-stat-value valid-count">${validCount}</div>
+                        <div class="summary-stat-label">✓ Valid</div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="summary-stat-value error-count">${errorCount}</div>
+                        <div class="summary-stat-label">✗ Errors</div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="summary-stat-value warning-count">${warningCount}</div>
+                        <div class="summary-stat-label">⚠ Warnings</div>
+                    </div>
+                    <div class="summary-stat-card">
+                        <div class="summary-stat-value">${data.platform.toUpperCase()}</div>
+                        <div class="summary-stat-label">Platform</div>
+                    </div>
+                </div>
+        `;
+        
+        // Show errors panel if any
+        if (data.errors.length > 0 || errorCount > 0) {
+            summaryHtml += `
+                <div class="error-panel">
+                    <div class="error-panel-header">
+                        <div class="error-panel-icon">
+                            <i class="bi bi-x-circle-fill"></i>
+                        </div>
+                        <div>
+                            <div class="error-panel-title">Validation Errors Found (${data.errors.length + errorCount})</div>
+                            <div style="font-size: 11px; color: #C62828; margin-top: 2px;">These issues must be fixed before upload</div>
+                        </div>
+                    </div>
+                    <div class="error-panel-list">
+                        <ul>
+                            ${data.errors.slice(0, 10).map(error => `<li>${error}</li>`).join('')}
+                            ${data.errors.length > 10 ? `<li style="font-weight: 600; color: #C62828;">... and ${data.errors.length - 10} more errors (see table below)</li>` : ''}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Show warnings panel if any
+        if (data.warnings.length > 0 || warningCount > 0) {
+            summaryHtml += `
+                <div class="warning-panel">
+                    <div class="warning-panel-header">
+                        <div class="warning-panel-icon">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                        </div>
+                        <div>
+                            <div class="warning-panel-title">Warnings (${data.warnings.length + warningCount})</div>
+                            <div style="font-size: 11px; color: #F57C00; margin-top: 2px;">Review these before proceeding</div>
+                        </div>
+                    </div>
+                    <div class="error-panel-list">
+                        <ul>
+                            ${data.warnings.slice(0, 5).map(warning => `<li>${warning}</li>`).join('')}
+                            ${data.warnings.length > 5 ? `<li style="font-weight: 600; color: #F57C00;">... and ${data.warnings.length - 5} more warnings</li>` : ''}
+                        </ul>
+                    </div>
+                </div>
+            `;
+        }
+        
+        summaryHtml += `</div>`; // Close validation-summary
+        summaryDiv.innerHTML = summaryHtml;
+        
+        // Create enhanced table with better status visibility
+        let tableHtml = `
+            <div style="max-height: 500px; overflow-y: auto; border-radius: 8px; overflow-x: auto;">
+            <table class="preview-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">ROW</th>
+                        <th style="width: 110px;">STATUS</th>
+                        <th style="width: 70px;">WRAP</th>
+                        <th style="width: 120px;">ITEM CODE</th>
+                        <th style="width: 180px;">DESCRIPTION</th>
+                        <th style="width: 80px;">UNITS</th>
+                        <th style="width: 120px;">BARCODE</th>
+                        <th style="width: 120px;">SKU</th>
+                        <th style="width: 150px;">PACK DESCRIPTION</th>
+                        <th style="width: 250px;">ERRORS</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        // Limit preview to first 100 rows for performance
+        const previewLimit = Math.min(data.preview_data.length, 100);
+        for (let i = 0; i < previewLimit; i++) {
+            const row = data.preview_data[i];
+            let statusBadge = '';
+            let rowClass = '';
+            
+            if (row.status === 'error') {
+                statusBadge = `<span class="status-badge status-error"><i class="bi bi-x-circle-fill"></i> ERROR</span>`;
+                rowClass = 'error-row';
+            } else if (row.status === 'warning') {
+                statusBadge = `<span class="status-badge status-warning"><i class="bi bi-exclamation-triangle-fill"></i> WARNING</span>`;
+            } else {
+                statusBadge = `<span class="status-badge status-valid"><i class="bi bi-check-circle-fill"></i> VALID</span>`;
+            }
+            
+            const errorText = row.errors.join('; ');
+            
+            tableHtml += `
+                <tr class="${rowClass}">
+                    <td style="font-weight: 600;">${row.row_number}</td>
+                    <td>${statusBadge}</td>
+                    <td>${row.data.wrap || '-'}</td>
+                    <td style="font-weight: 500;">${row.data.item_code || '-'}</td>
+                    <td title="${row.data.description || ''}">${row.data.description || '-'}</td>
+                    <td>${row.data.units || '-'}</td>
+                    <td style="font-family: monospace;">${row.data.barcode || '-'}</td>
+                    <td style="font-family: monospace; font-weight: 500;">${row.data.sku || '-'}</td>
+                    <td title="${row.data.pack_description || ''}">${row.data.pack_description || '-'}</td>
+                    <td class="error-cell" title="${errorText}">${errorText || '-'}</td>
+                </tr>
+            `;
+        }
+        
+        // Show message if there are more rows than displayed
+        if (data.preview_data.length > 100) {
+            tableHtml += `
+                <tr style="background: #FFF3CD;">
+                    <td colspan="10" style="text-align: center; font-weight: 600; color: #856404; padding: 16px;">
+                        <i class="bi bi-info-circle"></i>
+                        Showing first 100 of ${data.preview_data.length} rows. Upload to process all items.
+                    </td>
+                </tr>
+            `;
+        }
+        
+        tableHtml += `
+                </tbody>
+            </table>
+            </div>
+        `;
+        
+        tableDiv.innerHTML = tableHtml;
+        
+        // Update footer with validation count
+        const confirmBtn = document.getElementById('confirmCreateBtn');
+        if (errorCount > 0) {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="bi bi-x-circle"></i> Cannot Create (Fix Errors First)';
+            confirmBtn.style.opacity = '0.5';
+        } else {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = `<i class="bi bi-check-circle"></i> Create ${validCount} Valid Items`;
+            confirmBtn.style.opacity = '1';
+        }
+        
+        // Show modal
+        modal.classList.add('show');
+    };
+    
+    window.closePreviewModal = function() {
+        document.getElementById('previewModal').classList.remove('show');
+    };
+    
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        const modal = document.getElementById('previewModal');
+        if (event.target === modal) {
+            closePreviewModal();
+        }
+    });
+    
+    // Show modal for success/error/warning messages
+    window.showModal = function(options) {
+        const { title, message, type } = options;
+        
+        // Use alert as simple fallback (or you can create a dedicated notification modal)
+        if (type === 'success') {
+            const successEl = document.getElementById('successMessage');
+            const successTextEl = document.getElementById('successMessageText');
+            if (successEl && successTextEl) {
+                successTextEl.textContent = message;
+                successEl.style.display = 'flex';
+                setTimeout(() => { successEl.style.display = 'none'; }, 5000);
+            } else {
+                alert(`${title}: ${message}`);
+            }
+        } else if (type === 'error') {
+            const errorEl = document.getElementById('errorMessage');
+            const errorTextEl = document.getElementById('errorMessageText');
+            if (errorEl && errorTextEl) {
+                errorTextEl.textContent = message;
+                errorEl.style.display = 'flex';
+                setTimeout(() => { errorEl.style.display = 'none'; }, 7000);
+            } else {
+                alert(`${title}: ${message}`);
+            }
+        } else {
+            alert(`${title}: ${message}`);
+        }
+    };
+
+}); // Close DOMContentLoaded
+</script>
+{% endblock %}

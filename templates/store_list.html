@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+
+{% block title %}Store Management - Dashboard{% endblock %}
+
+{% block content %}
+<!-- Header Section -->
+<div class="flex justify-between items-center mb-6">
+    <div class="flex items-center gap-3">
+        <i class="bi bi-shop text-2xl" style="color: #0066CC;"></i>
+        <h2 class="text-xl font-semibold" style="color: #333333; font-family: Arial, sans-serif;">Store Management</h2>
+    </div>
+    <a href="{% url 'integration:create_store' %}" class="px-4 py-2 rounded-lg font-medium" 
+       style="background-color: #0066CC; color: white; text-decoration: none; border: 1px solid #0055AA; font-family: Arial, sans-serif;"
+       onmouseover="this.style.backgroundColor='#0055AA'" 
+       onmouseout="this.style.backgroundColor='#0066CC'">
+        <i class="bi bi-plus-circle mr-2"></i>Create New Store
+    </a>
+</div>
+
+<!-- Platform Tabs -->
+<div class="mb-6">
+    <div class="border-b" style="border-bottom: 1px solid #E5E5E5;">
+        <nav class="flex flex-wrap gap-4 md:gap-8">
+            <button id="tab-all" class="platform-tab py-2 px-1 border-b-2 font-medium text-sm active" 
+                    style="border-bottom-color: #0066CC; color: #0066CC;" 
+                    onclick="switchTab('all')">
+                All Platforms
+            </button>
+            <button id="tab-pasons" class="platform-tab py-2 px-1 border-b-2 font-medium text-sm" 
+                    style="border-bottom-color: transparent; color: #666666;" 
+                    onclick="switchTab('pasons')">
+                Pasons Ecommerce
+            </button>
+            <button id="tab-talabat" class="platform-tab py-2 px-1 border-b-2 font-medium text-sm" 
+                    style="border-bottom-color: transparent; color: #666666;" 
+                    onclick="switchTab('talabat')">
+                Talabat Platform
+            </button>
+
+        </nav>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+    <div class="p-4 rounded-lg border" style="background-color: #FFFFFF; border-color: #C5C5C5; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div class="flex items-center gap-3">
+            <i class="bi bi-shop text-xl" style="color: #0066CC;"></i>
+            <div>
+                <div class="text-lg font-bold" style="color: #333333;" id="total-count">{{ total_stores }}</div>
+                <div class="text-sm" style="color: #666666;">Total Stores</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="p-4 rounded-lg border" style="background-color: #FFFFFF; border-color: #C5C5C5; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div class="flex items-center gap-3">
+            <i class="bi bi-cart text-xl" style="color: #0066CC;"></i>
+            <div>
+                <div class="text-lg font-bold" style="color: #333333;" id="pasons-count">{{ pasons_stores }}</div>
+                <div class="text-sm" style="color: #666666;">Pasons Stores</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="p-4 rounded-lg border" style="background-color: #FFFFFF; border-color: #C5C5C5; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div class="flex items-center gap-3">
+            <i class="bi bi-truck text-xl" style="color: #FF9500;"></i>
+            <div>
+                <div class="text-lg font-bold" style="color: #333333;" id="talabat-count">{{ talabat_stores }}</div>
+                <div class="text-sm" style="color: #666666;">Talabat Stores</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="p-4 rounded-lg border" style="background-color: #FFFFFF; border-color: #C5C5C5; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <div class="flex items-center gap-3">
+            <i class="bi bi-check-circle text-xl" style="color: #70AD47;"></i>
+            <div>
+                <div class="text-lg font-bold" style="color: #333333;" id="active-count">{{ active_stores }}</div>
+                <div class="text-sm" style="color: #666666;">Active Stores</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stores Table -->
+<div class="rounded-lg border" style="background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #D0D0D0;">
+    <div class="p-4 border-b" style="border-bottom: 1px solid #E5E5E5;">
+        <h3 class="text-lg font-semibold" style="color: #333333; font-family: Arial, sans-serif;">All Stores</h3>
+    </div>
+    
+    <div class="overflow-x-auto mobile-card-table">
+        <table class="min-w-full" style="border-collapse: collapse;">
+            <thead style="background-color: #F5F5F5;">
+                <tr>
+                    <th class="px-4 py-3 text-left text-xs font-semibold" style="color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">Store ID</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold" style="color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">Store Name</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold" style="color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">Platform</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold" style="color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">Location</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold" style="color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">Status</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold" style="color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">Created</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold" style="color: #555555; text-transform: uppercase; font-family: Arial, sans-serif;">Actions</th>
+                </tr>
+            </thead>
+            <tbody style="background-color: white;">
+                {% for outlet in outlets %}
+                <tr class="store-row" data-platform="{{ outlet.platforms }}" style="border-bottom: 1px solid #E5E5E5;">
+                    <td class="px-4 py-3" data-label="Store ID">
+                        {% if outlet.platforms == 'pasons' %}
+                            <span class="px-2 py-1 rounded text-xs font-mono" style="background-color: #E3F2FD; color: #0066CC; border: 1px solid #BBDEFB;">
+                                {{ outlet.store_id }}
+                            </span>
+                        {% elif outlet.platforms == 'talabat' %}
+                            <span class="px-2 py-1 rounded text-xs font-mono" style="background-color: #FFF8E1; color: #FF9500; border: 1px solid #FFD54F;">
+                                {{ outlet.store_id }}
+                            </span>
+                        {% else %}
+                            <span class="px-2 py-1 rounded text-xs font-mono" style="background-color: #E3F2FD; color: #0066CC; border: 1px solid #BBDEFB;">
+                                {{ outlet.store_id }}
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3" data-label="Store Name">
+                        <div class="font-medium" style="color: #333333; font-family: Arial, sans-serif;">{{ outlet.name }}</div>
+                    </td>
+                    <td class="px-4 py-3" data-label="Platform">
+                        {% if outlet.platforms == 'pasons' %}
+                            <span class="px-2 py-1 rounded text-xs" style="background-color: #E3F2FD; color: #0066CC; border: 1px solid #BBDEFB;">
+                                <i class="bi bi-cart mr-1"></i>Pasons
+                            </span>
+                        {% elif outlet.platforms == 'talabat' %}
+                            <span class="px-2 py-1 rounded text-xs" style="background-color: #FFF8E1; color: #FF9500; border: 1px solid #FFD54F;">
+                                <i class="bi bi-truck mr-1"></i>Talabat
+                            </span>
+                
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3" data-label="Location">
+                        <div style="color: #666666; font-family: Arial, sans-serif;">{{ outlet.location }}</div>
+                    </td>
+                    <td class="px-4 py-3" data-label="Status">
+                        {% if outlet.is_active %}
+                            <span class="px-2 py-1 rounded text-xs" style="background-color: #E8F5E9; color: #70AD47; border: 1px solid #C8E6C9;">
+                                Active
+                            </span>
+                        {% else %}
+                            <span class="px-2 py-1 rounded text-xs" style="background-color: #FFEBEE; color: #C62828; border: 1px solid #FFCDD2;">
+                                Inactive
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3" data-label="Created">
+                        <div class="text-sm" style="color: #666666; font-family: Arial, sans-serif;">
+                            {{ outlet.created_at|date:"M d, Y" }}
+                        </div>
+                    </td>
+                    <td class="px-4 py-3" data-label="Actions">
+                        <div class="flex gap-2">
+                            <a href="{% url 'integration:edit_store' outlet.id %}" 
+                               class="px-3 py-1 rounded text-xs font-medium" 
+                               style="background-color: #0066CC; color: white; text-decoration: none; border: 1px solid #0055AA; font-family: Arial, sans-serif;"
+                               onmouseover="this.style.backgroundColor='#0055AA'" 
+                               onmouseout="this.style.backgroundColor='#0066CC'"
+                               title="Edit Store">
+                                <i class="bi bi-pencil-square"></i> Edit
+                            </a>
+                            <a href="{% url 'integration:delete_store' outlet.id %}" 
+                               class="px-3 py-1 rounded text-xs font-medium" 
+                               style="background-color: #C62828; color: white; text-decoration: none; border: 1px solid #B71C1C; font-family: Arial, sans-serif;"
+                               onmouseover="this.style.backgroundColor='#B71C1C'" 
+                               onmouseout="this.style.backgroundColor='#C62828'"
+                               title="Delete Store">
+                                <i class="bi bi-trash"></i> Delete
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="px-4 py-8 text-center">
+                        <div class="flex flex-col items-center gap-3">
+                            <i class="bi bi-shop text-4xl" style="color: #C5C5C5;"></i>
+                            <div>
+                                <div class="font-medium mb-1" style="color: #666666; font-family: Arial, sans-serif;">No stores found</div>
+                                <div class="text-sm" style="color: #999999; font-family: Arial, sans-serif;">Create your first store to get started</div>
+                            </div>
+                            <a href="{% url 'integration:create_store' %}" class="px-4 py-2 rounded-lg font-medium" 
+                               style="background-color: #0066CC; color: white; text-decoration: none; border: 1px solid #0055AA; font-family: Arial, sans-serif;">
+                                <i class="bi bi-plus-circle mr-2"></i>Create Store
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function switchTab(platform) {
+    // Remove active class from all tabs
+    document.querySelectorAll('.platform-tab').forEach(tab => {
+        tab.style.borderBottomColor = 'transparent';
+        tab.style.color = '#666666';
+        tab.classList.remove('active');
+    });
+    
+    // Add active class to selected tab
+    const activeTab = document.getElementById(`tab-${platform}`);
+    activeTab.style.borderBottomColor = '#0066CC';
+    activeTab.style.color = '#0066CC';
+    activeTab.classList.add('active');
+    
+    // Filter store rows
+    const storeRows = document.querySelectorAll('.store-row');
+    let visibleCount = 0;
+    
+    storeRows.forEach(row => {
+        const rowPlatform = row.getAttribute('data-platform');
+        if (platform === 'all' || rowPlatform === platform) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+    
+    // Update stats based on filtered results
+    updateStats(platform);
+}
+
+function updateStats(platform) {
+    const allRows = document.querySelectorAll('.store-row');
+    let totalCount = 0;
+    let activeCount = 0;
+    let pasonCount = 0;
+    let talabatCount = 0;
+    
+    allRows.forEach(row => {
+        const rowPlatform = row.getAttribute('data-platform');
+        const isVisible = platform === 'all' || rowPlatform === platform;
+        
+        if (isVisible) {
+            totalCount++;
+            
+            // Check if store is active
+            const statusSpan = row.querySelector('td:nth-child(5) span');
+            if (statusSpan && statusSpan.textContent.trim() === 'Active') {
+                activeCount++;
+            }
+            
+            // Count by platform
+            if (rowPlatform === 'pasons') {
+                pasonCount++;
+            }
+            if (rowPlatform === 'talabat') {
+                talabatCount++;
+            }
+        }
+    });
+    
+    // Update display
+    if (platform === 'all') {
+        document.getElementById('total-count').textContent = totalCount;
+        document.getElementById('active-count').textContent = activeCount;
+        document.getElementById('pasons-count').textContent = pasonCount;
+        document.getElementById('talabat-count').textContent = talabatCount;
+    } else {
+        document.getElementById('total-count').textContent = totalCount;
+        document.getElementById('active-count').textContent = activeCount;
+        
+        if (platform === 'pasons') {
+            document.getElementById('pasons-count').textContent = totalCount;
+            document.getElementById('talabat-count').textContent = '0';
+        } else if (platform === 'talabat') {
+            document.getElementById('pasons-count').textContent = '0';
+            document.getElementById('talabat-count').textContent = totalCount;
+        }
+    }
+}
+
+// Initialize with all platforms view
+document.addEventListener('DOMContentLoaded', function() {
+    updateStats('all');
+});
+</script>
+{% endblock %}

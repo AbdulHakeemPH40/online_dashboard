@@ -1,0 +1,1637 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load tz %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<style>
+/* Tab Container */
+.integration-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 24px;
+}
+
+/* Tab Row - Both on same line */
+.tabs-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 40px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+/* Tab Styles */
+.tab-group {
+    margin-bottom: 0;
+}
+
+.tab-group-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #9ca3af;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    background: linear-gradient(145deg, #f3f4f6, #e5e7eb);
+    border-radius: 12px;
+    padding: 6px;
+    width: fit-content;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.tab-btn {
+    padding: 12px 28px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    border-radius: 8px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+}
+
+.tab-btn i {
+    font-size: 16px;
+}
+
+.tab-btn:hover {
+    color: #374151;
+    background: rgba(255,255,255,0.6);
+}
+
+/* Pasons blue active state */
+.tab-btn.active.pasons-style {
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    color: #1976D2;
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.25), 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Talabat orange active state */
+.tab-btn.active.talabat-style {
+    background: linear-gradient(135deg, #ffffff, #fffbf5);
+    color: #ea580c;
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25), 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Default active (for method tabs) */
+.tab-btn.active {
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    color: #374151;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.06);
+}
+
+/* Content Area */
+.tab-content {
+    background: linear-gradient(180deg, #ffffff, #fafbfc);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.04);
+    min-height: 380px;
+    border: 1px solid rgba(0,0,0,0.04);
+}
+
+.content-panel {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.content-panel.active {
+    display: block;
+}
+
+/* Coming Soon Placeholder */
+.coming-soon {
+    text-align: center;
+    padding: 60px 20px;
+    color: #9ca3af;
+}
+
+.coming-soon i {
+    font-size: 64px;
+    margin-bottom: 20px;
+    display: block;
+    color: #d1d5db;
+}
+
+.coming-soon h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.coming-soon p {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* Platform Badge */
+.platform-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    border: 1px solid transparent;
+}
+
+.platform-indicator.pasons {
+    background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+    color: #1e40af;
+    border-color: rgba(30, 64, 175, 0.1);
+}
+
+.platform-indicator.talabat {
+    background: linear-gradient(135deg, #ffedd5, #fed7aa);
+    color: #c2410c;
+    border-color: rgba(194, 65, 12, 0.1);
+}
+
+.status.pending {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #92400e;
+    padding: 10px 24px;
+    border-radius: 50px;
+    font-size: 12px;
+    font-weight: 600;
+    display: inline-block;
+    letter-spacing: 0.3px;
+    border: 1px solid rgba(146, 64, 14, 0.1);
+}
+
+/* Placeholder content area */
+.content-placeholder {
+    text-align: center;
+    padding: 60px 20px;
+    color: #9ca3af;
+    font-size: 15px;
+}
+
+/* Assortment Table Styles */
+.assortment-section {
+    margin-top: 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.assortment-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.assortment-table thead th {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.assortment-table tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #374151;
+}
+
+.assortment-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.assortment-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.file-name-cell {
+    font-weight: 500;
+    color: #1e40af;
+}
+
+.file-name-cell i {
+    margin-right: 6px;
+    color: #64748b;
+}
+
+.update-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.update-type-badge.product { background: #dbeafe; color: #1e40af; }
+.update-type-badge.stock { background: #dcfce7; color: #166534; }
+.update-type-badge.price_cost { background: #fef3c7; color: #92400e; }
+.update-type-badge.price_mrp { background: #fce7f3; color: #9d174d; }
+.update-type-badge.price_both { background: #f3e8ff; color: #7c3aed; }
+.update-type-badge.rules_price { background: #ffedd5; color: #c2410c; }
+.update-type-badge.rules_stock { background: #e0f2fe; color: #0369a1; }
+.update-type-badge.bulk_creation { background: #f0fdf4; color: #15803d; }
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status-badge.success { background: #dcfce7; color: #166534; }
+.status-badge.partial { background: #fef3c7; color: #92400e; }
+.status-badge.failed { background: #fee2e2; color: #991b1b; }
+.status-badge.processing { background: #e0f2fe; color: #0369a1; }
+
+.records-cell {
+    font-family: 'SF Mono', 'Monaco', monospace;
+    font-size: 12px;
+}
+
+.records-success { color: #16a34a; }
+.records-failed { color: #dc2626; }
+.records-skipped { color: #9ca3af; }
+
+/* Inner Tabs for Assortment/Export */
+.inner-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.inner-tab-btn {
+    padding: 12px 24px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.inner-tab-btn:hover {
+    color: #374151;
+}
+
+.inner-tab-btn.active {
+    color: #1976D2;
+    border-bottom-color: #1976D2;
+}
+
+.inner-tab-btn.active.talabat-active {
+    color: #ea580c;
+    border-bottom-color: #ea580c;
+}
+
+.inner-tab-content {
+    display: none;
+}
+
+.inner-tab-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+/* Export Feed Styles */
+.export-section {
+    padding: 20px 0;
+}
+
+.export-card {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid #e2e8f0;
+}
+
+.export-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.export-info i {
+    font-size: 32px;
+    color: #1976D2;
+}
+
+.export-info.talabat i {
+    color: #ea580c;
+}
+
+.export-info h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 4px;
+}
+
+.export-info p {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.export-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.export-btn.primary {
+    background: linear-gradient(135deg, #1976D2, #1565C0);
+    color: white;
+}
+
+.export-btn.primary:hover {
+    background: linear-gradient(135deg, #1565C0, #0D47A1);
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+}
+
+.export-btn.primary.talabat {
+    background: linear-gradient(135deg, #ea580c, #dc2626);
+}
+
+.export-btn.primary.talabat:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+}
+
+.export-btn.secondary {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.export-btn.secondary:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+/* Pagination Styles */
+.pagination-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+    margin-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.pagination-info {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.page-numbers {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.page-btn {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 12px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.page-btn:hover:not(:disabled):not(.active) {
+    background: #f9fafb;
+    border-color: #d1d5db;
+}
+
+.page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: #f9fafb;
+}
+
+.page-btn.active {
+    background: linear-gradient(135deg, #1976D2, #1565C0);
+    color: white;
+    border-color: #1976D2;
+    box-shadow: 0 2px 6px rgba(25, 118, 210, 0.3);
+}
+
+.page-btn.active.talabat {
+    background: linear-gradient(135deg, #ea580c, #dc2626);
+    border-color: #ea580c;
+    box-shadow: 0 2px 6px rgba(234, 88, 12, 0.3);
+}
+
+.page-btn i {
+    font-size: 18px;
+}
+
+.page-btn.nav-btn {
+    color: #6b7280;
+}
+
+.page-btn.nav-btn:hover:not(:disabled) {
+    color: #374151;
+}
+
+/* Export Form Styles */
+.export-form {
+    display: grid;
+    gap: 20px;
+}
+
+.export-form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.form-group select,
+.form-group input {
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #374151;
+    background: white;
+    transition: all 0.15s ease;
+}
+
+.form-group select:focus,
+.form-group input:focus {
+    outline: none;
+    border-color: #1976D2;
+    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+}
+
+.form-group select.talabat:focus,
+.form-group input.talabat:focus {
+    border-color: #ea580c;
+    box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
+}
+
+.export-type-cards {
+    display: flex;
+    gap: 16px;
+}
+
+.export-type-card {
+    flex: 1;
+    padding: 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.export-type-card:hover {
+    border-color: #d1d5db;
+    background: #f9fafb;
+}
+
+.export-type-card.selected {
+    border-color: #1976D2;
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+}
+
+.export-type-card.selected.talabat {
+    border-color: #ea580c;
+    background: linear-gradient(135deg, #fff7ed, #ffedd5);
+}
+
+.export-type-card h5 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.export-type-card p {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.export-type-card .radio-dot {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.export-type-card.selected .radio-dot {
+    border-color: #1976D2;
+}
+
+.export-type-card.selected .radio-dot::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    background: #1976D2;
+    border-radius: 50%;
+}
+
+.export-type-card.selected.talabat .radio-dot {
+    border-color: #ea580c;
+}
+
+.export-type-card.selected.talabat .radio-dot::after {
+    background: #ea580c;
+}
+
+.export-preview {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.export-preview h5 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 12px;
+}
+
+.export-fields {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.export-field-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #374151;
+}
+
+.export-field-tag i {
+    color: #10b981;
+}
+
+.export-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #9ca3af;
+}
+
+.empty-state i {
+    font-size: 48px;
+    margin-bottom: 12px;
+    display: block;
+    color: #d1d5db;
+}
+
+/* Pagination Styles */
+.pagination-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.pagination-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: #f3f4f6;
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-numbers {
+    display: flex;
+    gap: 4px;
+}
+
+.pagination-numbers button {
+    min-width: 36px;
+    height: 36px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #374151;
+    transition: all 0.2s;
+}
+
+.pagination-numbers button:hover {
+    background: #f3f4f6;
+}
+
+.pagination-numbers button.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #fff;
+}
+
+.pagination-info {
+    margin-left: 16px;
+    font-size: 13px;
+    color: #6b7280;
+}
+</style>
+
+<div class="integration-container">
+    <!-- Both Tab Groups on Same Line -->
+    <div class="tabs-row">
+        <!-- Method Tabs: CSV/Manual | SFTP | API -->
+        <div class="tab-group">
+            <div class="tab-group-label">Integration Method</div>
+            <div class="tabs" id="methodTabs">
+                <button class="tab-btn active" data-tab="csv">
+                    <i class="bx bx-file"></i> CSV / Manual
+                </button>
+                <button class="tab-btn" data-tab="sftp">
+                    <i class="bx bx-server"></i> SFTP
+                </button>
+                <button class="tab-btn" data-tab="api">
+                    <i class="bx bx-code-alt"></i> API
+                </button>
+            </div>
+        </div>
+
+        <!-- Platform Tabs: Pasons | Talabat -->
+        <div class="tab-group">
+            <div class="tab-group-label">Platform</div>
+            <div class="tabs" id="platformTabs">
+                <button class="tab-btn active pasons-style" data-platform="pasons">
+                    <i class="bx bx-store"></i> Pasons
+                </button>
+                <button class="tab-btn" data-platform="talabat">
+                    <i class="bx bx-restaurant"></i> Talabat
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="tab-content">
+        <!-- CSV / Manual - Pasons -->
+        <div class="content-panel active" id="csv-pasons">
+            <div class="platform-indicator pasons">
+                <i class="bx bx-store"></i> Pasons Platform
+            </div>
+            
+            <!-- Inner Tabs: Assortment / Export Feed -->
+            <div class="inner-tabs">
+                <button class="inner-tab-btn active" data-inner-tab="assortment" data-platform="pasons">
+                    <i class="bx bx-history"></i> Assortment
+                </button>
+                <button class="inner-tab-btn" data-inner-tab="export" data-platform="pasons">
+                    <i class="bx bx-export"></i> Export Feed
+                </button>
+            </div>
+            
+            <!-- Assortment Tab Content -->
+            <div class="inner-tab-content active" id="pasons-assortment">
+                <div class="assortment-section">
+                    {% if pasons_uploads %}
+                    <table class="assortment-table">
+                        <thead>
+                            <tr>
+                                <th>File Name</th>
+                                <th>Created At</th>
+                                <th>Store</th>
+                                <th>Records</th>
+                                <th>Update Type</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for upload in pasons_uploads %}
+                            <tr>
+                                <td class="file-name-cell"><i class="bx bx-file"></i>{{ upload.file_name }}</td>
+                                <td>{{ upload.created_at|localtime|date:"M d, Y H:i" }}</td>
+                                <td>{{ upload.outlet_name }}</td>
+                                <td class="records-cell">
+                                    <span class="records-success">{{ upload.records_success }}</span> / 
+                                    <span class="records-failed">{{ upload.records_failed }}</span> / 
+                                    <span class="records-skipped">{{ upload.records_skipped }}</span>
+                                </td>
+                                <td><span class="update-type-badge {{ upload.update_type }}">{{ upload.get_update_type_display }}</span></td>
+                                <td><span class="status-badge {{ upload.status }}">{{ upload.get_status_display }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    
+                    <!-- Pagination -->
+                    <div class="pagination-container" id="pasons-assortment-pagination">
+                        <div class="pagination-info">
+                            Showing <span class="page-start">1</span>-<span class="page-end">10</span> of <span class="total-count">{{ pasons_uploads|length }}</span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="page-btn nav-btn" data-action="first" title="First"><i class="bx bx-chevrons-left"></i></button>
+                            <button class="page-btn nav-btn" data-action="prev" title="Previous"><i class="bx bx-chevron-left"></i></button>
+                            <div class="page-numbers"></div>
+                            <button class="page-btn nav-btn" data-action="next" title="Next"><i class="bx bx-chevron-right"></i></button>
+                            <button class="page-btn nav-btn" data-action="last" title="Last"><i class="bx bx-chevrons-right"></i></button>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="bx bx-cloud-upload"></i>
+                        <p>No uploads yet. Start by uploading a CSV file.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Export Feed Tab Content -->
+            <div class="inner-tab-content" id="pasons-export">
+                <div class="export-section">
+                    <!-- Export Form (TOP) -->
+                    <div class="export-card" style="margin-bottom: 30px;">
+                        <div class="export-info">
+                            <i class="bx bx-data"></i>
+                            <div>
+                                <h4>Export Production Data</h4>
+                                <p>Download SKU, selling price, and stock status for e-commerce sync.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="export-form" id="pasons-export-form">
+                            <!-- Row 1: Outlet Selection -->
+                            <div class="export-form-row">
+                                <div class="form-group">
+                                    <label>Select Outlet</label>
+                                    <select id="pasons-export-outlet">
+                                        <option value="">-- Select Outlet --</option>
+                                        {% for outlet in pasons_outlets %}
+                                        <option value="{{ outlet.id }}">{{ outlet.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Row 2: Export Type -->
+                            <div class="form-group">
+                                <label>Export Type</label>
+                                <div class="export-type-cards">
+                                    <div class="export-type-card selected" data-type="full" onclick="selectExportType(this, 'pasons')">
+                                        <h5><span class="radio-dot"></span> Full Export</h5>
+                                        <p>Export all items for selected outlet</p>
+                                    </div>
+                                    <div class="export-type-card" data-type="partial" onclick="selectExportType(this, 'pasons')">
+                                        <h5><span class="radio-dot"></span> Partial Export</h5>
+                                        <p>Only items updated since last export</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Export Fields Preview -->
+                            <div class="export-preview">
+                                <h5>Export Fields</h5>
+                                <div class="export-fields">
+                                    <span class="export-field-tag"><i class="bx bx-check"></i> SKU</span>
+                                    <span class="export-field-tag"><i class="bx bx-check"></i> Selling Price</span>
+                                    <span class="export-field-tag"><i class="bx bx-check"></i> Stock Status (0/1)</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Actions -->
+                            <div class="export-actions-row">
+                                <button class="export-btn primary" onclick="generateExport('pasons')">
+                                    <i class="bx bx-download"></i> Generate Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Export History Table (BOTTOM) -->
+                    <div class="assortment-section">
+                        <div class="section-header">
+                            <h4 class="section-title"><i class="bx bx-history"></i> Export History</h4>
+                        </div>
+                        {% if pasons_exports %}
+                        <table class="assortment-table">
+                            <thead>
+                                <tr>
+                                    <th>File Name</th>
+                                    <th>Created At</th>
+                                    <th>Store</th>
+                                    <th>Records</th>
+                                    <th>Export Type</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for export in pasons_exports %}
+                                <tr>
+                                    <td class="file-name-cell">
+                                        <i class="bx bx-file"></i>
+                                        {% if export.file_name %}{{ export.file_name }}{% else %}<span style="color: #9ca3af;">-</span>{% endif %}
+                                    </td>
+                                    <td>{{ export.export_timestamp|date:"M d, Y H:i" }}</td>
+                                    <td>{{ export.outlet.name }}</td>
+                                    <td class="records-cell">{{ export.item_count }}</td>
+                                    <td>
+                                        <span class="update-type-badge {% if export.export_type == 'full' %}bulk_creation{% else %}stock{% endif %}">
+                                            {{ export.get_export_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge {{ export.status }}">{{ export.get_status_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if export.file_name and export.status == 'success' %}
+                                        <a href="/integration/api/export-feed/?platform=pasons&outlet_id={{ export.outlet.id }}&export_type={{ export.export_type }}" class="export-btn secondary" style="padding: 6px 12px; font-size: 12px;" title="Download {{ export.file_name }}">
+                                            <i class="bx bx-download"></i>
+                                        </a>
+                                        {% else %}
+                                        <span style="color: #d1d5db;">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <!-- Pagination for Pasons Export History -->
+                        <div class="pagination-container" id="pasons-export-pagination">
+                            <button class="pagination-btn" onclick="changePage('pasons-export', -1)" id="pasons-export-prev">
+                                <i class="bx bx-chevron-left"></i>
+                            </button>
+                            <div class="pagination-numbers" id="pasons-export-pages"></div>
+                            <button class="pagination-btn" onclick="changePage('pasons-export', 1)" id="pasons-export-next">
+                                <i class="bx bx-chevron-right"></i>
+                            </button>
+                            <span class="pagination-info" id="pasons-export-info"></span>
+                        </div>
+                        {% else %}
+                        <div class="empty-state">
+                            <i class="bx bx-export"></i>
+                            <p>No exports yet. Generate an export above.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CSV / Manual - Talabat -->
+        <div class="content-panel" id="csv-talabat">
+            <div class="platform-indicator talabat">
+                <i class="bx bx-restaurant"></i> Talabat Platform
+            </div>
+            
+            <!-- Inner Tabs: Assortment / Export Feed -->
+            <div class="inner-tabs">
+                <button class="inner-tab-btn active talabat-active" data-inner-tab="assortment" data-platform="talabat">
+                    <i class="bx bx-history"></i> Assortment
+                </button>
+                <button class="inner-tab-btn" data-inner-tab="export" data-platform="talabat">
+                    <i class="bx bx-export"></i> Export Feed
+                </button>
+            </div>
+            
+            <!-- Assortment Tab Content -->
+            <div class="inner-tab-content active" id="talabat-assortment">
+                <div class="assortment-section">
+                    {% if talabat_uploads %}
+                    <table class="assortment-table">
+                        <thead>
+                            <tr>
+                                <th>File Name</th>
+                                <th>Created At</th>
+                                <th>Store</th>
+                                <th>Records</th>
+                                <th>Update Type</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for upload in talabat_uploads %}
+                            <tr>
+                                <td class="file-name-cell"><i class="bx bx-file"></i>{{ upload.file_name }}</td>
+                                <td>{{ upload.created_at|localtime|date:"M d, Y H:i" }}</td>
+                                <td>{{ upload.outlet_name }}</td>
+                                <td class="records-cell">
+                                    <span class="records-success">{{ upload.records_success }}</span> / 
+                                    <span class="records-failed">{{ upload.records_failed }}</span> / 
+                                    <span class="records-skipped">{{ upload.records_skipped }}</span>
+                                </td>
+                                <td><span class="update-type-badge {{ upload.update_type }}">{{ upload.get_update_type_display }}</span></td>
+                                <td><span class="status-badge {{ upload.status }}">{{ upload.get_status_display }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    
+                    <!-- Pagination -->
+                    <div class="pagination-container" id="talabat-assortment-pagination">
+                        <div class="pagination-info">
+                            Showing <span class="page-start">1</span>-<span class="page-end">10</span> of <span class="total-count">{{ talabat_uploads|length }}</span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="page-btn nav-btn" data-action="first" title="First"><i class="bx bx-chevrons-left"></i></button>
+                            <button class="page-btn nav-btn" data-action="prev" title="Previous"><i class="bx bx-chevron-left"></i></button>
+                            <div class="page-numbers"></div>
+                            <button class="page-btn nav-btn" data-action="next" title="Next"><i class="bx bx-chevron-right"></i></button>
+                            <button class="page-btn nav-btn" data-action="last" title="Last"><i class="bx bx-chevrons-right"></i></button>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <i class="bx bx-cloud-upload"></i>
+                        <p>No uploads yet. Start by uploading a CSV file.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Export Feed Tab Content -->
+            <div class="inner-tab-content" id="talabat-export">
+                <div class="export-section">
+                    <!-- Export Form (TOP) -->
+                    <div class="export-card" style="margin-bottom: 30px;">
+                        <div class="export-info talabat">
+                            <i class="bx bx-data"></i>
+                            <div>
+                                <h4>Export Production Data</h4>
+                                <p>Download SKU, selling price, and stock status for Talabat sync.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="export-form" id="talabat-export-form">
+                            <!-- Row 1: Outlet Selection -->
+                            <div class="export-form-row">
+                                <div class="form-group">
+                                    <label>Select Outlet</label>
+                                    <select id="talabat-export-outlet" class="talabat">
+                                        <option value="">-- Select Outlet --</option>
+                                        {% for outlet in talabat_outlets %}
+                                        <option value="{{ outlet.id }}">{{ outlet.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Row 2: Export Type -->
+                            <div class="form-group">
+                                <label>Export Type</label>
+                                <div class="export-type-cards">
+                                    <div class="export-type-card selected talabat" data-type="full" onclick="selectExportType(this, 'talabat')">
+                                        <h5><span class="radio-dot"></span> Full Export</h5>
+                                        <p>Export all items for selected outlet</p>
+                                    </div>
+                                    <div class="export-type-card" data-type="partial" onclick="selectExportType(this, 'talabat')">
+                                        <h5><span class="radio-dot"></span> Partial Export</h5>
+                                        <p>Only items updated since last export</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Export Fields Preview -->
+                            <div class="export-preview">
+                                <h5>Export Fields</h5>
+                                <div class="export-fields">
+                                    <span class="export-field-tag"><i class="bx bx-check"></i> SKU</span>
+                                    <span class="export-field-tag"><i class="bx bx-check"></i> Selling Price</span>
+                                    <span class="export-field-tag"><i class="bx bx-check"></i> Stock Status (0/1)</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Actions -->
+                            <div class="export-actions-row">
+                                <button class="export-btn primary talabat" onclick="generateExport('talabat')">
+                                    <i class="bx bx-download"></i> Generate Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Export History Table (BOTTOM) -->
+                    <div class="assortment-section">
+                        <div class="section-header">
+                            <h4 class="section-title"><i class="bx bx-history"></i> Export History</h4>
+                        </div>
+                        {% if talabat_exports %}
+                        <table class="assortment-table">
+                            <thead>
+                                <tr>
+                                    <th>File Name</th>
+                                    <th>Created At</th>
+                                    <th>Store</th>
+                                    <th>Records</th>
+                                    <th>Export Type</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for export in talabat_exports %}
+                                <tr>
+                                    <td class="file-name-cell">
+                                        <i class="bx bx-file"></i>
+                                        {% if export.file_name %}{{ export.file_name }}{% else %}<span style="color: #9ca3af;">-</span>{% endif %}
+                                    </td>
+                                    <td>{{ export.export_timestamp|date:"M d, Y H:i" }}</td>
+                                    <td>{{ export.outlet.name }}</td>
+                                    <td class="records-cell">{{ export.item_count }}</td>
+                                    <td>
+                                        <span class="update-type-badge {% if export.export_type == 'full' %}bulk_creation{% else %}stock{% endif %}">
+                                            {{ export.get_export_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge {{ export.status }}">{{ export.get_status_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if export.file_name and export.status == 'success' %}
+                                        <a href="/integration/api/export-feed/?platform=talabat&outlet_id={{ export.outlet.id }}&export_type={{ export.export_type }}" class="export-btn secondary" style="padding: 6px 12px; font-size: 12px;" title="Download {{ export.file_name }}">
+                                            <i class="bx bx-download"></i>
+                                        </a>
+                                        {% else %}
+                                        <span style="color: #d1d5db;">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <!-- Pagination for Talabat Export History -->
+                        <div class="pagination-container" id="talabat-export-pagination">
+                            <button class="pagination-btn" onclick="changePage('talabat-export', -1)" id="talabat-export-prev">
+                                <i class="bx bx-chevron-left"></i>
+                            </button>
+                            <div class="pagination-numbers" id="talabat-export-pages"></div>
+                            <button class="pagination-btn" onclick="changePage('talabat-export', 1)" id="talabat-export-next">
+                                <i class="bx bx-chevron-right"></i>
+                            </button>
+                            <span class="pagination-info" id="talabat-export-info"></span>
+                        </div>
+                        {% else %}
+                        <div class="empty-state">
+                            <i class="bx bx-export"></i>
+                            <p>No exports yet. Generate an export above.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SFTP - Pasons -->
+        <div class="content-panel" id="sftp-pasons">
+            <div class="platform-indicator pasons">
+                <i class="bx bx-store"></i> Pasons Platform
+            </div>
+            <div class="coming-soon">
+                <i class="bx bx-server"></i>
+                <h3>SFTP Integration</h3>
+                <p>Automated file synchronization via SFTP server.</p>
+                <p style="margin-top: 30px;"><span class="status pending">Coming Soon</span></p>
+            </div>
+        </div>
+
+        <!-- SFTP - Talabat -->
+        <div class="content-panel" id="sftp-talabat">
+            <div class="platform-indicator talabat">
+                <i class="bx bx-restaurant"></i> Talabat Platform
+            </div>
+            <div class="coming-soon">
+                <i class="bx bx-server"></i>
+                <h3>SFTP Integration</h3>
+                <p>Automated file synchronization via SFTP server.</p>
+                <p style="margin-top: 30px;"><span class="status pending">Coming Soon</span></p>
+            </div>
+        </div>
+
+        <!-- API - Pasons -->
+        <div class="content-panel" id="api-pasons">
+            <div class="platform-indicator pasons">
+                <i class="bx bx-store"></i> Pasons Platform
+            </div>
+            <div class="coming-soon">
+                <i class="bx bx-code-alt"></i>
+                <h3>API Integration</h3>
+                <p>Direct API connection for real-time data sync.</p>
+                <p style="margin-top: 30px;"><span class="status pending">Coming Soon</span></p>
+            </div>
+        </div>
+
+        <!-- API - Talabat -->
+        <div class="content-panel" id="api-talabat">
+            <div class="platform-indicator talabat">
+                <i class="bx bx-restaurant"></i> Talabat Platform
+            </div>
+            <div class="coming-soon">
+                <i class="bx bx-code-alt"></i>
+                <h3>API Integration</h3>
+                <p>Direct API connection for real-time data sync.</p>
+                <p style="margin-top: 30px;"><span class="status pending">Coming Soon</span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Tab switching logic
+let currentMethod = 'csv';
+let currentPlatform = 'pasons';
+
+function updateContent() {
+    // Hide all panels
+    document.querySelectorAll('.content-panel').forEach(panel => {
+        panel.classList.remove('active');
+    });
+    
+    // Show active panel
+    const activePanel = document.getElementById(`${currentMethod}-${currentPlatform}`);
+    if (activePanel) {
+        activePanel.classList.add('active');
+    }
+}
+
+function updatePlatformTabStyles() {
+    document.querySelectorAll('#platformTabs .tab-btn').forEach(btn => {
+        btn.classList.remove('pasons-style', 'talabat-style');
+        if (btn.classList.contains('active')) {
+            if (btn.dataset.platform === 'pasons') {
+                btn.classList.add('pasons-style');
+            } else if (btn.dataset.platform === 'talabat') {
+                btn.classList.add('talabat-style');
+            }
+        }
+    });
+}
+
+// Method tabs
+document.querySelectorAll('#methodTabs .tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('#methodTabs .tab-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentMethod = this.dataset.tab;
+        updateContent();
+    });
+});
+
+// Platform tabs
+document.querySelectorAll('#platformTabs .tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('#platformTabs .tab-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentPlatform = this.dataset.platform;
+        updatePlatformTabStyles();
+        updateContent();
+    });
+});
+
+// Initial style
+updatePlatformTabStyles();
+
+// Inner tabs (Assortment / Export Feed)
+document.querySelectorAll('.inner-tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const platform = this.dataset.platform;
+        const tab = this.dataset.innerTab;
+        
+        // Update button states for this platform
+        const parentPanel = this.closest('.content-panel');
+        parentPanel.querySelectorAll('.inner-tab-btn').forEach(b => {
+            b.classList.remove('active', 'talabat-active');
+        });
+        this.classList.add('active');
+        if (platform === 'talabat') {
+            this.classList.add('talabat-active');
+        }
+        
+        // Update content visibility
+        parentPanel.querySelectorAll('.inner-tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        const targetId = `${platform}-${tab}`;
+        const targetContent = document.getElementById(targetId);
+        if (targetContent) {
+            targetContent.classList.add('active');
+        }
+    });
+});
+
+// Export functions
+function exportPasonsFeed() {
+    window.location.href = '/integration/api/export-feed/?platform=pasons';
+}
+
+function exportTalabatFeed() {
+    window.location.href = '/integration/api/export-feed/?platform=talabat';
+}
+
+// Table Pagination Class
+class TablePagination {
+    constructor(tableId, paginationId, platform = 'pasons') {
+        this.table = document.querySelector(`#${tableId} .assortment-table`);
+        this.pagination = document.getElementById(paginationId);
+        this.platform = platform;
+        this.currentPage = 1;
+        this.rowsPerPage = 10;
+        
+        if (!this.table || !this.pagination) return;
+        
+        this.rows = Array.from(this.table.querySelectorAll('tbody tr'));
+        this.totalRows = this.rows.length;
+        this.totalPages = Math.ceil(this.totalRows / this.rowsPerPage);
+        
+        this.init();
+    }
+    
+    init() {
+        this.renderPage(1);
+        this.bindEvents();
+    }
+    
+    renderPage(page) {
+        this.currentPage = page;
+        const start = (page - 1) * this.rowsPerPage;
+        const end = start + this.rowsPerPage;
+        
+        // Show/hide rows
+        this.rows.forEach((row, index) => {
+            row.style.display = (index >= start && index < end) ? '' : 'none';
+        });
+        
+        // Update info
+        const pageStart = this.pagination.querySelector('.page-start');
+        const pageEnd = this.pagination.querySelector('.page-end');
+        const totalCount = this.pagination.querySelector('.total-count');
+        
+        if (pageStart) pageStart.textContent = this.totalRows > 0 ? start + 1 : 0;
+        if (pageEnd) pageEnd.textContent = Math.min(end, this.totalRows);
+        if (totalCount) totalCount.textContent = this.totalRows;
+        
+        // Render page numbers
+        this.renderPageNumbers();
+        
+        // Update button states
+        this.updateButtonStates();
+    }
+    
+    renderPageNumbers() {
+        const container = this.pagination.querySelector('.page-numbers');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        // Calculate visible page range
+        let startPage = Math.max(1, this.currentPage - 2);
+        let endPage = Math.min(this.totalPages, startPage + 4);
+        startPage = Math.max(1, endPage - 4);
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'page-btn' + (i === this.currentPage ? ' active' : '');
+            if (i === this.currentPage && this.platform === 'talabat') {
+                btn.classList.add('talabat');
+            }
+            btn.textContent = i;
+            btn.dataset.page = i;
+            container.appendChild(btn);
+        }
+    }
+    
+    updateButtonStates() {
+        const firstBtn = this.pagination.querySelector('[data-action="first"]');
+        const prevBtn = this.pagination.querySelector('[data-action="prev"]');
+        const nextBtn = this.pagination.querySelector('[data-action="next"]');
+        const lastBtn = this.pagination.querySelector('[data-action="last"]');
+        
+        if (firstBtn) firstBtn.disabled = this.currentPage === 1;
+        if (prevBtn) prevBtn.disabled = this.currentPage === 1;
+        if (nextBtn) nextBtn.disabled = this.currentPage === this.totalPages || this.totalPages === 0;
+        if (lastBtn) lastBtn.disabled = this.currentPage === this.totalPages || this.totalPages === 0;
+    }
+    
+    bindEvents() {
+        this.pagination.addEventListener('click', (e) => {
+            const btn = e.target.closest('.page-btn');
+            if (!btn || btn.disabled) return;
+            
+            const action = btn.dataset.action;
+            const page = btn.dataset.page;
+            
+            if (action === 'first') this.renderPage(1);
+            else if (action === 'prev') this.renderPage(Math.max(1, this.currentPage - 1));
+            else if (action === 'next') this.renderPage(Math.min(this.totalPages, this.currentPage + 1));
+            else if (action === 'last') this.renderPage(this.totalPages);
+            else if (page) this.renderPage(parseInt(page));
+        });
+    }
+}
+
+// Initialize pagination for both platforms
+const pasonsPagination = new TablePagination('pasons-assortment', 'pasons-assortment-pagination', 'pasons');
+const talabatPagination = new TablePagination('talabat-assortment', 'talabat-assortment-pagination', 'talabat');
+
+// Export Type Selection
+function selectExportType(card, platform) {
+    const container = card.parentElement;
+    container.querySelectorAll('.export-type-card').forEach(c => {
+        c.classList.remove('selected');
+        if (platform === 'talabat') {
+            c.classList.remove('talabat');
+        }
+    });
+    card.classList.add('selected');
+    if (platform === 'talabat') {
+        card.classList.add('talabat');
+    }
+}
+
+// Generate Export
+function generateExport(platform) {
+    const outletSelect = document.getElementById(`${platform}-export-outlet`);
+    const outletId = outletSelect.value;
+    const outletName = outletSelect.options[outletSelect.selectedIndex]?.text || '';
+    
+    if (!outletId) {
+        alert('Please select an outlet');
+        return;
+    }
+    
+    // Get selected export type
+    const formContainer = document.getElementById(`${platform}-export-form`);
+    const selectedCard = formContainer.querySelector('.export-type-card.selected');
+    const exportType = selectedCard?.dataset.type || 'full';
+    
+    // Build export URL
+    const url = `/integration/api/export-feed/?platform=${platform}&outlet_id=${outletId}&export_type=${exportType}`;
+    
+    // Trigger download
+    window.location.href = url;
+}
+
+// ========== EXPORT HISTORY PAGINATION ==========
+const exportPaginationState = {
+    'pasons-export': { currentPage: 1, rowsPerPage: 10 },
+    'talabat-export': { currentPage: 1, rowsPerPage: 10 }
+};
+
+function initExportPagination(tableId) {
+    const paginationContainer = document.getElementById(`${tableId}-pagination`);
+    if (!paginationContainer) return;
+    
+    // Find the Export History table by looking for the pagination container's sibling table
+    const parentSection = paginationContainer.parentElement;
+    if (!parentSection) return;
+    
+    const table = parentSection.querySelector('table.assortment-table tbody');
+    if (!table) {
+        paginationContainer.style.display = 'none';
+        return;
+    }
+    
+    const rows = Array.from(table.querySelectorAll('tr'));
+    const totalRows = rows.length;
+    
+    if (totalRows === 0) {
+        paginationContainer.style.display = 'none';
+        return;
+    }
+    
+    const state = exportPaginationState[tableId];
+    const totalPages = Math.ceil(totalRows / state.rowsPerPage);
+    
+    // Always show pagination when there are records
+    paginationContainer.style.display = 'flex';
+    
+    renderExportPageNumbers(tableId, totalPages);
+    updateExportTableRows(tableId, rows);
+    updateExportPaginationInfo(tableId, totalRows);
+}
+
+function getExportTableRows(tableId) {
+    const paginationContainer = document.getElementById(`${tableId}-pagination`);
+    if (!paginationContainer) return [];
+    
+    const parentSection = paginationContainer.parentElement;
+    if (!parentSection) return [];
+    
+    const table = parentSection.querySelector('table.assortment-table tbody');
+    if (!table) return [];
+    
+    return Array.from(table.querySelectorAll('tr'));
+}
+
+function renderExportPageNumbers(tableId, totalPages) {
+    const container = document.getElementById(`${tableId}-pages`);
+    if (!container) return;
+    
+    const state = exportPaginationState[tableId];
+    container.innerHTML = '';
+    
+    let startPage = Math.max(1, state.currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + 4);
+    
+    if (endPage - startPage < 4) {
+        startPage = Math.max(1, endPage - 4);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        btn.className = i === state.currentPage ? 'active' : '';
+        btn.onclick = () => goToExportPage(tableId, i);
+        container.appendChild(btn);
+    }
+}
+
+function updateExportTableRows(tableId, rows) {
+    const state = exportPaginationState[tableId];
+    const startIndex = (state.currentPage - 1) * state.rowsPerPage;
+    const endIndex = startIndex + state.rowsPerPage;
+    
+    rows.forEach((row, index) => {
+        row.style.display = (index >= startIndex && index < endIndex) ? '' : 'none';
+    });
+    
+    const totalPages = Math.ceil(rows.length / state.rowsPerPage);
+    const prevBtn = document.getElementById(`${tableId}-prev`);
+    const nextBtn = document.getElementById(`${tableId}-next`);
+    
+    if (prevBtn) prevBtn.disabled = state.currentPage === 1;
+    if (nextBtn) nextBtn.disabled = state.currentPage >= totalPages;
+}
+
+function updateExportPaginationInfo(tableId, totalRows) {
+    const state = exportPaginationState[tableId];
+    const startRow = (state.currentPage - 1) * state.rowsPerPage + 1;
+    const endRow = Math.min(state.currentPage * state.rowsPerPage, totalRows);
+    
+    const infoEl = document.getElementById(`${tableId}-info`);
+    if (infoEl) {
+        infoEl.textContent = `${startRow}-${endRow} of ${totalRows}`;
+    }
+}
+
+function changePage(tableId, direction) {
+    const rows = getExportTableRows(tableId);
+    if (rows.length === 0) return;
+    
+    const totalPages = Math.ceil(rows.length / exportPaginationState[tableId].rowsPerPage);
+    
+    exportPaginationState[tableId].currentPage += direction;
+    exportPaginationState[tableId].currentPage = Math.max(1, Math.min(exportPaginationState[tableId].currentPage, totalPages));
+    
+    renderExportPageNumbers(tableId, totalPages);
+    updateExportTableRows(tableId, rows);
+    updateExportPaginationInfo(tableId, rows.length);
+}
+
+function goToExportPage(tableId, page) {
+    const rows = getExportTableRows(tableId);
+    if (rows.length === 0) return;
+    
+    const totalPages = Math.ceil(rows.length / exportPaginationState[tableId].rowsPerPage);
+    
+    exportPaginationState[tableId].currentPage = page;
+    
+    renderExportPageNumbers(tableId, totalPages);
+    updateExportTableRows(tableId, rows);
+    updateExportPaginationInfo(tableId, rows.length);
+}
+
+// Initialize export history pagination on page load
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        initExportPagination('pasons-export');
+        initExportPagination('talabat-export');
+    }, 200);
+});
+</script>
+{% endblock %}

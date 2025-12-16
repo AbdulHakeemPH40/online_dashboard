@@ -1,0 +1,351 @@
+/**
+ * Middleware Dashboard CSS
+ * Custom styles for the middleware dashboard
+ */
+
+/* Card Statistics */
+.stat-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Platform Badges */
+.platform-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.platform-badge.talabat {
+    background-color: #FF5A00;
+    color: white;
+}
+
+.platform-badge.pasons {
+    background-color: #0066CC;
+    color: white;
+}
+
+/* Form Controls */
+.form-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.form-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid #D1D5DB;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-input:focus {
+    border-color: #3B82F6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    outline: none;
+}
+
+.form-input.error {
+    border-color: #EF4444;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 24px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #D1D5DB;
+    transition: 0.4s;
+    border-radius: 24px;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.4s;
+    border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+    background-color: #3B82F6;
+}
+
+input:focus + .toggle-slider {
+    box-shadow: 0 0 1px #3B82F6;
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+
+/* Tables */
+.data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.data-table th {
+    background-color: #F9FAFB;
+    font-weight: 500;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.data-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #E5E7EB;
+}
+
+.data-table tbody tr:hover {
+    background-color: #F9FAFB;
+}
+
+/* Outlet Availability (Bordered Table Design) */
+.outlet-panel {
+    background-color: #F8FAFC; /* lighter panel background */
+    border: 1px solid #E5E7EB; /* softer border */
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    overflow: hidden;
+}
+
+/* Title and subtitle within outlet panel */
+.outlet-panel .section-title span {
+    color: #1F2937; /* strong, visible title color */
+}
+.outlet-panel .section-subtitle {
+    color: #6B7280; /* subtle subtitle color */
+}
+
+.outlet-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #E5E7EB; /* outer border for clearer table edges */
+    background-color: #FFFFFF; /* clear white table background */
+}
+
+.outlet-table thead th {
+    background-color: #F3F4F6; /* lighter header background */
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #334155; /* visible header text */
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #E5E7EB;
+    border-right: 1px solid #E5E7EB;
+}
+
+.outlet-table thead th:last-child {
+    border-right: none;
+}
+
+.outlet-table tbody td {
+    padding: 0.75rem 1rem;
+    color: #1F2937; /* darker, more visible body text */
+    border-bottom: 1px solid #EEF2F7; /* lighter inner grid lines */
+    border-right: 1px solid #EEF2F7;
+    font-family: Arial, sans-serif;
+    background-color: transparent;
+}
+
+.outlet-table tbody td:last-child {
+    border-right: none;
+}
+
+.outlet-table tbody tr:hover {
+    background-color: #F8FAFC; /* gentle hover */
+}
+
+/* Zebra striping for readability */
+.outlet-table tbody tr:nth-child(odd) {
+    background-color: #FAFBFC;
+}
+
+.outlet-table .lock-cell {
+    text-align: center;
+    width: 64px;
+}
+
+@media (max-width: 640px) {
+    .outlet-table thead th,
+    .outlet-table tbody td {
+        padding: 10px 12px;
+    }
+}
+
+/* Tabs */
+.tab-button {
+    padding: 0.75rem 1.25rem;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+.tab-button:hover {
+    color: #4B5563;
+}
+
+.tab-button.active {
+    color: #3B82F6;
+    border-bottom-color: #3B82F6;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 50;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(59, 130, 246, 0.25);
+    border-left-color: #3B82F6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Alert Container */
+.alert-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 40;
+    max-width: 24rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 640px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .data-table {
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+/* --- Outlet table enhancements: badges and utilities --- */
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    font-size: 12px;
+    line-height: 1.25;
+    font-weight: 600;
+    border: 1px solid #E5E7EB;
+    background-color: #F3F4F6;
+    color: #374151;
+}
+.badge--success {
+    background-color: #E7F6EC;
+    border-color: #86EFAC;
+    color: #166534;
+}
+.badge--danger {
+    background-color: #FDECEC;
+    border-color: #FCA5A5;
+    color: #991B1B;
+}
+.badge--muted {
+    background-color: #F3F4F6;
+    border-color: #E5E7EB;
+    color: #6B7280;
+}
+.cell-muted { color: #6B7280; }
+.outlet-name { color: #1F2937; font-weight: 500; }
+.number-cell { font-variant-numeric: tabular-nums; }
+/* Outlet price action icons — classic colors & filled look */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 28px;
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  background: #eef2f7;
+  box-shadow: inset 0 1px 1px rgba(0,0,0,0.04);
+  transition: background 120ms ease, transform 80ms ease;
+}
+.icon-btn:hover { background: #e5e7eb; }
+.icon-btn:active { transform: translateY(1px); }
+.icon-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.price-edit-btn i {
+  color: #ff8c00; /* classic orange pencil */
+  font-size: 16px;
+}
+.price-edit-btn { margin-left: 6px; }
+.price-save-btn i {
+  color: #0E4EF6; /* darker royal blue for floppy */
+  font-size: 16px;
+}
+.price-save-btn { margin-left: 4px; }
+
+/* Give save button a pleasant bluish gradient and subtle ring */
+.price-save-btn {
+  background: linear-gradient(180deg, #D9E8FF 0%, #BBD4FF 100%);
+  border-color: #5B8DEB;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.75), 0 0 0 2px rgba(14, 78, 246, 0.25);
+}
+.price-save-btn:hover {
+  background: linear-gradient(180deg, #CFE0FF 0%, #A3C1FF 100%);
+}
+.price-save-btn:active {
+  background: linear-gradient(180deg, #C4DAFF 0%, #9EBBFF 100%);
+}
+.price-save-btn:disabled {
+  background: #E6ECF8;
+  border-color: #3e7dfc;
+  box-shadow: none;
+}

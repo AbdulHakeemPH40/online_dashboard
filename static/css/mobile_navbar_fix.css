@@ -1,0 +1,293 @@
+/* Mobile Navbar Optimization CSS */
+
+/* Fix for mobile navbar vertical space issue */
+@media (max-width: 1024px) {
+    /* Ensure navbar doesn't take excessive vertical space */
+    .dark-navbar {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        width: 100% !important;
+        height: 44px !important;
+        min-height: 44px !important;
+        max-height: 44px !important;
+        padding: 6px 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        flex-wrap: nowrap !important;
+        gap: 8px !important;
+        z-index: 1100 !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+        background: #ffffff !important;
+        border-bottom: 1px solid #e5e7eb !important;
+    }
+    
+    /* Hide title on mobile to save space */
+    .dark-navbar h1 {
+        display: none !important;
+    }
+    
+    /* Optimize mobile sidebar toggle */
+    .dark-navbar .mobile-sidebar-toggle {
+        width: 32px !important;
+        height: 32px !important;
+        padding: 6px !important;
+        font-size: 16px !important;
+        background: #f3f4f6 !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 6px !important;
+        color: #374151 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        flex-shrink: 0 !important;
+        order: 1 !important;
+    }
+    
+    /* Optimize navigation links */
+    .dark-navbar nav {
+        display: flex !important;
+        gap: 4px !important;
+        order: 2 !important;
+        flex: 1 !important;
+        justify-content: center !important;
+        max-width: calc(100% - 80px) !important;
+        overflow-x: auto !important;
+        scrollbar-width: none !important;
+        -ms-overflow-style: none !important;
+        padding: 0 4px !important;
+    }
+    
+    .dark-navbar nav::-webkit-scrollbar {
+        display: none !important;
+    }
+    
+    .dark-navbar nav a {
+        padding: 6px 8px !important;
+        font-size: 11px !important;
+        font-weight: 500 !important;
+        min-width: 50px !important;
+        text-align: center !important;
+        border-radius: 4px !important;
+        background: #f9fafb !important;
+        border: 1px solid #e5e7eb !important;
+        color: #6b7280 !important;
+        text-decoration: none !important;
+        flex-shrink: 0 !important;
+        white-space: nowrap !important;
+        line-height: 1.2 !important;
+    }
+    
+    .dark-navbar nav a:hover {
+        background: #f3f4f6 !important;
+        color: #374151 !important;
+        border-color: #d1d5db !important;
+    }
+    
+    .dark-navbar nav a.active {
+        background: #4f46e5 !important;
+        color: white !important;
+        border-color: #4f46e5 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Optimize user profile */
+    .dark-navbar .user-profile {
+        padding: 2px 4px !important;
+        gap: 4px !important;
+        order: 3 !important;
+        flex-shrink: 0 !important;
+    }
+    
+    .dark-navbar .avatar {
+        width: 28px !important;
+        height: 28px !important;
+        border-width: 1px !important;
+        background: #4f46e5 !important;
+        border-color: #e5e7eb !important;
+    }
+    
+    .dark-navbar .avatar i {
+        font-size: 12px !important;
+        color: white !important;
+    }
+    
+    .dark-navbar .user-info {
+        display: none !important;
+    }
+    
+    /* Adjust body padding for fixed navbar */
+    body {
+        padding-top: 44px !important;
+    }
+    
+    /* Adjust main content */
+    .main-content {
+        margin-left: 0 !important;
+        padding-top: 8px !important;
+    }
+    
+    /* Ensure sidebar appears below navbar */
+    .left-sidebar, .sidebar, aside {
+        top: 44px !important;
+        height: calc(100vh - 44px) !important;
+    }
+    
+    /* Overlay positioning */
+    .sidebar-overlay, .overlay {
+        top: 44px !important;
+    }
+}
+
+/* Extra small devices optimization */
+@media (max-width: 480px) {
+    .dark-navbar nav a {
+        padding: 5px 6px !important;
+        font-size: 10px !important;
+        min-width: 45px !important;
+    }
+    
+    .dark-navbar .mobile-sidebar-toggle {
+        width: 30px !important;
+        height: 30px !important;
+        font-size: 14px !important;
+    }
+    
+    .dark-navbar .avatar {
+        width: 26px !important;
+        height: 26px !important;
+    }
+}
+
+/* Very small devices */
+@media (max-width: 360px) {
+    .dark-navbar {
+        padding: 4px 6px !important;
+        gap: 6px !important;
+    }
+    
+    .dark-navbar nav a {
+        padding: 4px 5px !important;
+        font-size: 9px !important;
+        min-width: 40px !important;
+    }
+    
+    .dark-navbar .mobile-sidebar-toggle {
+        width: 28px !important;
+        height: 28px !important;
+        font-size: 13px !important;
+    }
+    
+    .dark-navbar .avatar {
+        width: 24px !important;
+        height: 24px !important;
+    }
+    
+    .dark-navbar .avatar i {
+        font-size: 11px !important;
+    }
+}
+
+/* Tablet adjustments */
+@media (min-width: 481px) and (max-width: 1024px) {
+    .dark-navbar {
+        height: 56px !important;
+        min-height: 56px !important;
+        max-height: 56px !important;
+        padding: 8px 12px !important;
+        margin-left: 0 !important;
+        width: 100% !important;
+    }
+    
+    .dark-navbar h1 {
+        display: block !important;
+        font-size: 16px !important;
+        flex: 1 !important;
+    }
+    
+    .dark-navbar nav a {
+        padding: 8px 12px !important;
+        font-size: 12px !important;
+        min-width: 70px !important;
+    }
+    
+    .dark-navbar .mobile-sidebar-toggle {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 16px !important;
+    }
+    
+    .dark-navbar .user-info {
+        display: flex !important;
+    }
+    
+    body {
+        padding-top: 56px !important;
+    }
+    
+    .left-sidebar, .sidebar, aside {
+        top: 56px !important;
+        height: calc(100vh - 56px) !important;
+    }
+    
+    .sidebar-overlay, .overlay {
+        top: 56px !important;
+    }
+}
+
+/* Desktop - ensure no conflicts */
+@media (min-width: 1025px) {
+    .dark-navbar {
+        position: sticky !important;
+        margin-left: 280px !important;
+        width: calc(100% - 280px) !important;
+        height: auto !important;
+        min-height: 64px !important;
+        max-height: none !important;
+    }
+    
+    .dark-navbar h1 {
+        display: block !important;
+    }
+    
+    .dark-navbar .mobile-sidebar-toggle {
+        display: none !important;
+    }
+    
+    body {
+        padding-top: 0 !important;
+    }
+    
+    .main-content {
+        margin-left: 280px !important;
+        padding-top: 20px !important;
+    }
+    
+    body.sidebar-collapsed .dark-navbar {
+        margin-left: 70px !important;
+        width: calc(100% - 70px) !important;
+    }
+    
+    body.sidebar-collapsed .main-content {
+        margin-left: 70px !important;
+    }
+}
+
+/* Smooth transitions */
+.dark-navbar,
+.dark-navbar * {
+    transition: all 0.2s ease !important;
+}
+
+/* Prevent horizontal scroll on mobile */
+@media (max-width: 1024px) {
+    html, body {
+        overflow-x: hidden !important;
+    }
+    
+    .dark-navbar {
+        overflow: hidden !important;
+    }
+}

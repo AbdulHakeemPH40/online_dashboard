@@ -1,0 +1,83 @@
+/* Simple, modern modal styles */
+.app-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+}
+.app-modal-overlay.is-active {
+  display: flex;
+}
+.app-modal {
+  width: 100%;
+  max-width: 520px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.20);
+  overflow: hidden;
+  animation: modal-in 180ms ease-out;
+}
+@keyframes modal-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.app-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #E5E7EB;
+}
+.app-modal__icon {
+  font-size: 18px;
+}
+.app-modal__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+.app-modal__message {
+  padding: 16px 18px;
+  font-size: 14px;
+  color: #374151;
+}
+.app-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 18px 18px;
+  background: #F9FAFB;
+  border-top: 1px solid #E5E7EB;
+}
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.btn-primary {
+  background: #2563EB;
+  color: white;
+}
+.btn-primary:hover { background: #1D4ED8; }
+.btn-secondary {
+  background: #E5E7EB;
+  color: #111827;
+}
+.btn-secondary:hover { background: #D1D5DB; }
+
+/* Type accents */
+.app-modal.is-success .app-modal__header { background: #F0FDF4; border-bottom-color: #DCFCE7; }
+.app-modal.is-success .app-modal__title { color: #166534; }
+.app-modal.is-error   .app-modal__header { background: #FEF2F2; border-bottom-color: #FEE2E2; }
+.app-modal.is-error   .app-modal__title { color: #991B1B; }
+.app-modal.is-warning .app-modal__header { background: #FFFBEB; border-bottom-color: #FEF3C7; }
+.app-modal.is-warning .app-modal__title { color: #92400E; }
+.app-modal.is-info    .app-modal__header { background: #EFF6FF; border-bottom-color: #DBEAFE; }
+.app-modal.is-info    .app-modal__title { color: #1E40AF; }

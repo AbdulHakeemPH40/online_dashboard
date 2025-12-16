@@ -1,0 +1,135 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Inventory Management System{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <script src="https://unpkg.com/boxicons@2.1.4/dist/boxicons.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Montserrat:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/sidebar-logo.css' %}">
+    <link rel="stylesheet" href="{% static 'css/retro_modern.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dark_navbar.css' %}">
+    <link rel="stylesheet" href="{% static 'css/left_sidebar.css' %}">
+    <link rel="stylesheet" href="{% static 'css/mobile_navbar_fix.css' %}">
+    <link rel="stylesheet" href="{% static 'css/bulk_operations.css' %}">
+    <link rel="stylesheet" href="{% static 'css/modal.css' %}">
+
+    {% block extra_head %}{% endblock %}
+</head>
+
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 0; overflow-x: hidden;" class="mobile-responsive">
+    <!-- Header -->
+    <header class="dark-navbar">
+        <div class="flex items-center gap-4">
+            <button class="mobile-sidebar-toggle" id="mobileToggle">
+                <i class="bx bx-menu"></i>
+            </button>
+            <div class="user-profile">
+                <div class="avatar">
+                    <i class="bi bi-person"></i>
+                </div>
+                <div class="user-info">
+                    <div class="user-name">Admin User</div>
+                    <div class="user-role">System Manager</div>
+                </div>
+            </div>
+        </div>
+        <h1>Pasons Online Dashboard</h1>
+        
+        <!-- Message Display Area -->
+        <div id="messageContainer" class="message-container">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        <i class="bx {% if message.tags == 'success' %}bx-check-circle{% elif message.tags == 'error' %}bx-error-circle{% elif message.tags == 'warning' %}bx-error{% else %}bx-info-circle{% endif %}"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" onclick="(function(btn){var a=btn.closest('.alert');if(a){a.style.transition='opacity 200ms ease';a.style.opacity='0';setTimeout(function(){a.remove();},200);}})(this)">
+                            <i class="bx bx-x"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        <!-- Navigation -->
+        <nav id="main-navigation" class="main-navigation">
+            <a href="{% url 'dashboard' %}" class="{% if active_nav == 'dashboard' %}active{% endif %}">Pasons</a>
+            <a href="{% url 'talabat_dashboard' %}"
+                class="{% if active_nav == 'talabat' %}active{% endif %}">Talabat</a>
+            <a href="#" onclick="showModal({ title: 'ERP', message: 'Integration coming soon!', type: 'info', okText: 'OK' }); return false;"
+                class="{% if active_nav == 'erp' %}active{% endif %}">ERP</a>
+        </nav>
+    </header>
+
+
+
+    <!-- Include Sidebar Template -->
+    {% include 'left_sidebar.html' %}
+    <div class="flex">
+
+        <!-- Main Content -->
+        <main class="main-content" style="flex: 1; padding: 20px; background-color: #F5F7FA;">
+            <div class="content-card"
+                style="background-color: white; border: 1px solid #D0D0D0; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; max-width: 100%;">
+                <div class="content-header"
+                    style="display: flex; align-items: center; padding: 10px 16px; background-color: #F5F7FA; border-bottom: 1px solid #D0D0D0;">
+                    <div style="display: flex; gap: 6px; margin-right: 12px;">
+                        <span
+                            style="width: 12px; height: 12px; border-radius: 50%; background-color: #FF6B6B; display: inline-block;"></span>
+                        <span
+                            style="width: 12px; height: 12px; border-radius: 50%; background-color: #FFCC5C; display: inline-block;"></span>
+                        <span
+                            style="width: 12px; height: 12px; border-radius: 50%; background-color: #88C057; display: inline-block;"></span>
+                    </div>
+                    <div
+                        style="font-family: Arial, sans-serif; font-size: 16px; font-weight: 600; color: #333333; text-transform: capitalize;">
+                        {{ page_title|default:'Dashboard' }}</div>
+                </div>
+                <div style="padding: 16px;">
+                    {% block content %}
+                    {% endblock %}
+                </div>
+            </div>
+        </main>
+    </div>
+
+
+
+    <!-- Global Modal -->
+    <div id="appModalOverlay" class="app-modal-overlay" aria-hidden="true">
+        <div class="app-modal" role="dialog" aria-modal="true" aria-labelledby="appModalTitle">
+            <div class="app-modal__header">
+                <span id="appModalIcon" class="app-modal__icon" aria-hidden="true"></span>
+                <h3 id="appModalTitle" class="app-modal__title">Notice</h3>
+            </div>
+            <div id="appModalMessage" class="app-modal__message"></div>
+            <div class="app-modal__actions">
+                <button id="appModalCancel" class="btn btn-secondary" type="button">Cancel</button>
+                <button id="appModalOk" class="btn btn-primary" type="button">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts: Load in correct order -->
+    <script src="{% static 'js/modal.js' %}"></script>
+    <script src="{% static 'js/base.js' %}"></script>
+    <script src="{% static 'js/mobile_navbar.js' %}"></script>
+    <!-- <script src="{% static 'js/dark_sidebar.js' %}"></script> -->
+    {% block extra_js %}{% endblock %}
+</body>
+
+</html>

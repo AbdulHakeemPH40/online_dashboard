@@ -1,0 +1,1502 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Item Deletion Management{% endblock %}
+
+{% block extra_head %}
+<style>
+    /* Modern Clean Design matching your other pages */
+    
+    /* Page Header */
+    .page-header {
+        margin-bottom: 24px;
+    }
+    
+    .page-header h2 {
+        font-size: 20px;
+        font-weight: 600;
+        color: #333333;
+        font-family: Arial, sans-serif;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    
+    /* Platform Tabs */
+    .deletion-tabs {
+        margin-bottom: 24px;
+        border-bottom: 1px solid #E5E5E5;
+    }
+    
+    .deletion-tabs nav {
+        display: flex;
+        gap: 32px;
+    }
+    
+    .tab-button {
+        padding: 12px 4px;
+        border: none;
+        border-bottom: 2px solid transparent;
+        background: none;
+        font-size: 14px;
+        font-weight: 500;
+        color: #666666;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: Arial, sans-serif;
+    }
+    
+    .tab-button:hover {
+        color: #0066CC;
+    }
+    
+    .tab-button.active {
+        color: #0066CC;
+        border-bottom-color: #0066CC;
+        font-weight: 600;
+    }
+    
+    .tab-content {
+        display: none;
+    }
+    
+    .tab-content.active {
+        display: block;
+    }
+    
+    /* Alert Box */
+    .alert-box {
+        padding: 16px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        background-color: #FFF8E1;
+        border: 1px solid #FFD54F;
+    }
+    
+    .alert-box i {
+        font-size: 20px;
+        color: #FF9500;
+    }
+    
+    .alert-box-content {
+        flex: 1;
+    }
+    
+    .alert-box-title {
+        font-weight: 600;
+        color: #E65100;
+        margin-bottom: 4px;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .alert-box-text {
+        color: #666666;
+        font-size: 13px;
+        font-family: Arial, sans-serif;
+    }
+    
+    /* Form Section */
+    .form-section {
+        background: #FFFFFF;
+        border: 1px solid #D0D0D0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .form-section-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #333333;
+        margin-bottom: 16px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .form-group {
+        margin-bottom: 16px;
+    }
+    
+    .form-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: #333333;
+        margin-bottom: 6px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .form-control, .form-select {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #C5C5C5;
+        border-radius: 4px;
+        font-size: 14px;
+        color: #333333;
+        font-family: Arial, sans-serif;
+        background: #FFFFFF;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        outline: none;
+        border-color: #0066CC;
+        box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+    }
+    
+    .form-control::placeholder {
+        color: #999999;
+    }
+    
+    /* Filter Panel */
+    .filter-panel {
+        background: #F5F5F5;
+        border: 1px solid #D0D0D0;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .filter-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .filter-header-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #333333;
+        font-family: Arial, sans-serif;
+    }
+    
+    .filter-header-title i {
+        color: #0066CC;
+    }
+    
+    .filter-toggle-icon {
+        font-size: 16px;
+        color: #666666;
+        transition: transform 0.2s;
+    }
+    
+    .filter-toggle-icon.collapsed {
+        transform: rotate(-90deg);
+    }
+    
+    .filter-body {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+    
+    .filter-body.collapsed {
+        display: none;
+    }
+    
+    .filter-checkboxes {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 20px;
+        padding-top: 8px;
+    }
+    
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: #333333;
+        cursor: pointer;
+        user-select: none;
+        font-family: Arial, sans-serif;
+    }
+    
+    .checkbox-label input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: #0066CC;
+    }
+    
+    .filter-actions {
+        grid-column: 1 / -1;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding-top: 12px;
+        border-top: 1px solid #E5E5E5;
+    }
+    
+    /* Buttons */
+    .btn {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 500;
+        font-family: Arial, sans-serif;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .btn-primary {
+        background-color: #0066CC;
+        color: white;
+        border: 1px solid #0055AA;
+    }
+    
+    .btn-primary:hover {
+        background-color: #0055AA;
+    }
+    
+    .btn-secondary {
+        background-color: #F5F5F5;
+        color: #333333;
+        border: 1px solid #C5C5C5;
+    }
+    
+    .btn-secondary:hover {
+        background-color: #E5E5E5;
+    }
+    
+    .btn-danger {
+        background-color: #C62828;
+        color: white;
+        border: 1px solid #B71C1C;
+    }
+    
+    .btn-danger:hover {
+        background-color: #B71C1C;
+    }
+    
+    /* Table */
+    .table-container {
+        background: #FFFFFF;
+        border: 1px solid #D0D0D0;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .table-header {
+        padding: 16px;
+        border-bottom: 1px solid #E5E5E5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .table-header-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: #333333;
+        font-family: Arial, sans-serif;
+    }
+    
+    .table-stats {
+        font-size: 13px;
+        color: #666666;
+        font-family: Arial, sans-serif;
+    }
+    
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .data-table thead {
+        background-color: #F5F5F5;
+    }
+    
+    .data-table th {
+        padding: 12px 16px;
+        text-align: left;
+        font-size: 12px;
+        font-weight: 600;
+        color: #555555;
+        text-transform: uppercase;
+        font-family: Arial, sans-serif;
+        border-bottom: 1px solid #E5E5E5;
+    }
+    
+    .data-table tbody tr {
+        border-bottom: 1px solid #E5E5E5;
+    }
+    
+    .data-table tbody tr:hover {
+        background-color: #F9F9F9;
+    }
+    
+    .data-table td {
+        padding: 12px 16px;
+        font-size: 14px;
+        color: #333333;
+        font-family: Arial, sans-serif;
+    }
+    
+    /* Checkbox in table */
+    .table-checkbox {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+        accent-color: #0066CC;
+    }
+    
+    /* Pagination */
+    .pagination {
+        padding: 16px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .pagination button {
+        padding: 6px 12px;
+        border: 1px solid #C5C5C5;
+        background: #FFFFFF;
+        color: #333333;
+        border-radius: 4px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .pagination button:hover:not(:disabled) {
+        background-color: #0066CC;
+        color: white;
+        border-color: #0066CC;
+    }
+    
+    .pagination button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+    
+    .pagination button.active {
+        background-color: #0066CC;
+        color: white;
+        border-color: #0066CC;
+    }
+    
+    /* Bulk Actions Bar */
+    .bulk-actions-bar {
+        background: #E3F2FD;
+        border: 1px solid #BBDEFB;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        display: none;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .bulk-actions-bar.show {
+        display: flex;
+    }
+    
+    .bulk-actions-info {
+        font-size: 14px;
+        color: #0066CC;
+        font-weight: 600;
+        font-family: Arial, sans-serif;
+    }
+    
+    .bulk-actions-buttons {
+        display: flex;
+        gap: 10px;
+    }
+    
+    /* Loading State */
+    .loading {
+        padding: 40px;
+        text-align: center;
+        color: #666666;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .no-items {
+        padding: 40px;
+        text-align: center;
+        color: #999999;
+        font-size: 14px;
+        font-family: Arial, sans-serif;
+    }
+    
+    /* Modal */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal-overlay.show {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    
+    .modal-header {
+        font-size: 18px;
+        font-weight: 600;
+        color: #333333;
+        margin-bottom: 16px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .modal-body {
+        font-size: 14px;
+        color: #666666;
+        margin-bottom: 20px;
+        font-family: Arial, sans-serif;
+    }
+    
+    .modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        /* Page Header */
+        .page-header h2 {
+            font-size: 18px;
+        }
+        
+        /* Tabs */
+        .deletion-tabs nav {
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        
+        .tab-button {
+            font-size: 13px;
+            padding: 10px 16px;
+        }
+        
+        /* Filter Panel */
+        .filter-body {
+            grid-template-columns: 1fr;
+        }
+        
+        .filter-checkboxes {
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .filter-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .filter-actions .form-select {
+            margin-left: 0;
+            width: 100%;
+        }
+        
+        /* Bulk Actions Bar */
+        .bulk-actions-bar {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+        }
+        
+        .bulk-actions-buttons {
+            flex-direction: column;
+        }
+        
+        .bulk-actions-buttons .form-select {
+            width: 100%;
+        }
+        
+        /* Table Container */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .data-table {
+            min-width: 800px;
+            font-size: 13px;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 10px 12px;
+        }
+        
+        /* Table Header */
+        .table-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        /* Pagination */
+        .pagination {
+            flex-wrap: wrap;
+            padding: 12px;
+        }
+        
+        .pagination button {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+        
+        /* Buttons */
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        /* Form Sections */
+        .form-section {
+            padding: 16px;
+        }
+        
+        /* Alert Box */
+        .alert-box {
+            padding: 12px;
+        }
+        
+        .alert-box i {
+            font-size: 18px;
+        }
+        
+        /* Modal */
+        .modal-content {
+            width: 95%;
+            padding: 20px;
+        }
+        
+        .modal-header {
+            font-size: 16px;
+        }
+        
+        .modal-footer {
+            flex-direction: column-reverse;
+        }
+        
+        .modal-footer .btn {
+            width: 100%;
+        }
+    }
+    
+    /* Tablet Devices (768px - 1024px) */
+    @media (min-width: 769px) and (max-width: 1024px) {
+        /* Filter Body - 2 columns on tablet */
+        .filter-body {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .filter-checkboxes {
+            grid-column: 1 / -1;
+            flex-wrap: wrap;
+        }
+        
+        .filter-actions {
+            grid-column: 1 / -1;
+        }
+        
+        /* Table font size */
+        .data-table {
+            font-size: 13px;
+        }
+        
+        .data-table th,
+        .data-table td {
+            padding: 11px 14px;
+        }
+    }
+    
+    /* Small Mobile Devices (max-width: 480px) */
+    @media (max-width: 480px) {
+        .page-header h2 {
+            font-size: 16px;
+        }
+        
+        .tab-button {
+            font-size: 12px;
+            padding: 8px 12px;
+        }
+        
+        .form-section-title {
+            font-size: 14px;
+        }
+        
+        .form-label {
+            font-size: 12px;
+        }
+        
+        .form-control,
+        .form-select {
+            font-size: 13px;
+            padding: 8px 10px;
+        }
+        
+        .btn {
+            font-size: 13px;
+            padding: 8px 14px;
+        }
+        
+        .alert-box-title {
+            font-size: 13px;
+        }
+        
+        .alert-box-text {
+            font-size: 12px;
+        }
+        
+        .data-table {
+            font-size: 12px;
+        }
+        
+        .pagination button {
+            padding: 5px 8px;
+            font-size: 11px;
+        }
+    }
+    
+    /* Landscape Orientation for Mobile */
+    @media (max-width: 768px) and (orientation: landscape) {
+        .modal-content {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .filter-panel {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h2>
+        <i class="bi bi-trash" style="color: #C62828;"></i>
+        Item Deletion Management
+    </h2>
+</div>
+
+<!-- Deletion Type Tabs -->
+<div class="deletion-tabs">
+    <nav>
+        <button class="tab-button active" onclick="switchTab('bulk')">
+            <i class="bi bi-layers"></i> Bulk Deletion
+        </button>
+        <button class="tab-button" onclick="switchTab('single')">
+            <i class="bi bi-x-circle"></i> Single Item
+        </button>
+    </nav>
+</div>
+
+<!-- Bulk Deletion Tab -->
+<div id="bulk-tab" class="tab-content active">
+    <!-- Alert Box -->
+    <div class="alert-box">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="alert-box-content">
+            <div class="alert-box-title">Warning</div>
+            <div class="alert-box-text">Bulk deletion will permanently remove all selected items from the database. This action cannot be undone.</div>
+        </div>
+    </div>
+    
+    <!-- Platform Selection -->
+    <div class="form-section">
+        <div class="form-section-title">Select Platform</div>
+        <div class="form-group">
+            <label class="form-label">Platform</label>
+            <select id="bulk-platform" class="form-select" onchange="loadItemsForBulkDeletion(1)">
+                <option value="">-- Select Platform --</option>
+                <option value="pasons" selected>Pasons Ecommerce</option>
+                <option value="talabat">Talabat Platform</option>
+            </select>
+        </div>
+    </div>
+    
+    <!-- Filter Panel -->
+    <div class="filter-panel">
+        <div class="filter-header" onclick="toggleFilters()">
+            <div class="filter-header-title">
+                <i class="bi bi-funnel"></i>
+                <span>Filters</span>
+            </div>
+            <i class="bi bi-chevron-down filter-toggle-icon" id="filter-toggle"></i>
+        </div>
+        
+        <div class="filter-body" id="filter-body">
+            <div class="form-group">
+                <input type="text" id="filter-item-code" class="form-control" placeholder="Item Code">
+            </div>
+            <div class="form-group">
+                <input type="text" id="filter-description" class="form-control" placeholder="Description">
+            </div>
+            <div class="form-group">
+                <input type="text" id="filter-sku" class="form-control" placeholder="SKU">
+            </div>
+            <div class="form-group">
+                <input type="text" id="filter-barcode" class="form-control" placeholder="Barcode">
+            </div>
+            
+            <div class="form-group">
+                <input type="number" id="filter-price-min" class="form-control" placeholder="Min Price" step="0.01">
+            </div>
+            <div class="form-group">
+                <input type="number" id="filter-price-max" class="form-control" placeholder="Max Price" step="0.01">
+            </div>
+            <div class="form-group">
+                <input type="number" id="filter-stock-min" class="form-control" placeholder="Min Stock">
+            </div>
+            <div class="form-group">
+                <input type="number" id="filter-stock-max" class="form-control" placeholder="Max Stock">
+            </div>
+            
+            <div class="filter-checkboxes">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="filter-active-only" checked>
+                    <span>Active Items Only</span>
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="filter-in-stock">
+                    <span>In Stock Only</span>
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="filter-low-stock">
+                    <span>Low Stock (≤5)</span>
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="filter-has-barcode">
+                    <span>Has Barcode</span>
+                </label>
+            </div>
+            
+            <div class="filter-actions">
+                <button class="btn btn-primary" onclick="applyBulkFilters()">
+                    <i class="bi bi-check-circle"></i> Apply Filters
+                </button>
+                <button class="btn btn-secondary" onclick="resetBulkFilters()">
+                    <i class="bi bi-arrow-repeat"></i> Reset
+                </button>
+                <select id="page-size" class="form-select" onchange="changePageSize()" style="width: auto; margin-left: auto;">
+                    <option value="50">50 items</option>
+                    <option value="100" selected>100 items</option>
+                    <option value="200">200 items</option>
+                    <option value="500">500 items</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bulk Actions Bar -->
+    <div class="bulk-actions-bar" id="bulk-actions-bar">
+        <div class="bulk-actions-info">
+            <span id="selected-count">0</span> item(s) selected
+        </div>
+        <div class="bulk-actions-buttons">
+            <button class="btn btn-secondary" onclick="clearSelection()">
+                <i class="bi bi-x"></i> Clear Selection
+            </button>
+            <select id="delete-scope" class="form-select" style="width: auto;" onchange="onDeleteScopeChange()">
+                <option value="selected">Delete Selected</option>
+                <option value="current_page">Delete Current Page</option>
+                <option value="filtered">Delete All Filtered</option>
+                <option value="all">Delete All Items</option>
+            </select>
+            <button class="btn btn-danger" onclick="deleteSelectedItems()">
+                <i class="bi bi-trash"></i> Delete
+            </button>
+        </div>
+    </div>
+    
+    <!-- Items Table -->
+    <div class="table-container">
+        <div class="table-header">
+            <div class="table-header-title">Items</div>
+            <div class="table-stats" id="results-summary">Showing 0–0 of 0</div>
+        </div>
+        
+        <div id="bulk-items-container">
+            <div class="loading"><i class="bi bi-hourglass-split"></i> Loading items...</div>
+        </div>
+        
+        <div class="pagination" id="pagination-controls"></div>
+    </div>
+</div>
+
+<!-- Single Deletion Tab -->
+<div id="single-tab" class="tab-content">
+    <div class="alert-box">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <div class="alert-box-content">
+            <div class="alert-box-title">Warning</div>
+            <div class="alert-box-text">Single item deletion will permanently remove the selected item from the database. This action cannot be undone.</div>
+        </div>
+    </div>
+    
+    <!-- Platform Selection -->
+    <div class="form-section">
+        <div class="form-section-title">Select Platform</div>
+        <div class="form-group">
+            <label class="form-label">Platform</label>
+            <select id="single-platform" class="form-select">
+                <option value="">All Platforms</option>
+                <option value="pasons" selected>Pasons Ecommerce</option>
+                <option value="talabat">Talabat Platform</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="form-section">
+        <div class="form-section-title">Search Item</div>
+        <div class="form-group">
+            <label class="form-label">Search by Item Code, Description, or SKU</label>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="single-search" class="form-control" placeholder="Enter search term..." onkeypress="if(event.key==='Enter') searchSingleItem()">
+                <button class="btn btn-primary" onclick="searchSingleItem()">
+                    <i class="bi bi-search"></i> Search
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="table-container">
+        <div class="table-header">
+            <div class="table-header-title">Search Results</div>
+        </div>
+        <div id="single-search-results">
+            <div class="no-items">Enter a search term to find items...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal-overlay" id="confirmationModal">
+    <div class="modal-content">
+        <div class="modal-header">Confirm Deletion</div>
+        <div class="modal-body">
+            <p id="confirmation-message">Are you sure you want to delete the selected items?</p>
+            <div id="confirm-text-wrapper" style="display: none; margin-top: 16px;">
+                <label class="form-label">Type "DELETE ALL" to confirm:</label>
+                <input type="text" id="confirm-text" class="form-control" placeholder="DELETE ALL">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeConfirmationModal()">Cancel</button>
+            <button class="btn btn-danger" onclick="confirmDeletion()">
+                <i class="bi bi-trash"></i> Confirm Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let selectedItems = [];
+    let currentDeletionType = 'bulk';
+    let itemToDelete = null;
+    let currentPage = 1;
+    let pageSize = 100;
+    let currentPlatform = '';
+    let pendingDeleteScope = 'selected';
+    let pendingDeletePayload = null;
+    
+    // Auto-load on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Auto-load Pasons items on page load
+        loadItemsForBulkDeletion(1);
+    });
+    
+    // Tab switching
+    function switchTab(tabName) {
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        document.getElementById(tabName + '-tab').classList.add('active');
+        event.target.classList.add('active');
+        currentDeletionType = tabName;
+    }
+    
+    // Toggle filters
+    function toggleFilters() {
+        const filterBody = document.getElementById('filter-body');
+        const filterToggle = document.getElementById('filter-toggle');
+        filterBody.classList.toggle('collapsed');
+        filterToggle.classList.toggle('collapsed');
+    }
+    
+    // Load items for bulk deletion
+    function loadItemsForBulkDeletion(page = 1) {
+        const platform = document.getElementById('bulk-platform').value;
+        const container = document.getElementById('bulk-items-container');
+        
+        if (!platform) {
+            container.innerHTML = '<div class="loading">Select a platform to load items...</div>';
+            return;
+        }
+        
+        currentPlatform = platform;
+        currentPage = page;
+        container.innerHTML = '<div class="loading">Loading items...</div>';
+        
+        const params = new URLSearchParams();
+        params.set('platform', platform);
+        params.set('page', String(page));
+        params.set('page_size', String(pageSize));
+        params.set('include_inactive', '1');
+        
+        const itemCode = document.getElementById('filter-item-code').value.trim();
+        const description = document.getElementById('filter-description').value.trim();
+        const barcode = document.getElementById('filter-barcode').value.trim();
+        const sku = document.getElementById('filter-sku').value.trim();
+        const priceMin = document.getElementById('filter-price-min').value.trim();
+        const priceMax = document.getElementById('filter-price-max').value.trim();
+        const stockMin = document.getElementById('filter-stock-min').value.trim();
+        const stockMax = document.getElementById('filter-stock-max').value.trim();
+        
+        if (itemCode) params.set('item_code', itemCode);
+        if (description) params.set('description', description);
+        if (barcode) params.set('barcode', barcode);
+        if (sku) params.set('sku', sku);
+        if (priceMin) params.set('price_min', priceMin);
+        if (priceMax) params.set('price_max', priceMax);
+        if (stockMin) params.set('stock_min', stockMin);
+        if (stockMax) params.set('stock_max', stockMax);
+        
+        fetch(`/integration/api/search-product/?${params.toString()}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const items = data.items || [];
+                    displayBulkItems(items);
+                    renderPagination(data);
+                    renderResultsSummary(data);
+                } else {
+                    container.innerHTML = '<div class="no-items">No items found for this platform.</div>';
+                    renderPagination({ total_pages: 0 });
+                    renderResultsSummary({ total_items: 0, page: 1, page_size: pageSize });
+                }
+            })
+            .catch(error => {
+                console.error('Error loading items:', error);
+                container.innerHTML = '<div class="no-items">Error loading items. Please try again.</div>';
+            });
+    }
+    
+    // Display items in table
+    function displayBulkItems(items) {
+        const container = document.getElementById('bulk-items-container');
+        
+        let html = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">
+                        <input type="checkbox" id="select-all" class="table-checkbox" onchange="toggleSelectAll()">
+                    </th>
+                    <th>Item Code</th>
+                    <th>Description</th>
+                    <th>Pack</th>
+                    <th>SKU</th>
+                    <th>Units</th>
+                    <th>Price(AED)</th>
+                    <th>Stock</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        items.forEach(item => {
+            const combinationKey = item.combination_key || `${item.item_code}|${item.description}|${item.sku}`;
+            html += `
+            <tr data-key="${combinationKey}">
+                <td>
+                    <input type="checkbox" class="item-checkbox table-checkbox" value="${combinationKey}" onchange="updateSelection()">
+                </td>
+                <td>${item.item_code}</td>
+                <td>${item.description}</td>
+                <td>${item.pack_description || ''}</td>
+                <td>${item.sku}</td>
+                <td>${item.units}</td>
+                <td>${parseFloat(item.selling_price).toFixed(2)}</td>
+                <td>${item.stock}</td>
+            </tr>
+            `;
+        });
+        
+        html += '</tbody></table>';
+        container.innerHTML = html;
+        clearSelection();
+    }
+    
+    // Update selection
+    function updateSelection() {
+        selectedItems = Array.from(document.querySelectorAll('.item-checkbox:checked')).map(cb => cb.value);
+        document.getElementById('selected-count').textContent = selectedItems.length;
+        document.getElementById('bulk-actions-bar').classList.toggle('show', selectedItems.length > 0);
+        
+        const selectAll = document.getElementById('select-all');
+        if (selectAll) {
+            const totalCheckboxes = document.querySelectorAll('.item-checkbox').length;
+            selectAll.checked = totalCheckboxes > 0 && selectedItems.length === totalCheckboxes;
+        }
+    }
+    
+    // Toggle select all
+    function toggleSelectAll() {
+        const selectAll = document.getElementById('select-all');
+        const checkboxes = document.querySelectorAll('.item-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = selectAll.checked;
+        });
+        updateSelection();
+    }
+    
+    // Clear selection
+    function clearSelection() {
+        selectedItems = [];
+        document.querySelectorAll('.item-checkbox').forEach(cb => cb.checked = false);
+        const selectAll = document.getElementById('select-all');
+        if (selectAll) selectAll.checked = false;
+        updateSelection();
+    }
+    
+    // Apply filters
+    function applyBulkFilters() {
+        loadItemsForBulkDeletion(1);
+    }
+    
+    // Reset filters
+    function resetBulkFilters() {
+        ['filter-item-code','filter-description','filter-barcode','filter-sku','filter-price-min','filter-price-max','filter-stock-min','filter-stock-max'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        
+        document.getElementById('filter-active-only').checked = true;
+        document.getElementById('filter-in-stock').checked = false;
+        document.getElementById('filter-low-stock').checked = false;
+        document.getElementById('filter-has-barcode').checked = false;
+        
+        loadItemsForBulkDeletion(1);
+    }
+    
+    // Change page size
+    function changePageSize() {
+        const select = document.getElementById('page-size');
+        pageSize = parseInt(select.value || '100');
+        loadItemsForBulkDeletion(1);
+    }
+    
+    // Render pagination
+    function renderPagination(meta) {
+        const container = document.getElementById('pagination-controls');
+        const totalPages = meta.total_pages || 0;
+        const page = meta.page || 1;
+        
+        if (totalPages <= 1) {
+            container.innerHTML = '';
+            return;
+        }
+        
+        let html = '';
+        html += `<button ${page === 1 ? 'disabled' : ''} onclick="loadItemsForBulkDeletion(1)">First</button>`;
+        html += `<button ${!meta.has_previous ? 'disabled' : ''} onclick="loadItemsForBulkDeletion(${page - 1})">Previous</button>`;
+        
+        const start = Math.max(1, page - 2);
+        const end = Math.min(totalPages, page + 2);
+        
+        for (let i = start; i <= end; i++) {
+            html += `<button class="${i === page ? 'active' : ''}" onclick="loadItemsForBulkDeletion(${i})">${i}</button>`;
+        }
+        
+        html += `<button ${!meta.has_next ? 'disabled' : ''} onclick="loadItemsForBulkDeletion(${page + 1})">Next</button>`;
+        html += `<button ${page === totalPages ? 'disabled' : ''} onclick="loadItemsForBulkDeletion(${totalPages})">Last</button>`;
+        
+        container.innerHTML = html;
+    }
+    
+    // Render results summary
+    function renderResultsSummary(meta) {
+        const container = document.getElementById('results-summary');
+        const total = meta.total_items || 0;
+        const page = meta.page || 1;
+        const size = meta.page_size || pageSize;
+        const start = total === 0 ? 0 : ((page - 1) * size) + 1;
+        const end = Math.min(total, page * size);
+        container.innerHTML = `Showing ${start}–${end} of ${total}`;
+    }
+    
+    // Delete scope change
+    function onDeleteScopeChange() {
+        pendingDeleteScope = document.getElementById('delete-scope')?.value || 'selected';
+    }
+    
+    // Delete selected items
+    function deleteSelectedItems() {
+        const scope = document.getElementById('delete-scope')?.value || 'selected';
+        pendingDeleteScope = scope;
+        const confirmTextWrapper = document.getElementById('confirm-text-wrapper');
+        confirmTextWrapper.style.display = 'none';
+        
+        if (scope === 'selected') {
+            if (selectedItems.length === 0) {
+                showModal({ title: 'Selection Required', message: 'Please select items to delete.', type: 'warning' });
+                return;
+            }
+            const message = `Are you sure you want to delete ${selectedItems.length} selected item(s)? This action cannot be undone.`;
+            document.getElementById('confirmation-message').textContent = message;
+            pendingDeletePayload = { combination_keys: selectedItems, delete_scope: 'selected' };
+        } else if (scope === 'current_page') {
+            const pageKeys = gatherKeysFromCurrentPage();
+            if (pageKeys.length === 0) {
+                showModal({ title: 'Nothing to Delete', message: 'No items found on the current page to delete.', type: 'info' });
+                return;
+            }
+            const message = `Delete all ${pageKeys.length} item(s) on this page? This action cannot be undone.`;
+            document.getElementById('confirmation-message').textContent = message;
+            pendingDeletePayload = { combination_keys: pageKeys, delete_scope: 'current_page' };
+        } else if (scope === 'filtered') {
+            const filters = getCurrentFilters();
+            const message = `Delete ALL filtered items across pages? This action cannot be undone.`;
+            document.getElementById('confirmation-message').textContent = message;
+            pendingDeletePayload = { filters: filters, delete_scope: 'filtered' };
+        } else if (scope === 'all') {
+            const message = `Delete ENTIRE database of items? Type "DELETE ALL" to confirm.`;
+            document.getElementById('confirmation-message').textContent = message;
+            confirmTextWrapper.style.display = 'block';
+            pendingDeletePayload = { delete_scope: 'all' };
+        }
+        
+        document.getElementById('confirmationModal').classList.add('show');
+    }
+    
+    // Gather keys from current page
+    function gatherKeysFromCurrentPage() {
+        return Array.from(document.querySelectorAll('.item-checkbox')).map(cb => cb.value);
+    }
+    
+    // Get current filters
+    function getCurrentFilters() {
+        const filters = {
+            platform: currentPlatform,
+            include_inactive: true
+        };
+        
+        const itemCode = document.getElementById('filter-item-code').value.trim();
+        const description = document.getElementById('filter-description').value.trim();
+        const barcode = document.getElementById('filter-barcode').value.trim();
+        const sku = document.getElementById('filter-sku').value.trim();
+        const priceMin = document.getElementById('filter-price-min').value.trim();
+        const priceMax = document.getElementById('filter-price-max').value.trim();
+        const stockMin = document.getElementById('filter-stock-min').value.trim();
+        const stockMax = document.getElementById('filter-stock-max').value.trim();
+        
+        if (itemCode) filters.item_code = itemCode;
+        if (description) filters.description = description;
+        if (barcode) filters.barcode = barcode;
+        if (sku) filters.sku = sku;
+        if (priceMin) filters.price_min = priceMin;
+        if (priceMax) filters.price_max = priceMax;
+        if (stockMin) filters.stock_min = stockMin;
+        if (stockMax) filters.stock_max = stockMax;
+        
+        return filters;
+    }
+    
+    // Confirm deletion
+    function confirmDeletion() {
+        if (currentDeletionType === 'bulk' && pendingDeletePayload) {
+            const payload = {
+                deletion_type: 'bulk',
+                delete_scope: pendingDeleteScope
+            };
+            
+            if (pendingDeleteScope === 'selected' || pendingDeleteScope === 'current_page') {
+                payload.combination_keys = pendingDeletePayload.combination_keys || [];
+                payload.platform = currentPlatform || document.getElementById('bulk-platform').value || '';
+            } else if (pendingDeleteScope === 'filtered') {
+                payload.filters = pendingDeletePayload.filters || {};
+                payload.platform = currentPlatform || '';
+                payload.include_inactive = true;
+            } else if (pendingDeleteScope === 'all') {
+                const confirmTextEl = document.getElementById('confirm-text');
+                const confirmText = confirmTextEl ? confirmTextEl.value.trim() : '';
+                if (confirmText !== 'DELETE ALL') {
+                    showModal({ title: 'Invalid Confirmation', message: 'Please type "DELETE ALL" to confirm.', type: 'error' });
+                    return;
+                }
+                payload.confirm_all = true;
+                payload.confirm_text = confirmText;
+                payload.platform = currentPlatform || document.getElementById('bulk-platform').value || '';
+            }
+            
+            closeConfirmationModal();
+            
+            fetch('/integration/api/delete-items/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(payload)
+            })
+                .then(response => {
+                    console.log('Delete API response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Delete API response data:', data);
+                    if (data.success) {
+                        const assoc = Number(data.associations_deleted || 0);
+                        const deleted = Number(data.deleted_count || 0);
+                        
+                        // Use alert as immediate feedback
+                        alert(`✅ Deletion Complete!\n\nRemoved ${assoc} association(s)\nDeleted ${deleted} item(s)`);
+                        
+                        // Also try to show modal
+                        showModal({ title: 'Deletion Complete', message: `Removed ${assoc} association(s); deleted ${deleted} item(s).`, type: 'success' });
+                        
+                        // Clear and reload
+                        const confirmTextEl = document.getElementById('confirm-text');
+                        if (confirmTextEl) {
+                            confirmTextEl.value = '';
+                        }
+                        loadItemsForBulkDeletion(1);
+                        clearSelection();
+                    } else {
+                        console.error('API returned success=false:', data.message);
+                        alert(`❌ Deletion Failed\n\n${data.message || 'An error occurred during deletion.'}`);
+                        showModal({ title: 'Deletion Failed', message: data.message || 'An error occurred during deletion.', type: 'error' });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting items:', error);
+                    alert(`❌ Error
+
+Failed to delete items. Please try again.
+
+Details: ${error.message}`);
+                    showModal({ title: 'Error', message: 'Failed to delete items. Please try again.', type: 'error' });
+                });
+        } else if (currentDeletionType === 'single' && itemToDelete) {
+            // Handle single item deletion
+            const payload = {
+                deletion_type: 'single',
+                combination_keys: [itemToDelete.combination_key],
+                platform: document.getElementById('single-platform').value || ''
+            };
+            
+            closeConfirmationModal();
+            
+            fetch('/integration/api/delete-items/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(payload)
+            })
+                .then(response => {
+                    console.log('Single delete API response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Single delete API response data:', data);
+                    if (data.success) {
+                        const assoc = Number(data.associations_deleted || 0);
+                        const deleted = Number(data.deleted_count || 0);
+                        
+                        // Use alert as immediate feedback
+                        alert(`✅ Deletion Complete!\n\nRemoved ${assoc} association(s)\nDeleted ${deleted} item(s)`);
+                        
+                        // Also try to show modal
+                        showModal({ title: 'Deletion Complete', message: `Removed ${assoc} association(s); deleted ${deleted} item(s).`, type: 'success' });
+                        
+                        // Refresh the search results
+                        searchSingleItem();
+                    } else {
+                        console.error('API returned success=false:', data.message);
+                        alert(`❌ Deletion Failed\n\n${data.message || 'An error occurred during deletion.'}`);
+                        showModal({ title: 'Deletion Failed', message: data.message || 'An error occurred during deletion.', type: 'error' });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error deleting item:', error);
+                    alert(`❌ Error
+
+Failed to delete item. Please try again.
+
+Details: ${error.message}`);
+                    showModal({ title: 'Error', message: 'Failed to delete item. Please try again.', type: 'error' });
+                });
+        }
+    }
+    
+    // Close confirmation modal
+    function closeConfirmationModal() {
+        document.getElementById('confirmationModal').classList.remove('show');
+    }
+    
+    // Search single item
+    function searchSingleItem() {
+        const searchTerm = document.getElementById('single-search').value.trim();
+        const resultsContainer = document.getElementById('single-search-results');
+        
+        if (searchTerm.length < 2) {
+            resultsContainer.innerHTML = '<div class="no-items">Enter at least 2 characters to search...</div>';
+            return;
+        }
+        
+        resultsContainer.innerHTML = '<div class="loading"><i class="bi bi-hourglass-split"></i> Searching...</div>';
+        
+        // Get platform from single-platform dropdown
+        const platform = document.getElementById('single-platform').value || '';
+        fetch(`/integration/api/search-product/?q=${encodeURIComponent(searchTerm)}&limit=20&platform=${encodeURIComponent(platform)}&include_inactive=1`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.items && data.items.length > 0) {
+                    displaySingleSearchResults(data.items);
+                } else {
+                    resultsContainer.innerHTML = '<div class="no-items">No items found matching your search.</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error searching items:', error);
+                resultsContainer.innerHTML = '<div class="no-items">Error searching items. Please try again.</div>';
+            });
+    }
+    
+    // Display single search results
+    function displaySingleSearchResults(items) {
+        const container = document.getElementById('single-search-results');
+        
+        let html = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Item Code</th>
+                    <th>Description</th>
+                    <th>Pack</th>
+                    <th>SKU</th>
+                    <th>Units</th>
+                    <th>Price(AED)</th>
+                    <th>Stock</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        items.forEach(item => {
+            const combinationKey = item.combination_key || `${item.item_code}|${item.description}|${item.sku}`;
+            html += `
+            <tr>
+                <td>${item.item_code}</td>
+                <td>${item.description}</td>
+                <td>${item.pack_description || ''}</td>
+                <td>${item.sku}</td>
+                <td>${item.units}</td>
+                <td>${parseFloat(item.selling_price).toFixed(2)}</td>
+                <td>${item.stock}</td>
+                <td>
+                    <button class="btn btn-danger" onclick="deleteSingleItem('${combinationKey}', '${item.item_code}')">
+                        <i class="bi bi-trash"></i> Delete
+                    </button>
+                </td>
+            </tr>
+            `;
+        });
+        
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    }
+    
+    // Delete single item
+    function deleteSingleItem(combinationKey, itemCode) {
+        itemToDelete = { combination_key: combinationKey, code: itemCode, type: 'single' };
+        const message = `Are you sure you want to delete item "${itemCode}"? This action cannot be undone.`;
+        document.getElementById('confirmation-message').textContent = message;
+        document.getElementById('confirmationModal').classList.add('show');
+    }
+    
+    // Close notification modal
+    function closeNotificationModal() {
+        const modalOverlay = document.getElementById('confirmationModal');
+        if (modalOverlay) {
+            modalOverlay.classList.remove('show');
+            // Reset modal to default state after closing
+            setTimeout(() => {
+                const modalFooter = modalOverlay.querySelector('.modal-footer');
+                if (modalFooter) {
+                    modalFooter.innerHTML = `
+                        <button class="btn btn-secondary" onclick="closeConfirmationModal()">Cancel</button>
+                        <button class="btn btn-danger" onclick="confirmDeletion()">
+                            <i class="bi bi-trash"></i> Confirm Delete
+                        </button>
+                    `;
+                }
+            }, 300);
+        }
+    }
+    
+    // Get CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}

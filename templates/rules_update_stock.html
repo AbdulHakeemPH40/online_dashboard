@@ -1,0 +1,577 @@
+{% extends 'base.html' %}
+
+{% block title %}Rules Update (Stock){% endblock %}
+
+{% block extra_head %}
+<style>
+/* Modal Styling */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    overflow: auto;
+}
+
+.modal.show {
+    display: block !important;
+}
+
+.modal-dialog {
+    position: relative;
+    margin: 5% auto;
+    width: 90%;
+    max-width: 1000px;
+    max-height: 90vh;
+}
+
+.modal-content {
+    background-color: #FFFFFF;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    flex-shrink: 0;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+}
+
+.close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+    padding: 0;
+    margin: 0;
+}
+
+.close:hover {
+    opacity: 1;
+}
+
+.modal-body {
+    padding: 24px;
+    color: #333333;
+    font-size: 1rem;
+    line-height: 1.6;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid #E5E5E5;
+    background: #f8f9fa;
+    flex-shrink: 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bulk-operations-container">
+    <div class="bulk-card">
+        <div class="bulk-card-header">
+            <h1 class="bulk-title">📋 Stock Conversion Rules Update</h1>
+            <p class="bulk-subtitle">Update weight division factor, outer case quantity, and minimum quantity for existing items via CSV upload</p>
+        </div>
+        <div class="bulk-card-body">
+            <div class="bulk-row">
+                <div class="bulk-col-12">
+                    <form method="post" enctype="multipart/form-data" id="stockRulesForm">
+                        {% csrf_token %}
+                        
+                        <!-- Platform Selection -->
+                        <div class="bulk-row">
+                            <div class="bulk-col-12">
+                                <div class="bulk-form-group">
+                                    <label for="platform" class="bulk-form-label"><i class="bx bx-store"></i> Platform <span class="required">*</span></label>
+                                    <select class="bulk-form-control" id="platform" name="platform" required>
+                                        <option value="">Select Platform</option>
+                                        <option value="pasons">Pasons Ecommerce</option>
+                                        <option value="talabat">Talabat Platform</option>
+                                    </select>
+                                    <small style="color: #666; font-size: 12px; margin-top: 4px; display: block;">Rules will apply to ALL outlets/branches for the selected platform</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        
+                        <!-- CSV File Upload -->
+                        <div class="bulk-form-group">
+                            <label for="csvFile" class="bulk-form-label">
+                                <i class="bx bx-file"></i> CSV File
+                            </label>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                                Required format: <code style="background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-family: monospace;">item_code, units, sku, weight_division_factor, outer_case_quantity, minimum_qty</code>
+                            </div>
+                            <div class="file-upload-container">
+                                <div class="file-upload-area" id="fileUploadArea">
+                                    <input type="file" id="csvFile" name="csv_file" accept=".csv" class="file-input-hidden" required>
+                                    <div class="upload-content">
+                                        <i class="bx bx-cloud-upload upload-icon"></i>
+                                        <div class="upload-text">Browse Files</div>
+                                        <div class="upload-subtext">or drag and drop your CSV file here</div>
+                                        <div class="upload-format">Supported format: .csv (Max size: 10MB)</div>
+                                    </div>
+                                </div>
+                                <div id="selectedFile" class="selected-file-display" style="display: none;">
+                                    <div class="file-preview">
+                                        <div class="file-icon">
+                                            <i class="bx bx-file-blank"></i>
+                                        </div>
+                                        <div class="file-details">
+                                            <div class="file-name" id="fileName"></div>
+                                            <div class="file-size" id="fileSize"></div>
+                                            <div class="file-status">
+                                                <i class="bx bx-check-circle"></i>
+                                                <span>Ready to upload</span>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="remove-file-btn" id="removeFile">
+                                            <i class="bx bx-trash"></i>
+                                            <span>Delete</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="bulk-form-actions">
+                            <button type="button" class="bulk-btn bulk-btn-info" id="downloadSample">
+                                <i class="bx bx-download"></i> Download Sample CSV
+                            </button>
+                            <button type="button" class="bulk-btn bulk-btn-outline" onclick="resetForm()">
+                                <i class="bx bx-reset"></i> Reset
+                            </button>
+                            <button type="button" class="bulk-btn bulk-btn-success" id="previewBtn" style="display: none;">
+                                <i class="bx bx-show"></i> Preview & Update
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="modal" style="display: none;">
+    <div class="modal-dialog" style="max-width: 1000px; max-height: 90vh;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bx bx-show"></i> Preview Changes</h5>
+                <button type="button" class="close" onclick="closePreviewModal()">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+                <div id="previewSummary" class="preview-summary"></div>
+                <div id="previewTable" class="preview-table-container"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="bulk-btn bulk-btn-outline" onclick="closePreviewModal()">
+                    <i class="bx bx-x"></i> Cancel
+                </button>
+                <button type="button" class="bulk-btn bulk-btn-success" id="confirmUpdateBtn">
+                    <i class="bx bx-check"></i> Confirm & Update
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// File upload handling
+const fileInput = document.getElementById('csvFile');
+const uploadArea = document.querySelector('.file-upload-area');
+const selectedFile = document.getElementById('selectedFile');
+const fileName = document.getElementById('fileName');
+const fileSize = document.getElementById('fileSize');
+const removeFileBtn = document.getElementById('removeFile');
+const ruleScopeSelect = document.getElementById('rule_scope');
+const headerInstructions = document.getElementById('headerInstructions');
+const uploadContent = uploadArea ? uploadArea.querySelector('.upload-content') : null;
+
+// Helper function to format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Rule scope change handler
+if (ruleScopeSelect && headerInstructions) {
+    ruleScopeSelect.addEventListener('change', function() {
+        const allHeaders = headerInstructions.querySelectorAll('.rule-headers');
+        allHeaders.forEach(header => header.style.display = 'none');
+        
+        if (this.value) {
+            const targetHeader = headerInstructions.querySelector(`[data-rule="${this.value}"]`);
+            if (targetHeader) {
+                targetHeader.style.display = 'block';
+            }
+        }
+    });
+}
+
+// Click to upload
+uploadArea.addEventListener('click', () => {
+    fileInput.click();
+});
+
+// Drag and drop
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('bulk-upload-dragover');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('bulk-upload-dragover');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('bulk-upload-dragover');
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        if (files[0].size > 10 * 1024 * 1024) { // 10MB limit
+            showModal({ title: 'File Too Large', message: 'File size must be less than 10MB.', type: 'warning' });
+            return;
+        }
+        handleFileSelect(files[0]);
+    }
+});
+
+// File input change
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handleFileSelect(e.target.files[0]);
+    }
+});
+
+// Handle file selection
+function handleFileSelect(file) {
+    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+            showModal({ title: 'CSV Required', message: 'Please select a CSV file.', type: 'warning' });
+        return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+            showModal({ title: 'File Too Large', message: 'File size must be less than 10MB.', type: 'warning' });
+        return;
+    }
+    
+    fileName.textContent = file.name;
+    fileSize.textContent = formatFileSize(file.size);
+    if (uploadArea) uploadArea.style.display = 'none';
+    selectedFile.style.display = 'block';
+    
+    // Set the file to the input
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    fileInput.files = dt.files;
+}
+
+// Remove file
+removeFileBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    fileInput.value = '';
+    if (uploadArea) uploadArea.style.display = 'block';
+    selectedFile.style.display = 'none';
+});
+
+// Reset form function
+function resetForm() {
+    // Clear form fields
+    document.getElementById('stockRulesForm').reset();
+    
+    // Reset file upload
+    if (uploadArea) uploadArea.style.display = 'block';
+    selectedFile.style.display = 'none';
+    
+    // Reset outlet dropdown
+    const outletSelect = document.getElementById('outlet');
+    outletSelect.innerHTML = '<option value="">Select a platform first</option>';
+}
+
+// Platform-based outlet filtering - REMOVED (not needed for stock conversion rules)
+
+// Download sample CSV
+document.getElementById('downloadSample').addEventListener('click', function() {
+    const headers = ['item_code', 'units', 'sku', 'weight_division_factor', 'outer_case_quantity', 'minimum_qty'];
+    const sampleData = ['9900186', 'KGS', '9900186500', '2', '9', '3'];
+    
+    const csvContent = headers.join(',') + '\n' + sampleData.join(',');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'stock_conversion_rules_sample.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+});
+
+// Preview button handler - MAIN ACTION (replaces old form submit)
+document.getElementById('previewBtn').addEventListener('click', function(e) {
+    e.preventDefault();
+    const platform = document.getElementById('platform').value;
+    const csvFile = document.getElementById('csvFile').files[0];
+    
+    if (!platform || !csvFile) {
+        showModal({ title: 'Missing Inputs', message: 'Please select platform and CSV file.', type: 'warning' });
+        return;
+    }
+    
+    const previewBtn = this;
+    previewBtn.disabled = true;
+    previewBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Loading...';
+    
+    const formData = new FormData();
+    formData.append('platform', platform);
+    formData.append('csv_file', csvFile);
+    
+    fetch('{% url "integration:rules_update_stock_preview" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Preview response:', data);
+        if (data.success) {
+            showPreviewModal(data);
+        } else {
+            showModal({ title: 'Error', message: 'Error: ' + data.message, type: 'error' });
+        }
+    })
+    .catch(error => {
+        console.error('Fetch error:', error);
+        showModal({ title: 'Processing Error', message: 'Error: ' + error.message, type: 'error' });
+    })
+    .finally(() => {
+        previewBtn.innerHTML = '<i class="bx bx-show"></i> Preview Changes';
+        previewBtn.disabled = false;
+    });
+});
+
+// Show preview modal function - NEW
+function showPreviewModal(data) {
+    const modal = document.getElementById('previewModal');
+    const summaryDiv = document.getElementById('previewSummary');
+    const tableDiv = document.getElementById('previewTable');
+    
+    // Create summary
+    let summaryHtml = `
+        <div class="preview-stats" style="display: flex; gap: 20px; margin-bottom: 20px; padding: 15px; background: #f5f5f5; border-radius: 6px;">
+            <div style="flex: 1; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #007bff;">${data.total_rows}</div>
+                <div style="font-size: 12px; color: #666;">Total Rows</div>
+            </div>
+            <div style="flex: 1; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #28a745;">${data.total_changes}</div>
+                <div style="font-size: 12px; color: #666;">Items with Changes</div>
+            </div>
+            <div style="flex: 1; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #007bff;">${data.platform.toUpperCase()}</div>
+                <div style="font-size: 12px; color: #666;">Platform</div>
+            </div>
+        </div>
+    `;
+    
+    if (data.errors && data.errors.length > 0) {
+        summaryHtml += `
+            <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
+                <strong style="color: #856404;">Errors:</strong>
+                <ul style="margin: 8px 0 0 20px; color: #856404;">
+                    ${data.errors.map(err => `<li>${err}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    summaryDiv.innerHTML = summaryHtml;
+    
+    // Create table
+    if (data.items_with_changes && data.items_with_changes.length > 0) {
+        let tableHtml = `
+            <div style="overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+                    <thead>
+                        <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
+                            <th style="padding: 10px; text-align: left; font-weight: 600;">Row</th>
+                            <th style="padding: 10px; text-align: left; font-weight: 600;">Item Code</th>
+                            <th style="padding: 10px; text-align: left; font-weight: 600;">Units</th>
+                            <th style="padding: 10px; text-align: left; font-weight: 600;">SKU</th>
+                            <th style="padding: 10px; text-align: left; font-weight: 600;">Changes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        data.items_with_changes.forEach(item => {
+            let changes = [];
+            if (item.changes.wdf) {
+                changes.push(`WDF: ${item.changes.wdf.old} → ${item.changes.wdf.new}`);
+            }
+            if (item.changes.ocq) {
+                changes.push(`OCQ: ${item.changes.ocq.old} → ${item.changes.ocq.new}`);
+            }
+            if (item.changes.minqty) {
+                changes.push(`Min Qty: ${item.changes.minqty.old} → ${item.changes.minqty.new}`);
+            }
+            
+            tableHtml += `
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 10px;">${item.row}</td>
+                    <td style="padding: 10px;">${item.item_code}</td>
+                    <td style="padding: 10px;">${item.units}</td>
+                    <td style="padding: 10px;">${item.sku}</td>
+                    <td style="padding: 10px; color: #28a745; font-weight: 500;">${changes.join('<br>')}</td>
+                </tr>
+            `;
+        });
+        
+        tableHtml += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+        
+        if (data.total_changes > 100) {
+            tableHtml += `<p style="color: #666; margin-top: 10px; font-size: 12px;">Showing first 100 items out of ${data.total_changes}</p>`;
+        }
+        
+        tableDiv.innerHTML = tableHtml;
+    } else {
+        tableDiv.innerHTML = `<p style="color: #666; padding: 20px; text-align: center;">No items with changes found</p>`;
+    }
+    
+    modal.style.display = 'block';
+    modal.classList.add('show');
+}
+
+function closePreviewModal() {
+    const modal = document.getElementById('previewModal');
+    modal.style.display = 'none';
+    modal.classList.remove('show');
+}
+
+document.getElementById('confirmUpdateBtn').addEventListener('click', function() {
+    closePreviewModal();
+    setTimeout(() => {
+        document.getElementById('stockRulesForm').submit();
+    }, 100);
+});
+
+// Show preview button when file is selected - NEW
+document.getElementById('csvFile').addEventListener('change', function() {
+    if (this.files.length > 0) {
+        document.getElementById('previewBtn').style.display = 'inline-block';
+    }
+});
+
+// Modal notification function
+function showModal({ title, message, type = 'info' }) {
+    // Check if modal exists, if not create it
+    let modal = document.getElementById('notificationModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'notificationModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header" id="modalHeader">
+                        <h5 class="modal-title" id="modalTitle"></h5>
+                        <button type="button" class="close" onclick="closeNotificationModal()">
+                            <span>&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="modalBody"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="bulk-btn bulk-btn-primary" onclick="closeNotificationModal()">OK</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    // Set content
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBody').textContent = message;
+    
+    // Set header color based on type
+    const header = document.getElementById('modalHeader');
+    header.style.borderBottom = '1px solid #E5E5E5';
+    if (type === 'success') {
+        header.style.background = 'linear-gradient(135deg, #28a745 0%, #34ce57 100%)';
+        header.style.color = 'white';
+    } else if (type === 'error') {
+        header.style.background = 'linear-gradient(135deg, #C62828 0%, #B71C1C 100%)';
+        header.style.color = 'white';
+    } else if (type === 'warning') {
+        header.style.background = 'linear-gradient(135deg, #FF9500 0%, #FFA726 100%)';
+        header.style.color = 'white';
+    } else {
+        header.style.background = '#F5F5F5';
+        header.style.color = '#333333';
+    }
+    
+    // Show modal
+    modal.style.display = 'block';
+    modal.classList.add('show');
+}
+
+function closeNotificationModal() {
+    const modal = document.getElementById('notificationModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    }
+}
+</script>
+{% endblock %}

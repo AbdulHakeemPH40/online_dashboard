@@ -1,0 +1,513 @@
+/* Force Boxicons to display */
+.bx, [class^="bx-"], [class*=" bx-"] {
+    font-family: 'boxicons' !important;
+    display: inline-block !important;
+    font-style: normal !important;
+    font-weight: normal !important;
+    line-height: 1 !important;
+    width: auto !important;
+    height: auto !important;
+    font-size: inherit !important;
+}
+
+/* Force all Boxicons to display */
+.bx {
+    font-family: 'boxicons' !important;
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    font-size: 16px !important;
+}
+
+.nav-icon, .logo-icon, .dropdown-arrow {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.dropdown {
+    position: relative;
+}
+
+.dropdown-content {
+    background-color: var(--sidebar-bg);
+    padding: 0.5rem 0;
+    border-radius: 0.25rem;
+    margin-left: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--divider);
+    z-index: 1000;
+}
+
+.dropdown-item {
+    display: block;
+    padding: 0.5rem 1rem;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+/* Message Container Styles */
+.message-container {
+    position: fixed;
+    top: 80px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+    width: auto;
+}
+
+.alert {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    font-family: 'Poppins', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    animation: slideInRight 0.3s ease-out;
+}
+
+.alert i {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+.alert-error,
+.alert-danger {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    color: #856404;
+    border-left: 4px solid #ffc107;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    color: #0c5460;
+    border-left: 4px solid #17a2b8;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    margin-left: auto;
+    padding: 0;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.btn-close:hover {
+    opacity: 1;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.fade {
+    transition: opacity 0.3s ease;
+}
+
+.fade.show {
+    opacity: 1;
+}
+
+.dropdown-item:hover {
+    background-color: var(--sidebar-hover-bg);
+    color: var(--text-primary);
+}
+
+.ml-auto {
+    margin-left: auto;
+}
+
+/* Sidebar overlay */
+.sidebar-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 40;
+    display: none;
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+/* Mobile dropdown enhancements */
+@media (max-width: 768px) {
+    .dropdown-content {
+        position: relative;
+        margin-left: 1rem;
+        margin-right: 1rem;
+        max-width: calc(100% - 2rem);
+        overflow: visible;
+        z-index: 1001;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .dropdown-item {
+        padding: 1rem 1.25rem;
+        font-size: 0.95rem;
+        border-bottom: 1px solid #e5e7eb;
+        white-space: normal;
+        line-height: 1.4;
+        display: block;
+        color: #333;
+    }
+
+    .dropdown-item:last-child {
+        border-bottom: none;
+    }
+
+    .dropdown-item span {
+        display: block;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .dark-sidebar {
+        overflow-y: auto;
+        overflow-x: visible;
+    }
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+    .main-content {
+        margin-left: 0;
+        padding: 8px;
+        padding-top: 52px;
+    }
+
+    /* Table responsiveness */
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+        width: 100%;
+        font-size: 0.875rem;
+    }
+
+    th,
+    td {
+        padding: 0.5rem !important;
+    }
+
+    /* Form responsiveness */
+    input,
+    select,
+    textarea {
+        max-width: 100%;
+        font-size: 0.875rem;
+        padding: 0.5rem !important;
+        background-color: #FFFFFF;
+        border: 1px solid #C0C0C0;
+        border-radius: 4px;
+        color: #2C3E50;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+        outline: none;
+        border-color: #9BB4D0;
+        box-shadow: 0 0 0 2px rgba(155, 180, 208, 0.2);
+    }
+
+    /* Button styling */
+    button:not(.mobile-sidebar-toggle) {
+        background-color: #F0F0F0;
+        color: #2C3E50;
+        border: 1px solid #C0C0C0;
+        border-radius: 4px;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    button:not(.mobile-sidebar-toggle):hover {
+        background-color: #E8E8E8;
+        border-color: #A8A8A8;
+    }
+
+    /* Card and content responsiveness */
+    .content-card {
+        margin-bottom: 1rem;
+    }
+
+    .content-header {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 1024px) {
+    /* Mobile card table styles - activate on tablets and smaller (incl. iPad) */
+    .mobile-card-table {
+        overflow-x: visible;
+    }
+
+    .mobile-card-table table {
+        display: table;
+        overflow-x: visible;
+        white-space: normal;
+    }
+
+    .mobile-card-table thead {
+        display: none;
+    }
+
+    .mobile-card-table tbody {
+        display: block;
+    }
+
+    .mobile-card-table tr {
+        display: block;
+        background: white;
+        border: 1px solid #E5E5E5;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        padding: 16px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .mobile-card-table td {
+        display: block;
+        text-align: left !important;
+        padding: 8px 0 !important;
+        border: none !important;
+        position: relative;
+        padding-left: 40% !important;
+        white-space: normal;
+    }
+
+    .mobile-card-table td:before {
+        content: attr(data-label) ":";
+        position: absolute;
+        left: 0;
+        top: 8px;
+        width: 35%;
+        font-weight: 600;
+        color: #555555;
+        font-size: 11px;
+        text-transform: uppercase;
+        font-family: Arial, sans-serif;
+    }
+
+    .mobile-card-table td:last-child {
+        border-bottom: none;
+        padding-bottom: 0 !important;
+    }
+
+    .mobile-card-table td .inline-flex {
+        display: inline-flex !important;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Smaller font sizes for mobile */
+    body {
+        font-size: 0.875rem;
+    }
+
+    h1,
+    h2,
+    h3 {
+        font-size: 1.25rem;
+    }
+
+    /* Adjust padding for mobile */
+    .main-content {
+        padding: 0.5rem;
+        padding-top: 52px;
+    }
+
+    /* Stack form elements on mobile */
+    form div {
+        margin-bottom: 0.75rem;
+    }
+
+    /* Enhanced mobile card styles for very small screens */
+    .mobile-card-table tr {
+        margin-bottom: 16px;
+        padding: 12px;
+    }
+
+    .mobile-card-table td {
+        padding: 6px 0 !important;
+        padding-left: 45% !important;
+        font-size: 0.875rem;
+    }
+
+    .mobile-card-table td:before {
+        width: 40%;
+        font-size: 10px;
+        top: 6px;
+    }
+}
+
+/* iPhone 14/15 specific optimizations */
+@media (max-width: 430px) and (-webkit-device-pixel-ratio: 3) {
+    .mobile-card-table tr {
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 14px;
+    }
+
+    .mobile-card-table td {
+        padding: 7px 0 !important;
+        line-height: 1.4;
+    }
+
+    .mobile-card-table td .inline-flex {
+        font-size: 0.8rem;
+    }
+}
+
+/* Samsung device optimizations */
+@media (max-width: 412px) {
+    .mobile-card-table td {
+        padding-left: 42% !important;
+    }
+
+    .mobile-card-table td:before {
+        width: 38%;
+    }
+}
+
+/* Loading animation */
+@keyframes loadingPulse {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.6; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+/* Centered section title with horizontal lines on both sides */
+.section-title--line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.section-title--line::before,
+.section-title--line::after {
+    content: "";
+    flex: 0 0 180px; /* shorter lines on both sides */
+    border-bottom: 1px solid #C5C5C5;
+}
+.section-title--line span {
+    font-family: Arial, sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333333;
+}
+
+@media (max-width: 640px) {
+  .section-title--line::before,
+  .section-title--line::after {
+    flex: 0 0 120px; /* slightly shorter on mobile */
+  }
+}
+
+/* Enhanced mobile layout fixes for dashboard forms */
+@media (max-width: 640px) {
+    /* Fix 4-column grid to 2-column on small phones */
+    .grid-cols-1.md\:grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    /* Stack search buttons vertically on very small screens */
+    .flex.flex-wrap.items-center.gap-2.w-full {
+        flex-direction: column;
+    }
+    
+    .flex.flex-wrap.items-center.gap-2.w-full > .relative,
+    .flex.flex-wrap.items-center.gap-2.w-full > button {
+        width: 100% !important;
+        margin-bottom: 8px;
+    }
+    
+    /* Improve form spacing */
+    .grid.grid-cols-1.md\:grid-cols-2.gap-4.md\:gap-8 {
+        gap: 0.5rem;
+    }
+    
+    /* Better search input styling */
+    input[placeholder*="Item Code"],
+    input[placeholder*="SKU"],
+    input[placeholder*="Barcode"] {
+        font-size: 16px; /* Prevent auto-zoom on iOS */
+    }
+    
+    /* Reduce padding on mobile */
+    .p-6 {
+        padding: 1rem;
+    }
+    
+    .px-4.md\:px-6 {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Ultra-small phones: stack everything */
+    .grid-cols-1.md\:grid-cols-4 {
+        grid-template-columns: 1fr;
+    }
+    
+    .grid-cols-1.md\:grid-cols-2 {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Better outlet table card styling */
+    .outlet-panel {
+        margin-left: -0.5rem;
+        margin-right: -0.5rem;
+    }
+    
+    .outlet-panel .p-4.md\:p-6 {
+        padding: 0.75rem;
+    }
+    
+    /* Mobile form label sizing */
+    label {
+        font-size: 12px;
+    }
+    
+    /* Touch-friendly button sizing */
+    button[type="button"] {
+        min-height: 44px; /* Apple touch target minimum */
+    }
+}

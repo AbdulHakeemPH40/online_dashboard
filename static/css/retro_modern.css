@@ -1,0 +1,846 @@
+/* Retro-Modern Web Interface Styles */
+
+:root {
+    /* Color Palette - Warm Minimalist Theme */
+    --background: #F5EFDD;     /* Warm beige/cream */
+    --primary: #4A4A4A;        /* Body text - Charcoal */
+    --secondary: #6B6B6B;      /* Text secondary - Medium gray */
+    --tertiary: #8B8B8B;       /* Muted labels - Light gray */
+    --base: #FFF9F0;           /* Card background - Soft off-white */
+    --outline: #E2D5C8;        /* Border/Divider - Light tan */
+    --text: #1A1A1A;           /* Text primary - Dark charcoal */
+    --dark-text: #2C2C2C;      /* Headers - Dark gray-black */
+    
+    /* Border Styles */
+    --border-width: 2px;
+    --border-radius: 12px;
+    
+    /* Spacing */
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+}
+
+/* Base Styles */
+body.retro-modern {
+    background-color: var(--background);
+    color: var(--text);
+    font-family: 'Poppins', 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+}
+
+/* Inventory App Header Text */
+.retro-modern .inventory,
+.retro-modern .inventory-app,
+.retro-modern .app,
+.retro-modern h1.inventory,
+.retro-modern h1.app,
+.retro-modern .app-title,
+.retro-modern .erp-price,
+.retro-modern [class*="erp"],
+.retro-modern [class*="price"] {
+    color: var(--dark-text) !important;
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: 0.05em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Text elements styling */
+.retro-modern .text-gray-900,
+.retro-modern h2.text-xl.font-semibold,
+.retro-modern .text-2xl.font-bold {
+    color: var(--dark-text) !important;
+}
+
+.retro-modern .text-sm.font-medium.text-gray-600 {
+    color: var(--secondary) !important;
+}
+
+/* Specific elements styling */
+.retro-modern select option {
+    color: var(--text) !important;
+    background-color: var(--base);
+}
+
+.retro-modern .text-sm.font-medium.text-gray-900,
+.retro-modern .text-2xl.font-bold.text-gray-900 {
+    color: var(--dark-text) !important;
+}
+
+.retro-modern .inventoryapp,
+.retro-modern [class*="inventory"],
+.retro-modern .dashboard-item,
+.retro-modern .product-item,
+.retro-modern .stock-item {
+    color: var(--text) !important;
+    background-color: var(--base);
+    border-color: var(--outline);
+}
+
+.retro-modern .text-gray-600,
+.retro-modern .text-sm,
+.retro-modern .font-medium {
+    color: var(--secondary) !important;
+}
+
+/* Typography */
+.retro-modern h1, .retro-modern h2, .retro-modern h3, .retro-modern h4 {
+    font-weight: 600;
+    color: var(--dark-text);
+    letter-spacing: -0.01em;
+}
+
+.retro-modern h1 {
+    font-size: 1.75rem;
+}
+
+.retro-modern h2 {
+    font-size: 1.5rem;
+}
+
+.retro-modern h3 {
+    font-size: 1.25rem;
+}
+
+.retro-modern h4 {
+    font-size: 1.125rem;
+}
+
+.retro-modern a {
+    color: var(--primary);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.retro-modern a:hover {
+    color: var(--dark-text);
+}
+
+/* Container Elements */
+.retro-modern .window,
+.retro-modern .retro-window {
+    background-color: var(--base);
+    border: var(--border-width) solid var(--outline);
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    margin-bottom: var(--spacing-lg);
+    position: relative;
+    overflow: hidden;
+}
+
+.retro-modern .window-header,
+.retro-modern .retro-window-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-sm) var(--spacing-md);
+    background-color: var(--base);
+    border-bottom: 1px solid var(--outline);
+}
+
+.retro-modern .window-title,
+.retro-modern .retro-window-header .window-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--dark-text);
+}
+
+.retro-modern .window-controls {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.retro-modern .window-control,
+.retro-modern .control {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--outline);
+}
+
+.retro-modern .window-close,
+.retro-modern .control:nth-child(1) {
+    background-color: var(--tertiary);
+}
+
+.retro-modern .window-minimize,
+.retro-modern .control:nth-child(2) {
+    background-color: var(--secondary);
+}
+
+.retro-modern .window-maximize,
+.retro-modern .control:nth-child(3) {
+    background-color: var(--primary);
+}
+
+.retro-modern .retro-window-content {
+    padding: var(--spacing-md);
+}
+
+.retro-modern .retro-main {
+    padding: var(--spacing-md);
+}
+
+/* Cards and Content Blocks */
+.retro-modern .card {
+    background-color: var(--base);
+    border: 1px solid var(--outline);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    position: relative;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.retro-modern .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* Buttons */
+.retro-modern .btn,
+.retro-modern .retro-button {
+    background-color: var(--primary);
+    color: #FFFFFF;
+    border: var(--border-width) solid var(--outline);
+    border-radius: var(--border-radius);
+    padding: 8px 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: lowercase;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+}
+
+.retro-modern .btn:hover,
+.retro-modern .retro-button:hover {
+    background-color: var(--secondary);
+    transform: translateY(-2px);
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Clear Search Button - Light Style */
+.retro-modern #clear-search {
+    background-color: var(--base);
+    color: var(--primary);
+    border: var(--border-width) solid var(--outline);
+    border-radius: var(--border-radius);
+    padding: 8px 16px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.retro-modern #clear-search:hover {
+    background-color: #FFFFFF;
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    color: var(--dark-text);
+}
+
+.retro-modern #clear-search svg {
+    color: var(--primary);
+    transition: all 0.2s ease;
+}
+
+.retro-modern #clear-search:hover svg {
+    color: var(--dark-text);
+    transform: scale(1.1);
+}
+
+/* Reset Form Button - Light Style */
+.retro-modern #reset-form {
+    background-color: var(--base);
+    color: var(--primary);
+    border: var(--border-width) solid var(--outline);
+    border-radius: var(--border-radius);
+    padding: 8px 16px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.retro-modern #reset-form:hover {
+    background-color: #FFFFFF;
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    color: var(--dark-text);
+}
+
+.retro-modern #reset-form svg {
+    color: var(--primary);
+    transition: all 0.2s ease;
+}
+
+.retro-modern #reset-form:hover svg {
+    color: var(--dark-text);
+    transform: scale(1.1);
+}
+
+/* Specific style for logout button */
+.retro-modern .retro-button.w-full {
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 2px solid var(--outline);
+    border-radius: var(--border-radius);
+    padding: 12px;
+    margin-top: 20px;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: 'Poppins', sans-serif;
+    letter-spacing: 0.02em;
+    color: var(--primary);
+    position: relative;
+    overflow: hidden;
+}
+
+.retro-modern .retro-button.w-full i {
+    font-size: 1.1rem;
+    transition: all 0.3s ease;
+}
+
+.retro-modern .retro-button.w-full:hover {
+    background-color: rgba(255, 255, 255, 0.95);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    color: var(--text);
+}
+
+.retro-modern .retro-button.w-full:hover i {
+    transform: translateX(3px);
+}
+
+.retro-modern .btn-secondary {
+    background-color: var(--secondary);
+}
+
+.retro-modern .btn-tertiary {
+    background-color: var(--tertiary);
+}
+
+/* Form Elements */
+.retro-modern .form-control {
+    background-color: var(--base);
+    border: var(--border-width) solid var(--outline);
+    border-radius: var(--border-radius);
+    padding: 8px 12px;
+    margin-bottom: var(--spacing-md);
+    width: 100%;
+}
+
+.retro-modern .form-label {
+    display: block;
+    margin-bottom: var(--spacing-sm);
+    font-weight: bold;
+    color: var(--text);
+}
+
+/* Search Bar */
+.retro-modern .search-bar {
+    display: flex;
+    align-items: center;
+    background-color: var(--base);
+    border: var(--border-width) solid var(--outline);
+    border-radius: var(--border-radius);
+    padding: 6px 12px;
+    margin-bottom: var(--spacing-md);
+}
+
+.retro-modern .search-input {
+    border: none;
+    background: transparent;
+    flex-grow: 1;
+    padding: 4px;
+    color: var(--text);
+}
+
+.retro-modern .search-icon {
+    color: var(--text);
+    margin-right: 8px;
+}
+
+/* Navigation */
+.retro-modern .nav {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+}
+
+/* Sidebar Menu Items */
+.retro-modern .sidebar-menu-item,
+.retro-modern [class*="sidebar"] a,
+.retro-modern aside a,
+.retro-modern aside .menu-item {
+    color: var(--base) !important;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    transition: all 0.2s ease;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    letter-spacing: 0.03em;
+}
+
+/* Sidebar Menu Icons */
+.retro-modern .sidebar-menu-item i,
+.retro-modern [class*="sidebar"] a i,
+.retro-modern aside a i,
+.retro-modern aside .menu-item i,
+.retro-modern aside svg,
+.retro-modern aside img {
+    margin-right: 12px;
+    opacity: 0.9;
+    font-size: 1.1em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+
+.retro-modern .retro-nav-item:hover svg,
+.retro-modern .retro-nav-item.active svg {
+    transform: scale(1.1);
+    opacity: 1;
+}
+
+/* Specific text elements with enhanced visibility */
+.retro-modern aside a[href*="rixom"],
+.retro-modern aside a.log-out,
+.retro-modern aside a[href*="log-out"],
+.retro-modern aside a[href*="pasons"],
+.retro-modern aside a[href*="talabat"],
+.retro-modern [class*="sidebar"] a[href*="rixom"],
+.retro-modern [class*="sidebar"] a.log-out,
+.retro-modern [class*="sidebar"] a[href*="log-out"],
+.retro-modern [class*="sidebar"] a[href*="pasons"],
+.retro-modern [class*="sidebar"] a[href*="talabat"],
+/* Target by text content using classes */
+.retro-modern .rixom,
+.retro-modern .log-out,
+.retro-modern .pasons,
+.retro-modern .talabat,
+/* Direct element targeting */
+.retro-modern aside a:nth-child(1),
+.retro-modern aside a:last-child,
+.retro-modern aside a[href="#log-out"],
+.retro-modern aside a[href="#logout"],
+.retro-modern aside button.log-out,
+.retro-modern aside button[class*="log-out"],
+/* Target specific text in sidebar */
+.retro-modern aside a {
+    color: #FFFFFF !important;
+    font-weight: 800;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    letter-spacing: 0.05em;
+}
+
+/* Divider styling */
+.retro-modern aside .border-t.border-dotted {
+    border-top: 2px dotted rgba(255, 255, 255, 0.2) !important;
+    margin: 15px 0;
+    padding-top: 15px;
+}
+
+/* Extra emphasis for log out button */
+.retro-modern aside a:last-child,
+.retro-modern aside a[href*="log-out"],
+.retro-modern aside a[href*="logout"],
+.retro-modern aside button:last-child,
+.retro-modern aside a.logout {
+    background-color: var(--dark-text);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 12px 16px;
+    margin-top: 10px;
+    text-align: center;
+    justify-content: center;
+}
+
+.retro-modern .sidebar-menu-item:hover,
+.retro-modern [class*="sidebar"] a:hover,
+.retro-modern aside a:hover,
+.retro-modern aside .menu-item:hover,
+.retro-modern .sidebar-menu-item.active,
+.retro-modern [class*="sidebar"] a.active,
+.retro-modern aside a.active,
+.retro-modern aside .menu-item.active {
+    background-color: var(--dark-text);
+    color: var(--base) !important;
+    transform: translateX(4px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.retro-modern .nav-item {
+    background-color: var(--base);
+    border: var(--border-width) solid var(--outline);
+    border-radius: var(--border-radius);
+    padding: 8px 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text);
+}
+
+/* Custom styling for Pasons and Talabat nav items - with higher specificity */
+.retro-modern nav.nav a[href*="dashboard"].nav-item {
+    background-color: #0d6efd !important;
+    color: white !important;
+    border-color: #0d6efd !important;
+}
+
+.retro-modern nav.nav a[href*="talabat_dashboard"].nav-item {
+    background-color: orange !important;
+    color: white !important;
+    border-color: orange !important;
+}
+
+.retro-modern .nav-item:hover,
+.retro-modern .nav-item.active,
+.retro-modern a.nav-item.active {
+    color: #FFFFFF !important;
+    transform: translateY(-2px);
+    box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* Keep the specific colors for Pasons and Talabat when active */
+.retro-modern nav.nav a[href*="dashboard"].nav-item.active,
+.retro-modern nav.nav a[href*="dashboard"].nav-item:hover {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: white !important;
+}
+
+.retro-modern nav.nav a[href*="talabat_dashboard"].nav-item.active,
+.retro-modern nav.nav a[href*="talabat_dashboard"].nav-item:hover {
+    background-color: orange !important;
+    border-color: orange !important;
+    color: white !important;
+}
+
+/* Default active color for other nav items */
+.retro-modern .nav-item:not([href*="dashboard"]):not([href*="talabat_dashboard"]).active,
+.retro-modern .nav-item:not([href*="dashboard"]):not([href*="talabat_dashboard"]):hover {
+    background-color: var(--primary);
+}
+
+/* Ensure text inside active nav items is white */
+.retro-modern a.nav-item.active,
+.retro-modern .nav-item.active {
+    color: #FFFFFF !important;
+}
+
+.retro-modern a.nav-item.active *,
+.retro-modern .nav-item.active * {
+    color: #FFFFFF !important;
+}
+
+/* Tables */
+.retro-modern .table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-bottom: var(--spacing-lg);
+}
+
+.retro-modern .table th,
+.retro-modern .table td {
+    border: var(--border-width) solid var(--outline);
+    padding: var(--spacing-sm);
+    text-align: left;
+}
+
+.retro-modern .table th {
+    background-color: var(--primary);
+    font-weight: bold;
+}
+
+.retro-modern .table tr:nth-child(even) td {
+    background-color: rgba(212, 181, 240, 0.1); /* Light primary */
+}
+
+/* Decorative Elements */
+.retro-modern .sparkle {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background-color: var(--primary);
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+.retro-modern .cursor-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background-color: var(--outline);
+    clip-path: polygon(0% 0%, 60% 60%, 40% 60%, 40% 100%, 20% 100%, 20% 60%, 0% 60%);
+    margin-right: 4px;
+}
+
+/* Header and Sidebar Customization */
+.retro-modern header {
+    background-color: var(--base);
+    border-bottom: var(--border-width) solid var(--outline);
+}
+
+/* Rixom logo/text in header */
+.retro-modern header .rixom,
+.retro-modern .rixom,
+.retro-modern h1.rixom,
+.retro-modern .logo-text,
+.retro-modern .brand-name {
+    color: var(--dark-text) !important;
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: 0.05em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Pasons and Talabat text elements */
+.retro-modern .pasons,
+.retro-modern .talabat,
+.retro-modern [class*="pasons"],
+.retro-modern [class*="talabat"],
+.retro-modern a[href*="pasons"],
+.retro-modern a[href*="talabat"] {
+    color: var(--dark-text) !important;
+    font-weight: 800;
+    font-size: 1.5rem;
+    letter-spacing: 0.05em;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.retro-modern aside {
+    background-color: var(--primary);
+    background-image: linear-gradient(135deg, rgba(0, 0, 0, 0.05) 25%, transparent 25%, transparent 50%, rgba(0, 0, 0, 0.05) 50%, rgba(0, 0, 0, 0.05) 75%, transparent 75%, transparent);
+    background-size: 20px 20px;
+    border-right: var(--border-width) solid var(--outline);
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 10;
+    padding-top: 10px;
+}
+
+.retro-modern .retro-nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    color: var(--base);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-sm);
+    transition: all 0.3s ease;
+    padding: 12px var(--spacing-md);
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    letter-spacing: 0.03em;
+    position: relative;
+    overflow: hidden;
+}
+
+.retro-modern .retro-nav-item i,
+.retro-modern .retro-nav-item svg {
+    font-size: 1.2rem;
+    margin-right: 12px;
+    transition: all 0.3s ease;
+    color: var(--base);
+    opacity: 0.9;
+}
+
+.retro-modern .retro-nav-item span {
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+.retro-modern .retro-nav-item:hover,
+.retro-modern .retro-nav-item.active {
+    background-color: var(--dark-text);
+    transform: translateX(4px);
+    color: var(--base);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    border-left: 3px solid #FFFFFF;
+    padding-left: calc(var(--spacing-md) - 3px);
+    font-weight: 800;
+}
+
+.retro-modern .retro-nav-item:hover i,
+.retro-modern .retro-nav-item:hover svg,
+.retro-modern .retro-nav-item.active i,
+.retro-modern .retro-nav-item.active svg {
+    transform: scale(1.1);
+    opacity: 1;
+}
+
+.retro-modern .sidebar-nav a {
+    color: var(--base);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-sm);
+    transition: all 0.2s ease;
+    display: block;
+    padding: var(--spacing-sm);
+    font-weight: 600;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+}
+
+.retro-modern .sidebar-nav a:hover,
+.retro-modern .sidebar-nav a.active {
+    background-color: var(--dark-text);
+    transform: translateX(4px);
+    color: var(--base);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+/* Stats Cards */
+.retro-modern .stats-card {
+    background-color: var(--base);
+    border: var(--border-width) solid var(--outline);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    position: relative;
+    overflow: hidden;
+}
+
+.retro-modern .stats-card::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 40px;
+    height: 40px;
+    background-color: var(--tertiary);
+    border-radius: 50%;
+    opacity: 0.2;
+    z-index: 0;
+}
+
+.retro-modern .stats-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: var(--outline);
+    position: relative;
+    z-index: 1;
+}
+
+.retro-modern .stats-label {
+    color: var(--text);
+    font-weight: 600;
+    position: relative;
+    z-index: 1;
+}
+
+/* Alert Styles */
+.retro-modern .retro-alert {
+    border: var(--border-width) solid var(--outline);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-sm) var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    position: relative;
+}
+
+.retro-modern .retro-alert-info {
+    background-color: var(--primary);
+    color: var(--outline);
+}
+
+.retro-modern .retro-alert-success {
+    background-color: var(--secondary);
+    color: var(--outline);
+}
+
+.retro-modern .retro-alert-error {
+    background-color: var(--tertiary);
+    color: var(--outline);
+}
+
+.retro-modern .alert-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--outline);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.retro-modern .alert-message {
+    flex-grow: 1;
+    font-weight: 500;
+}
+
+.retro-modern .alert-close {
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+    padding: 0 5px;
+}
+
+/* Loading Animation */
+.retro-modern .retro-loading {
+    background-color: var(--base);
+    border: var(--border-width) solid var(--outline);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md) var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.retro-modern .loading-text {
+    font-weight: bold;
+    color: var(--outline);
+}
+
+.retro-modern .loading-dots {
+    display: flex;
+    gap: 8px;
+}
+
+.retro-modern .loading-dots span {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--primary);
+    animation: loading-bounce 1s infinite ease-in-out;
+}
+
+.retro-modern .loading-dots span:nth-child(2) {
+    animation-delay: 0.2s;
+    background-color: var(--secondary);
+}
+
+.retro-modern .loading-dots span:nth-child(3) {
+    animation-delay: 0.4s;
+    background-color: var(--tertiary);
+}
+
+@keyframes loading-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .retro-modern .window,
+    .retro-modern .retro-window {
+        padding: var(--spacing-sm);
+    }
+    
+    .retro-modern .nav {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+}

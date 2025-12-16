@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Store - Dashboard{% endblock %}
+
+{% block content %}
+<!-- Centered Container -->
+<div class="flex justify-center items-start min-h-screen py-8">
+    <div class="w-full max-w-2xl">
+        <!-- Main Form Card -->
+        <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+            <!-- Header Section -->
+             <div class="px-8 py-6" style="background: linear-gradient(to bottom, #F0F4F8, #E8EEF4); border-bottom: 1px solid #D0D0D0;">
+                 <div class="flex items-center gap-3">
+                     <div class="rounded-lg p-3" style="background-color: #E8EEF4; border: 1px solid #C5C5C5;">
+                         <i class="bi bi-shop text-2xl" style="color: #0066CC;"></i>
+                     </div>
+                     <div>
+                         <h2 class="text-2xl font-bold" style="color: #333333; font-family: Arial, sans-serif;">Create New Store</h2>
+                         <p class="text-sm mt-1" style="color: #666666; font-family: Arial, sans-serif;">Add a new store to your platform</p>
+                     </div>
+                 </div>
+             </div>
+
+            <!-- Form Section -->
+            <div class="px-8 py-8">
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+                    
+                    <!-- Store Name Field -->
+                    <div class="space-y-2">
+                        <label class="flex items-center text-sm font-semibold text-gray-700">
+                            <i class="bi bi-shop mr-2 text-blue-600"></i>
+                            Store Name *
+                        </label>
+                        <input type="text" name="name" required placeholder="Enter store name" 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg transition-colors duration-200"
+                                style="font-family: Arial, sans-serif; font-size: 14px;"
+                                onfocus="this.style.borderColor='#0066CC'; this.style.boxShadow='0 0 0 3px rgba(0, 102, 204, 0.1)'"
+                                onblur="this.style.borderColor='#D1D5DB'; this.style.boxShadow='none'"/>
+                    </div>
+                    
+                    <!-- Location Field -->
+                    <div class="space-y-2">
+                        <label class="flex items-center text-sm font-semibold text-gray-700">
+                            <i class="bi bi-geo-alt mr-2 text-blue-600"></i>
+                            Location *
+                        </label>
+                        <input type="text" name="location" required placeholder="Enter store location" 
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg transition-colors duration-200"
+                                style="font-family: Arial, sans-serif; font-size: 14px;"
+                                onfocus="this.style.borderColor='#0066CC'; this.style.boxShadow='0 0 0 3px rgba(0, 102, 204, 0.1)'"
+                                onblur="this.style.borderColor='#D1D5DB'; this.style.boxShadow='none'"/>
+                    </div>
+                    
+                    <!-- Platform Field -->
+                    <div class="space-y-2">
+                        <label class="flex items-center text-sm font-semibold text-gray-700">
+                            <i class="bi bi-layers mr-2 text-blue-600"></i>
+                            Platform *
+                        </label>
+                        <select name="platforms" required 
+                                 class="w-full px-4 py-3 border border-gray-300 rounded-lg transition-colors duration-200 bg-white"
+                                 style="font-family: Arial, sans-serif; font-size: 14px;"
+                                 onfocus="this.style.borderColor='#0066CC'; this.style.boxShadow='0 0 0 3px rgba(0, 102, 204, 0.1)'"
+                                 onblur="this.style.borderColor='#D1D5DB'; this.style.boxShadow='none'">
+                            <option value="">Select Platform</option>
+                            <option value="pasons">Pasons Ecommerce</option>
+                            <option value="talabat">Talabat Platform</option>
+                        </select>
+                    </div>
+
+                    <!-- Info Box -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <i class="bi bi-info-circle text-blue-600 mt-0.5"></i>
+                            <div class="text-sm text-blue-800">
+                                <p class="font-medium mb-1">Store ID Generation</p>
+                                <p>A unique store ID will be automatically generated based on your selected platform.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                     <div class="flex flex-col sm:flex-row gap-4 pt-6">
+                         <button type="submit" 
+                                 class="flex-1 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                                 style="background-color: #0066CC; border: 1px solid #0055AA; font-family: Arial, sans-serif;"
+                                 onmouseover="this.style.backgroundColor='#0055AA'" 
+                                 onmouseout="this.style.backgroundColor='#0066CC'">
+                             <i class="bi bi-check-circle"></i>
+                             Create Store
+                         </button>
+                         
+                         <a href="{% url 'integration:store_list' %}" 
+                            class="flex-1 text-white font-semibold py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-decoration-none"
+                            style="background-color: #6C757D; border: 1px solid #5A6268; font-family: Arial, sans-serif;"
+                            onmouseover="this.style.backgroundColor='#5A6268'" 
+                            onmouseout="this.style.backgroundColor='#6C757D'">
+                             <i class="bi bi-arrow-left"></i>
+                             Back to Stores
+                         </a>
+                     </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Custom styles for better form appearance */
+.min-h-screen {
+    min-height: calc(100vh - 200px);
+}
+
+/* Focus states for better accessibility */
+input:focus, select:focus {
+    outline: none;
+}
+
+/* Hover effects for buttons */
+button:hover, a:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+    .px-8 {
+        padding-left: 1.5rem;
+        padding-right: 1.5rem;
+    }
+    
+    .py-8 {
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+    }
+}
+</style>
+{% endblock %}
