@@ -400,14 +400,34 @@ class ItemOutlet(models.Model):
 
 # --- Item-level helpers for cascading CLS to BLS ---
 def _cascade_cls_status_to_outlets(item, new_val):
+    """
+    Cascade CLS status lock to all outlets.
+    
+    LOGIC:
+    - If new_val=True (LOCKED): Force disable all outlets (is_active_in_outlet=False)
+    - If new_val=False (UNLOCKED): Enable outlets based on stock rules
+    """
+    from .views import calculate_outlet_enabled_status
+    
     # Only cascade to outlets on the SAME platform as the item (STRICT ISOLATION)
-    ItemOutlet.objects.filter(
+    item_outlets = ItemOutlet.objects.filter(
         item=item,
         outlet__platforms=item.platform  # Strict platform isolation
-    ).update(
-        status_locked=bool(new_val),
-        is_active_in_outlet=(not bool(new_val))
     )
+    
+    if bool(new_val):
+        # LOCKED: Force disable all outlets
+        item_outlets.update(
+            status_locked=True,
+            is_active_in_outlet=False
+        )
+    else:
+        # UNLOCKED: Enable based on stock rules for each outlet
+        for io in item_outlets:
+            calculated_enabled = calculate_outlet_enabled_status(item, io.outlet_stock)
+            io.status_locked = False
+            io.is_active_in_outlet = calculated_enabled
+            io.save(update_fields=['status_locked', 'is_active_in_outlet'])
 
 
 def _cascade_cls_price_to_outlets(item, new_val):

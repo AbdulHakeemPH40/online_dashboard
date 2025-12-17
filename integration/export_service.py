@@ -226,12 +226,14 @@ class ExportProcessor:
     @staticmethod
     def calculate_stock_status(
         outlet_stock: int,
-        item: Item
+        item: Item,
+        is_active_in_outlet: bool = True
     ) -> int:
         """
         Calculate stock_status (0 or 1) for an item at an outlet.
         
         RULES:
+        - If is_active_in_outlet=False (BLS status locked/disabled) → ALWAYS return 0
         - wrap='9900' (units): status = 1 if stock >= minimum_qty AND stock > 0
           * outlet_stock is already converted: outlet_stock = csv_stock_kg × weight_division_factor
           * No further conversion needed
@@ -245,10 +247,15 @@ class ExportProcessor:
         Args:
             outlet_stock: Stock quantity from ItemOutlet (already converted for wrap=9900)
             item: Item instance with wrap and minimum_qty
+            is_active_in_outlet: Whether item is active in outlet (BLS status)
         
         Returns:
             0 or 1
         """
+        # CHECK 1: If item is disabled in outlet (BLS status locked), always return 0
+        if not is_active_in_outlet:
+            return 0
+        
         wrap = item.wrap or '9900'
         
         # VALIDATION: Stock must be > 0 (always required)
@@ -353,8 +360,9 @@ class ExportProcessor:
         
         base_query = ItemOutlet.objects.filter(
             outlet=self.outlet,
-            item__platform=self.platform,
-            is_active_in_outlet=True  # Only active items
+            item__platform=self.platform
+            # REMOVED: is_active_in_outlet=True filter
+            # Disabled items should export with stock_status=0
         ).select_related('item')
         
         if export_type == 'partial' and last_export_timestamp:
@@ -373,8 +381,8 @@ class ExportProcessor:
             
             changed_items = []
             for io in all_items:
-                # Calculate current stock_status
-                current_stock_status = 1 if calculate_outlet_enabled_status(io.item, io.outlet_stock) else 0
+                # Calculate current stock_status (respects is_active_in_outlet)
+                current_stock_status = self.calculate_stock_status(io.outlet_stock, io.item, io.is_active_in_outlet)
                 
                 # Compare with last exported values
                 current_price = io.outlet_selling_price or Decimal('0')
@@ -439,7 +447,7 @@ class ExportProcessor:
             selling_price = io.outlet_selling_price or item.selling_price or Decimal('0')
             
             # Calculate stock_status
-            stock_status = self.calculate_stock_status(io.outlet_stock, item)
+            stock_status = self.calculate_stock_status(io.outlet_stock, item, io.is_active_in_outlet)
             
             # Validate stock_status is 0 or 1
             if stock_status not in (0, 1):
@@ -651,7 +659,7 @@ class ExportService:
                 # Store current selling_price and stock_status for next delta export
                 for io in valid_items:
                     current_selling_price = io.outlet_selling_price or io.item.selling_price or Decimal('0')
-                    current_stock_status = self.processor.calculate_stock_status(io.outlet_stock, io.item)
+                    current_stock_status = self.processor.calculate_stock_status(io.outlet_stock, io.item, io.is_active_in_outlet)
                     
                     # Update tracking fields
                     io.export_selling_price = current_selling_price

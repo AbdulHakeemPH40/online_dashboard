@@ -2454,17 +2454,25 @@ def outlet_lock_toggle_api(request):
             })
 
         if lock_type == 'status':
-            # BLS: toggle status lock and reflect in active state (locked => inactive)
+            # BLS: toggle status lock
+            # CHECKED (locked=True) => Force DISABLED (is_active_in_outlet=False)
+            # UNCHECKED (locked=False) => Enable based on stock rules
             current = bool(getattr(io, 'status_locked', False))
             new_val = (not current) if desired is None else bool(desired)
             io.status_locked = new_val
-            io.is_active_in_outlet = not new_val
+            
+            if new_val:
+                # CHECKED: Force disable (ignore stock rules)
+                io.is_active_in_outlet = False
+            else:
+                # UNCHECKED: Enable based on stock rules
+                calculated_enabled = calculate_outlet_enabled_status(item, io.outlet_stock)
+                io.is_active_in_outlet = calculated_enabled
+            
             io.save(update_fields=['status_locked', 'is_active_in_outlet'])
             
-            # Calculate effective status based on stock rules
-            # BLS unchecked does NOT auto-enable if stock rules fail
-            calculated_enabled = calculate_outlet_enabled_status(item, io.outlet_stock)
-            effective_active = io.is_active_in_outlet and calculated_enabled
+            # Return effective status for UI update
+            effective_active = io.is_active_in_outlet
             
             return JsonResponse({
                 'success': True,
