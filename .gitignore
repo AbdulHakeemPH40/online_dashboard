@@ -12,6 +12,10 @@ ENV/
 # Django
 *.log
 local_settings.py
+middleware_dashboard/settings.py
+data.json
+data_export.json
+*.json
 
 # IDE
 .vscode/
