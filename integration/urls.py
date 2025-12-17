@@ -9,7 +9,6 @@ from .views import (
     search_product_api, item_outlets_api, outlet_lock_toggle_api, save_product_api, outlet_price_update_api, item_deletion, delete_items_api, preview_csv_api, cls_lock_toggle_api,
     list_items_api,
 )
-from .test_openai_view import test_openai_api
 
 # Define app namespace
 app_name = 'integration'
@@ -53,6 +52,4 @@ urlpatterns = [
     path('api/download-export/', download_export_file, name='download_export_file'),
     path('api/erp-export/', erp_export_api, name='erp_export_api'),
     path('api/download-erp-export/', download_erp_export_file, name='download_erp_export_file'),
-    # Test endpoint
-    path('api/test-openai/', test_openai_api, name='test_openai_api'),
 ]
