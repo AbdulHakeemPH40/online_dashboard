@@ -1102,7 +1102,7 @@ def product_update(request):
             lookup_keys = list(lookup_keys_set)
             
             # OPTIMIZATION: Use .only() to fetch only needed fields
-            CHUNK_SIZE = 500  # Increased chunk size
+            CHUNK_SIZE = 2000  # Increased for MySQL network latency optimization
             items_dict = {}  # (item_code, units) -> [list of items]
             
             # Determine which item fields we need based on update type
@@ -1351,7 +1351,7 @@ def product_update(request):
                         item_update_fields.append('stock')
                     
                     if item_update_fields:
-                        Item.objects.bulk_update(items_to_update, item_update_fields, batch_size=500)
+                        Item.objects.bulk_update(items_to_update, item_update_fields, batch_size=2000)
                 
                 if outlets_to_update:
                     # Only update outlet fields based on what was in the CSV
@@ -1366,7 +1366,7 @@ def product_update(request):
                         outlet_update_fields.append('is_active_in_outlet')
                     
                     if outlet_update_fields:
-                        ItemOutlet.objects.bulk_update(outlets_to_update, outlet_update_fields, batch_size=500)
+                        ItemOutlet.objects.bulk_update(outlets_to_update, outlet_update_fields, batch_size=2000)
             
             # Success messages
             if updated_count > 0:

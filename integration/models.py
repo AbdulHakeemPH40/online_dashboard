@@ -261,6 +261,7 @@ class Item(models.Model):
         ordering = ['item_code']
         indexes = [
             models.Index(fields=['platform', 'is_active']),  # Dashboard query optimization
+            models.Index(fields=['platform', 'item_code', 'units']),  # Product update CSV lookup optimization
         ]
         verbose_name = "Item"
         verbose_name_plural = "Items"
