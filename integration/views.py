@@ -1116,12 +1116,16 @@ def product_update(request):
             
             for i in range(0, len(lookup_keys), CHUNK_SIZE):
                 chunk = lookup_keys[i:i + CHUNK_SIZE]
-                item_filter = Q()
-                for item_code, units in chunk:
-                    item_filter |= Q(item_code=item_code, units=units)
                 
-                # Use .only() to reduce memory and query time
-                chunk_items = Item.objects.filter(platform=platform).filter(item_filter).only(*item_fields)
+                # SQLite fix: Use separate queries for each (item_code, units) to avoid deep expression trees
+                chunk_items = []
+                for item_code, units in chunk:
+                    items = Item.objects.filter(
+                        platform=platform,
+                        item_code=item_code,
+                        units=units
+                    ).only(*item_fields)
+                    chunk_items.extend(items)
                 for item in chunk_items:
                     key = (item.item_code, item.units)
                     if key not in items_dict:
