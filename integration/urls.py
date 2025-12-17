@@ -1,10 +1,11 @@
 from django.urls import path
 from .views import (
-    login_view, dashboard, talabat_dashboard, dashboard_stats_api,
+    login_view, dashboard, talabat_dashboard, erp_page, dashboard_stats_api,
     system_health_check, quick_stats, create_store, store_list,
     edit_store, delete_store, bulk_item_creation, get_outlets_by_platform,
-    product_update, stock_update, stock_update_preview, price_update, rules_update_price, rules_update_stock,
-    rules_update_stock_preview, shop_integration, export_feed_api,
+    product_update, rules_update_price, rules_update_stock,
+    rules_update_stock_preview, shop_integration, export_feed_api, download_export_file,
+    erp_export_api, download_erp_export_file,
     search_product_api, item_outlets_api, outlet_lock_toggle_api, save_product_api, outlet_price_update_api, item_deletion, delete_items_api, preview_csv_api, cls_lock_toggle_api,
     list_items_api,
 )
@@ -18,6 +19,7 @@ urlpatterns = [
     path('', login_view, name='login'),
     path('dashboard/', dashboard, name='dashboard'),
     path('talabat/', talabat_dashboard, name='talabat_dashboard'),
+    path('erp/', erp_page, name='erp_page'),
     
     # API endpoints
     path('api/dashboard/stats/', dashboard_stats_api, name='dashboard-stats'),
@@ -42,12 +44,12 @@ urlpatterns = [
     path('api/delete-items/', delete_items_api, name='delete_items_api'),
     path('api/preview-csv/', preview_csv_api, name='preview_csv_api'),
     path('product-update/', product_update, name='product_update'),
-    path('stock-update/', stock_update, name='stock_update'),
-    path('stock-update/preview/', stock_update_preview, name='stock_update_preview'),
-    path('price-update/', price_update, name='price_update'),
     path('rules-update-price/', rules_update_price, name='rules_update_price'),
     path('rules-update-stock/', rules_update_stock, name='rules_update_stock'),
     path('api/rules-update-stock-preview/', rules_update_stock_preview, name='rules_update_stock_preview'),
     path('shop-integration/', shop_integration, name='shop_integration'),
     path('api/export-feed/', export_feed_api, name='export_feed_api'),
+    path('api/download-export/', download_export_file, name='download_export_file'),
+    path('api/erp-export/', erp_export_api, name='erp_export_api'),
+    path('api/download-erp-export/', download_erp_export_file, name='download_erp_export_file'),
 ]

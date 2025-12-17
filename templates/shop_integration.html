@@ -970,7 +970,7 @@
                                     </td>
                                     <td>
                                         {% if export.file_name and export.status == 'success' %}
-                                        <a href="/integration/api/export-feed/?platform=pasons&outlet_id={{ export.outlet.id }}&export_type={{ export.export_type }}" class="export-btn secondary" style="padding: 6px 12px; font-size: 12px;" title="Download {{ export.file_name }}">
+                                        <a href="/integration/api/download-export/?filename={{ export.file_name }}" class="export-btn secondary" style="padding: 6px 12px; font-size: 12px;" title="Download {{ export.file_name }}">
                                             <i class="bx bx-download"></i>
                                         </a>
                                         {% else %}
@@ -1173,7 +1173,7 @@
                                     </td>
                                     <td>
                                         {% if export.file_name and export.status == 'success' %}
-                                        <a href="/integration/api/export-feed/?platform=talabat&outlet_id={{ export.outlet.id }}&export_type={{ export.export_type }}" class="export-btn secondary" style="padding: 6px 12px; font-size: 12px;" title="Download {{ export.file_name }}">
+                                        <a href="/integration/api/download-export/?filename={{ export.file_name }}" class="export-btn secondary" style="padding: 6px 12px; font-size: 12px;" title="Download {{ export.file_name }}">
                                             <i class="bx bx-download"></i>
                                         </a>
                                         {% else %}

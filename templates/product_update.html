@@ -299,7 +299,29 @@
                             </div>
                         </div>
 
-
+                        <div class="bulk-row">
+                            <div class="bulk-col-12">
+                                <!-- Update Type Selection -->
+                                <div class="bulk-form-group">
+                                    <label for="update_type" class="bulk-form-label">
+                                        <i class="bx bx-edit"></i> Update Type
+                                    </label>
+                                    <select class="bulk-form-control" id="update_type" name="update_type" required>
+                                        <option value="all" selected>All (MRP + Cost + Stock)</option>
+                                        <option value="mrp_only">MRP Only</option>
+                                        <option value="cost_only">Cost Only</option>
+                                        <option value="stock_only">Stock Only</option>
+                                        <option value="mrp_cost">MRP + Cost</option>
+                                        <option value="mrp_stock">MRP + Stock</option>
+                                        <option value="cost_stock">Cost + Stock</option>
+                                    </select>
+                                    <small class="bulk-form-help">
+                                        <strong>CSV Headers:</strong>
+                                        <span id="requiredHeadersHelp">item_code, units + (mrp, cost, stock based on selection)</span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- File Upload -->
                         <div class="bulk-form-group">
@@ -532,6 +554,51 @@
         removeFile();
     }
 
+    // Update type change handler - update help text and sample CSV headers
+    document.getElementById('update_type').addEventListener('change', function() {
+        const updateType = this.value;
+        const helpSpan = document.getElementById('requiredHeadersHelp');
+        const fileLabel = document.querySelector('label[for="csvFile"]');
+        
+        let headers = 'item_code, units';
+        let labelText = 'item_code, units';
+        
+        switch(updateType) {
+            case 'mrp_only':
+                headers = 'item_code, units, mrp';
+                labelText = 'item_code, units, mrp';
+                break;
+            case 'cost_only':
+                headers = 'item_code, units, cost';
+                labelText = 'item_code, units, cost';
+                break;
+            case 'stock_only':
+                headers = 'item_code, units, stock';
+                labelText = 'item_code, units, stock';
+                break;
+            case 'mrp_cost':
+                headers = 'item_code, units, mrp, cost';
+                labelText = 'item_code, units, mrp, cost';
+                break;
+            case 'mrp_stock':
+                headers = 'item_code, units, mrp, stock';
+                labelText = 'item_code, units, mrp, stock';
+                break;
+            case 'cost_stock':
+                headers = 'item_code, units, cost, stock';
+                labelText = 'item_code, units, cost, stock';
+                break;
+            case 'all':
+            default:
+                headers = 'item_code, units, mrp, cost, stock';
+                labelText = 'item_code, units, mrp, cost, stock';
+                break;
+        }
+        
+        helpSpan.textContent = headers;
+        fileLabel.innerHTML = `<i class="bx bx-file"></i> Choose CSV File (${labelText})`;
+    });
+
     // Platform-based outlet filtering
     document.getElementById('platform').addEventListener('change', function () {
         const platform = this.value;
@@ -604,20 +671,51 @@
         updateBtn.disabled = true;
     });
 
-    // CSV Sample Download
+    // CSV Sample Download - dynamic based on update type
     document.getElementById('csvSampleBtn').addEventListener('click', function () {
-        // Generate CSV with headers and sample data
-        // Item Code + Units combination is the unique identifier
-        // NOTE: selling_price not included - auto-calculated from MRP
-        // Sample: wrap=9900 (weighed items per KG) and wrap=10000 (regular items)
-        const csvContent = 'item_code,units,mrp,cost,stock\n9900127,KGS,11.95,6.00,50\n9900186,KGS,8.99,4.50,100\n100012,PCS,15.00,10.00,200';
+        const updateType = document.getElementById('update_type').value;
+        let csvContent = '';
+        let filename = 'product_update_sample.csv';
+        
+        // Generate CSV based on update type
+        switch(updateType) {
+            case 'mrp_only':
+                csvContent = 'item_code,units,mrp\n9900127,KGS,11.95\n9900186,KGS,8.99\n100012,PCS,15.00';
+                filename = 'mrp_update_sample.csv';
+                break;
+            case 'cost_only':
+                csvContent = 'item_code,units,cost\n9900127,KGS,6.00\n9900186,KGS,4.50\n100012,PCS,10.00';
+                filename = 'cost_update_sample.csv';
+                break;
+            case 'stock_only':
+                csvContent = 'item_code,units,stock\n9900127,KGS,50\n9900186,KGS,100\n100012,PCS,200';
+                filename = 'stock_update_sample.csv';
+                break;
+            case 'mrp_cost':
+                csvContent = 'item_code,units,mrp,cost\n9900127,KGS,11.95,6.00\n9900186,KGS,8.99,4.50\n100012,PCS,15.00,10.00';
+                filename = 'mrp_cost_update_sample.csv';
+                break;
+            case 'mrp_stock':
+                csvContent = 'item_code,units,mrp,stock\n9900127,KGS,11.95,50\n9900186,KGS,8.99,100\n100012,PCS,15.00,200';
+                filename = 'mrp_stock_update_sample.csv';
+                break;
+            case 'cost_stock':
+                csvContent = 'item_code,units,cost,stock\n9900127,KGS,6.00,50\n9900186,KGS,4.50,100\n100012,PCS,10.00,200';
+                filename = 'cost_stock_update_sample.csv';
+                break;
+            case 'all':
+            default:
+                csvContent = 'item_code,units,mrp,cost,stock\n9900127,KGS,11.95,6.00,50\n9900186,KGS,8.99,4.50,100\n100012,PCS,15.00,10.00,200';
+                filename = 'product_update_sample.csv';
+                break;
+        }
         
         // Create and download file
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', 'product_update_sample.csv');
+        link.setAttribute('download', filename);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();

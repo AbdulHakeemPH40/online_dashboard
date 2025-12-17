@@ -305,6 +305,14 @@ class ItemOutlet(models.Model):
         choices=[(0, 'Disabled'), (1, 'Enabled')],
         help_text="Last exported stock_status (0=disabled, 1=enabled). Used for delta export detection."
     )
+    # ERP export tracking
+    erp_export_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Last exported ERP price (converted). Used for ERP delta export detection."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -604,3 +612,100 @@ class ExportHistory(models.Model):
     def is_valid(self):
         """Check if export completed successfully (no validation errors)"""
         return self.status == 'success' and not self.validation_errors
+
+
+class ERPExportHistory(models.Model):
+    """
+    Track ERP export history for Talabat platform.
+    Similar to ExportHistory but for ERP-specific exports with different CSV format.
+    
+    CSV FORMAT: Party, Item Code, Location, Unit, Price
+    - Party: Fixed value "DT0072"
+    - Item Code: item.item_code
+    - Location: Placeholder (empty)
+    - Unit: item.units
+    - Price: Converted selling price (wrap=9900: price*WDF, wrap=10000: same price)
+    """
+    
+    EXPORT_TYPE_CHOICES = [
+        ('full', 'Full Export'),
+        ('partial', 'Partial Export - Delta sync'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('success', 'Success - File generated'),
+        ('failed', 'Failed - No file created'),
+        ('validation_failed', 'Validation Failed - Data issues'),
+    ]
+    
+    # Relationships
+    outlet = models.ForeignKey(
+        Outlet,
+        on_delete=models.CASCADE,
+        related_name='erp_export_histories',
+        help_text="Which outlet was exported"
+    )
+    
+    # Export metadata
+    export_type = models.CharField(
+        max_length=20,
+        choices=EXPORT_TYPE_CHOICES,
+        help_text="Full export or partial delta export"
+    )
+    export_timestamp = models.DateTimeField(
+        default=timezone.now,
+        help_text="Exact time when export completed"
+    )
+    
+    # Export statistics
+    item_count = models.IntegerField(
+        default=0,
+        help_text="Total items included in this export"
+    )
+    file_name = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Generated CSV filename"
+    )
+    
+    # Validation & status
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='success',
+        help_text="Whether export succeeded or failed"
+    )
+    validation_errors = models.TextField(
+        blank=True,
+        null=True,
+        help_text="JSON array of validation errors found during export"
+    )
+    
+    # Audit trail
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['outlet', '-export_timestamp']),
+            models.Index(fields=['outlet', 'status']),
+        ]
+        ordering = ['-export_timestamp']
+        verbose_name = 'ERP Export History'
+        verbose_name_plural = 'ERP Export Histories'
+    
+    def __str__(self):
+        return f"ERP: {self.outlet.name} - {self.get_export_type_display()} at {self.export_timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
+    
+    @classmethod
+    def get_latest_successful_export(cls, outlet):
+        """Get the most recent SUCCESSFUL ERP export for an outlet."""
+        return cls.objects.filter(
+            outlet=outlet,
+            status='success'
+        ).order_by('-export_timestamp').first()

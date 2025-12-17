@@ -170,8 +170,11 @@
                             <button type="button" class="bulk-btn bulk-btn-outline" onclick="resetForm()">
                                 <i class="bx bx-reset"></i> Reset
                             </button>
-                            <button type="button" class="bulk-btn bulk-btn-success" id="previewBtn" style="display: none;">
-                                <i class="bx bx-show"></i> Preview & Update
+                            <button type="button" class="bulk-btn bulk-btn-primary" id="previewBtn">
+                                <i class="bx bx-show"></i> Preview CSV
+                            </button>
+                            <button type="submit" class="bulk-btn bulk-btn-success" id="updateBtn">
+                                <i class="bx bx-upload"></i> Update Rules
                             </button>
                         </div>
                     </form>
@@ -397,11 +400,12 @@ document.getElementById('previewBtn').addEventListener('click', function(e) {
     });
 });
 
-// Show preview modal function - NEW
+// Show preview modal function - Shows first 20 rows
 function showPreviewModal(data) {
     const modal = document.getElementById('previewModal');
     const summaryDiv = document.getElementById('previewSummary');
     const tableDiv = document.getElementById('previewTable');
+    const PREVIEW_LIMIT = 20;
     
     // Create summary
     let summaryHtml = `
@@ -415,6 +419,10 @@ function showPreviewModal(data) {
                 <div style="font-size: 12px; color: #666;">Items with Changes</div>
             </div>
             <div style="flex: 1; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #6c757d;">${data.total_rows - data.total_changes}</div>
+                <div style="font-size: 12px; color: #666;">No Changes</div>
+            </div>
+            <div style="flex: 1; text-align: center;">
                 <div style="font-size: 24px; font-weight: bold; color: #007bff;">${data.platform.toUpperCase()}</div>
                 <div style="font-size: 12px; color: #666;">Platform</div>
             </div>
@@ -424,9 +432,10 @@ function showPreviewModal(data) {
     if (data.errors && data.errors.length > 0) {
         summaryHtml += `
             <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; padding: 12px; margin-bottom: 15px;">
-                <strong style="color: #856404;">Errors:</strong>
-                <ul style="margin: 8px 0 0 20px; color: #856404;">
-                    ${data.errors.map(err => `<li>${err}</li>`).join('')}
+                <strong style="color: #856404;"><i class="bx bx-error"></i> Errors (${data.errors.length}):</strong>
+                <ul style="margin: 8px 0 0 20px; color: #856404; font-size: 13px;">
+                    ${data.errors.slice(0, 5).map(err => `<li>${err}</li>`).join('')}
+                    ${data.errors.length > 5 ? `<li>...and ${data.errors.length - 5} more errors</li>` : ''}
                 </ul>
             </div>
         `;
@@ -434,42 +443,54 @@ function showPreviewModal(data) {
     
     summaryDiv.innerHTML = summaryHtml;
     
-    // Create table
+    // Create table - show first 20 rows
     if (data.items_with_changes && data.items_with_changes.length > 0) {
+        const displayItems = data.items_with_changes.slice(0, PREVIEW_LIMIT);
+        
         let tableHtml = `
             <div style="overflow-x: auto;">
-                <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd;">
+                <table style="width: 100%; border-collapse: collapse; border: 1px solid #ddd; font-size: 13px;">
                     <thead>
-                        <tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">
-                            <th style="padding: 10px; text-align: left; font-weight: 600;">Row</th>
-                            <th style="padding: 10px; text-align: left; font-weight: 600;">Item Code</th>
-                            <th style="padding: 10px; text-align: left; font-weight: 600;">Units</th>
-                            <th style="padding: 10px; text-align: left; font-weight: 600;">SKU</th>
-                            <th style="padding: 10px; text-align: left; font-weight: 600;">Changes</th>
+                        <tr style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                            <th style="padding: 12px 10px; text-align: left; font-weight: 600;">#</th>
+                            <th style="padding: 12px 10px; text-align: left; font-weight: 600;">Item Code</th>
+                            <th style="padding: 12px 10px; text-align: left; font-weight: 600;">Units</th>
+                            <th style="padding: 12px 10px; text-align: left; font-weight: 600;">SKU</th>
+                            <th style="padding: 12px 10px; text-align: left; font-weight: 600;">WDF</th>
+                            <th style="padding: 12px 10px; text-align: left; font-weight: 600;">OCQ</th>
+                            <th style="padding: 12px 10px; text-align: left; font-weight: 600;">Min Qty</th>
                         </tr>
                     </thead>
                     <tbody>
         `;
         
-        data.items_with_changes.forEach(item => {
-            let changes = [];
+        displayItems.forEach((item, index) => {
+            const rowBg = index % 2 === 0 ? '#ffffff' : '#f8f9fa';
+            
+            // Format changes with old → new
+            let wdfDisplay = '-';
+            let ocqDisplay = '-';
+            let minqtyDisplay = '-';
+            
             if (item.changes.wdf) {
-                changes.push(`WDF: ${item.changes.wdf.old} → ${item.changes.wdf.new}`);
+                wdfDisplay = `<span style="color: #6c757d; text-decoration: line-through;">${item.changes.wdf.old || 'null'}</span> → <span style="color: #28a745; font-weight: 600;">${item.changes.wdf.new}</span>`;
             }
             if (item.changes.ocq) {
-                changes.push(`OCQ: ${item.changes.ocq.old} → ${item.changes.ocq.new}`);
+                ocqDisplay = `<span style="color: #6c757d; text-decoration: line-through;">${item.changes.ocq.old || 'null'}</span> → <span style="color: #28a745; font-weight: 600;">${item.changes.ocq.new}</span>`;
             }
             if (item.changes.minqty) {
-                changes.push(`Min Qty: ${item.changes.minqty.old} → ${item.changes.minqty.new}`);
+                minqtyDisplay = `<span style="color: #6c757d; text-decoration: line-through;">${item.changes.minqty.old || 'null'}</span> → <span style="color: #28a745; font-weight: 600;">${item.changes.minqty.new}</span>`;
             }
             
             tableHtml += `
-                <tr style="border-bottom: 1px solid #eee;">
+                <tr style="background: ${rowBg}; border-bottom: 1px solid #eee;">
                     <td style="padding: 10px;">${item.row}</td>
-                    <td style="padding: 10px;">${item.item_code}</td>
+                    <td style="padding: 10px; font-weight: 500;">${item.item_code}</td>
                     <td style="padding: 10px;">${item.units}</td>
-                    <td style="padding: 10px;">${item.sku}</td>
-                    <td style="padding: 10px; color: #28a745; font-weight: 500;">${changes.join('<br>')}</td>
+                    <td style="padding: 10px; font-family: monospace; font-size: 12px;">${item.sku}</td>
+                    <td style="padding: 10px;">${wdfDisplay}</td>
+                    <td style="padding: 10px;">${ocqDisplay}</td>
+                    <td style="padding: 10px;">${minqtyDisplay}</td>
                 </tr>
             `;
         });
@@ -480,13 +501,13 @@ function showPreviewModal(data) {
             </div>
         `;
         
-        if (data.total_changes > 100) {
-            tableHtml += `<p style="color: #666; margin-top: 10px; font-size: 12px;">Showing first 100 items out of ${data.total_changes}</p>`;
+        if (data.total_changes > PREVIEW_LIMIT) {
+            tableHtml += `<p style="color: #666; margin-top: 10px; font-size: 12px; text-align: center;"><i class="bx bx-info-circle"></i> Showing first ${PREVIEW_LIMIT} items out of ${data.total_changes} total changes</p>`;
         }
         
         tableDiv.innerHTML = tableHtml;
     } else {
-        tableDiv.innerHTML = `<p style="color: #666; padding: 20px; text-align: center;">No items with changes found</p>`;
+        tableDiv.innerHTML = `<div style="padding: 40px; text-align: center; color: #666;"><i class="bx bx-info-circle" style="font-size: 48px; display: block; margin-bottom: 10px;"></i>No items with changes found in CSV</div>`;
     }
     
     modal.style.display = 'block';
@@ -506,12 +527,6 @@ document.getElementById('confirmUpdateBtn').addEventListener('click', function()
     }, 100);
 });
 
-// Show preview button when file is selected - NEW
-document.getElementById('csvFile').addEventListener('change', function() {
-    if (this.files.length > 0) {
-        document.getElementById('previewBtn').style.display = 'inline-block';
-    }
-});
 
 // Modal notification function
 function showModal({ title, message, type = 'info' }) {

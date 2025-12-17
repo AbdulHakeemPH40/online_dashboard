@@ -185,6 +185,35 @@ def talabat_dashboard(request):
 
 
 @login_required
+def erp_page(request):
+    """
+    ERP Integration page for Talabat platform.
+    Export data with format: Party, Item Code, Location, Unit, Price
+    """
+    from .models import ERPExportHistory
+    
+    try:
+        # Get Talabat outlets for dropdown
+        talabat_outlets = Outlet.objects.filter(platforms='talabat', is_active=True).order_by('name')
+        
+        # Get ERP export history
+        erp_exports = ERPExportHistory.objects.all().order_by('-export_timestamp')[:100]
+        
+    except Exception as e:
+        logger.error(f"ERP page error: {str(e)}")
+        talabat_outlets = []
+        erp_exports = []
+    
+    context = {
+        'page_title': 'ERP Integration - Talabat',
+        'active_nav': 'erp',
+        'talabat_outlets': talabat_outlets,
+        'erp_exports': erp_exports,
+    }
+    return render(request, 'erp_page.html', context)
+
+
+@login_required
 def list_items_api(request):
     """
     API endpoint to list items filtered by platform with optional search and pagination.
@@ -937,1717 +966,587 @@ def get_outlets_by_platform(request):
     return JsonResponse({'outlets': outlets_data})
 
 
+@login_required
+@rate_limit(max_requests=20, time_window_seconds=60)
 def product_update(request):
     """
-    Product update view for updating existing products via CSV
-    Uses Item Code + Units combination as unique identifier within platform
+    Product update view for updating MRP, Cost, and Stock via CSV.
+    Uses Item Code + Units combination as unique identifier within platform.
+    
+    OPTIMIZED: Uses bulk operations and hash-based change detection like stock_update.
     
     Required CSV headers: item_code, units
-    Optional CSV headers: mrp, cost, stock
+    Optional headers (at least one required): mrp, cost, stock
     
-    OPTIMIZED: Uses hash-based change detection for 15-20x faster updates
-    - Industry-standard CDC (Change Data Capture) approach
-    - O(1) hash comparison skips unchanged rows
-    - bulk_update for database efficiency
+    Update Types:
+    - 'mrp_only': Update MRP and calculate selling_price
+    - 'cost_only': Update Cost and calculate converted_cost
+    - 'stock_only': Update Stock with WDF conversion for wrap=9900
+    - 'mrp_cost': Update both MRP and Cost
+    - 'all': Update MRP, Cost, and Stock together
+    
+    Features:
+    - Platform isolation (Pasons vs Talabat)
+    - Outlet-platform validation
+    - Bulk operations for performance
+    - Proper price conversion (WDF for wrap=9900, margin for Talabat)
+    - Cascade logic for wrap=9900 parent→children
     """
-    from .models import Outlet, Item, ItemOutlet
-    from .utils import compute_data_hash, update_item_outlet_hash
+    from .models import Outlet, Item, ItemOutlet, UploadHistory
+    from .utils import calculate_item_selling_price, calculate_item_converted_cost
     from django.contrib import messages
+    from django.db import transaction
     from decimal import Decimal, InvalidOperation
     
-    if request.method == 'POST':
+    if request.method == 'GET':
+        outlets = Outlet.objects.filter(is_active=True).order_by('name')
+        context = {
+            'page_title': 'Product Update',
+            'active_nav': 'bulk_operations',
+            'outlets': outlets
+        }
+        return render(request, 'product_update.html', context)
+    
+    elif request.method == 'POST':
         platform = request.POST.get('platform')
         outlet_id = request.POST.get('outlet')
+        update_type = request.POST.get('update_type', 'all')  # mrp_only, cost_only, stock_only, mrp_cost, all
         csv_file = request.FILES.get('csv_file')
         
-        if platform and outlet_id and csv_file:
-            try:
-                outlet = Outlet.objects.get(id=outlet_id)
+        # Validate required fields
+        if not platform or platform not in ('pasons', 'talabat'):
+            messages.error(request, "Please select a valid platform (Pasons or Talabat).")
+            return redirect('integration:product_update')
+        
+        if not outlet_id:
+            messages.error(request, "Please select an outlet.")
+            return redirect('integration:product_update')
+        
+        if not csv_file:
+            messages.error(request, "Please select a CSV file.")
+            return redirect('integration:product_update')
+        
+        try:
+            outlet = Outlet.objects.get(id=outlet_id)
+            
+            # CRITICAL: Validate outlet matches platform
+            if outlet.platforms != platform:
+                messages.error(request, f"Outlet '{outlet.name}' does not support {platform.title()} platform.")
+                return redirect('integration:product_update')
+            
+            import csv
+            import io
+            from django.db.models import Q
+            
+            csv_content, _encoding_used = decode_csv_upload(csv_file)
+            csv_reader = csv.DictReader(io.StringIO(csv_content))
+            
+            if not csv_reader.fieldnames:
+                messages.error(request, "CSV file has no headers")
+                return redirect('integration:product_update')
+            
+            headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
+            
+            # Determine allowed headers based on update_type
+            base_headers = {'item_code', 'units'}
+            if update_type == 'mrp_only':
+                allowed_headers = base_headers | {'mrp'}
+                value_headers = {'mrp'}
+            elif update_type == 'cost_only':
+                allowed_headers = base_headers | {'cost'}
+                value_headers = {'cost'}
+            elif update_type == 'stock_only':
+                allowed_headers = base_headers | {'stock'}
+                value_headers = {'stock'}
+            elif update_type == 'mrp_cost':
+                allowed_headers = base_headers | {'mrp', 'cost'}
+                value_headers = {'mrp', 'cost'}
+            elif update_type == 'mrp_stock':
+                allowed_headers = base_headers | {'mrp', 'stock'}
+                value_headers = {'mrp', 'stock'}
+            elif update_type == 'cost_stock':
+                allowed_headers = base_headers | {'cost', 'stock'}
+                value_headers = {'cost', 'stock'}
+            else:  # 'all' or default
+                allowed_headers = base_headers | {'mrp', 'cost', 'stock'}
+                value_headers = {'mrp', 'cost', 'stock'}
+            
+            # Check for missing required headers
+            missing = base_headers - set(headers)
+            if missing:
+                messages.error(request, f"Missing required columns: {', '.join(sorted(missing))}")
+                return redirect('integration:product_update')
+            
+            # Check that at least one value header is present
+            present_value_headers = value_headers & set(headers)
+            if not present_value_headers:
+                messages.error(request, f"CSV must contain at least one of: {', '.join(sorted(value_headers))}")
+                return redirect('integration:product_update')
+            
+            # Note: Extra columns in CSV are ignored (not an error)
+            # This allows users to use the same CSV file with different update types
+            
+            # Parse all rows
+            csv_rows = []
+            for row_num, original_row in enumerate(csv_reader, start=2):
+                row = {k.strip().lower(): v.strip() if v else '' for k, v in original_row.items()}
+                if row.get('item_code') and row.get('units'):
+                    csv_rows.append((row_num, row))
+            
+            if not csv_rows:
+                messages.warning(request, "No valid rows found in CSV")
+                return redirect('integration:product_update')
+            
+            # Build lookup keys for bulk prefetch - use set directly
+            lookup_keys_set = {(r['item_code'], r['units']) for _, r in csv_rows}
+            lookup_keys = list(lookup_keys_set)
+            
+            # OPTIMIZATION: Use .only() to fetch only needed fields
+            CHUNK_SIZE = 500  # Increased chunk size
+            items_dict = {}  # (item_code, units) -> [list of items]
+            
+            # Determine which item fields we need based on update type
+            item_fields = ['id', 'item_code', 'units', 'platform', 'wrap', 'weight_division_factor']
+            if 'mrp' in present_value_headers:
+                item_fields.extend(['mrp', 'selling_price', 'talabat_margin'])
+            if 'cost' in present_value_headers:
+                item_fields.extend(['cost', 'converted_cost'])
+            if 'stock' in present_value_headers:
+                item_fields.append('stock')
+            
+            for i in range(0, len(lookup_keys), CHUNK_SIZE):
+                chunk = lookup_keys[i:i + CHUNK_SIZE]
+                item_filter = Q()
+                for item_code, units in chunk:
+                    item_filter |= Q(item_code=item_code, units=units)
                 
-                if outlet.platforms != platform:  # STRICT isolation
-                    messages.error(request, f"Outlet '{outlet.name}' does not support {platform.title()} platform.")
-                    return redirect('integration:product_update')
-                
-                import csv
-                import io
-                
-                csv_content, _encoding_used = decode_csv_upload(csv_file)
-                csv_reader = csv.DictReader(io.StringIO(csv_content))
-                
-                if not csv_reader.fieldnames:
-                    messages.error(request, "CSV file has no headers")
-                    return redirect('integration:product_update')
-                
-                # Filter out empty header fields (from trailing delimiters)
-                headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
-                
-                # STRICT HEADER VALIDATION: Only these headers allowed
-                allowed_headers = {'item_code', 'units', 'mrp', 'cost', 'stock'}
-                required_headers = {'item_code', 'units'}
-                
-                # Check for missing required headers
-                missing = required_headers - set(headers)
-                if missing:
-                    messages.error(request, f"Missing required columns: {', '.join(sorted(missing))}")
-                    return redirect('integration:product_update')
-                
-                # Check for invalid/extra headers
-                extra_headers = set(headers) - allowed_headers
-                if extra_headers:
-                    messages.error(request, f"Invalid columns not allowed: {', '.join(sorted(extra_headers))}. Only allowed: item_code, units, mrp, cost, stock")
-                    return redirect('integration:product_update')
-                
-                # Parse all rows first
-                csv_rows = []
-                for row_num, original_row in enumerate(csv_reader, start=2):
-                    row = {k.strip().lower(): v.strip() if v else '' for k, v in original_row.items()}
-                    if row.get('item_code') and row.get('units'):
-                        csv_rows.append((row_num, row))
-                
-                if not csv_rows:
-                    messages.warning(request, "No valid rows found in CSV")
-                    return redirect('integration:product_update')
-                
-                # Build lookup keys for bulk prefetch
-                lookup_keys = [(r['item_code'], r['units']) for _, r in csv_rows]
-                
-                # Chunked bulk fetch to avoid "Expression tree too large" error
-                # Process in batches of 400 to stay under Django's 1000 limit
-                from django.db.models import Q
-                CHUNK_SIZE = 400
-                items_map = {}
-                
-                for i in range(0, len(lookup_keys), CHUNK_SIZE):
-                    chunk = lookup_keys[i:i + CHUNK_SIZE]
-                    item_filter = Q()
-                    for item_code, units in chunk:
-                        item_filter |= Q(item_code=item_code, units=units)
-                    
-                    chunk_items = Item.objects.filter(platform=platform).filter(item_filter)
-                    for item in chunk_items:
-                        key = (item.item_code, item.units)
-                        # For wrap=9900 items with multiple SKUs (same item_code+units),
-                        # prioritize the PARENT item (SKU == item_code) for cascade to work
-                        existing = items_map.get(key)
-                        if existing is None:
-                            items_map[key] = item
-                        elif item.wrap == '9900':
-                            # Check if current item is parent (SKU == item_code)
-                            is_current_parent = str(item.sku).strip() == str(item.item_code).strip()
-                            is_existing_parent = str(existing.sku).strip() == str(existing.item_code).strip()
-                            # Prioritize parent over child for cascade to work
-                            if is_current_parent and not is_existing_parent:
-                                items_map[key] = item
-                
-                # Bulk fetch existing ItemOutlet relationships
-                all_items = list(items_map.values())
-                outlets_map = {}
-                
-                for i in range(0, len(all_items), CHUNK_SIZE):
-                    chunk_items = all_items[i:i + CHUNK_SIZE]
-                    chunk_outlets = ItemOutlet.objects.filter(
-                        item__in=chunk_items,
-                        outlet=outlet
-                    ).select_related('item')
-                    for io in chunk_outlets:
-                        outlets_map[io.item_id] = io
-                
-                # ============================================================
-                # PERFORMANCE: Pre-fetch ALL sibling items for wrap=9900 parents
-                # This prevents N+1 queries in the cascade loop
-                # ============================================================
-                parent_item_codes = set()
-                for item in all_items:
-                    if item.wrap == '9900':
-                        wdf = item.weight_division_factor or Decimal('1')
-                        if wdf == Decimal('1'):  # Parent item
-                            parent_item_codes.add(item.item_code)
-                
-                # Bulk fetch ALL sibling items for these parents
-                siblings_map = {}  # {item_code: [sibling_items...]}
-                if parent_item_codes:
-                    parent_codes_list = list(parent_item_codes)
-                    for i in range(0, len(parent_codes_list), CHUNK_SIZE):
-                        chunk_codes = parent_codes_list[i:i + CHUNK_SIZE]
-                        sibling_items = Item.objects.filter(
-                            item_code__in=chunk_codes,
-                            platform=platform,
-                            wrap='9900'
-                        ).exclude(weight_division_factor=Decimal('1')).exclude(weight_division_factor__isnull=True)
-                        for sib in sibling_items:
-                            if sib.item_code not in siblings_map:
-                                siblings_map[sib.item_code] = []
-                            siblings_map[sib.item_code].append(sib)
-                
-                # Bulk fetch ItemOutlets for ALL sibling items
-                all_sibling_items = [sib for sibs in siblings_map.values() for sib in sibs]
-                sibling_outlets_map = {}  # {item_id: ItemOutlet}
-                if all_sibling_items:
-                    for i in range(0, len(all_sibling_items), CHUNK_SIZE):
-                        chunk_sibs = all_sibling_items[i:i + CHUNK_SIZE]
-                        chunk_sib_outlets = ItemOutlet.objects.filter(
-                            item__in=chunk_sibs,
-                            outlet=outlet
-                        ).select_related('item')
-                        for sio in chunk_sib_outlets:
-                            sibling_outlets_map[sio.item_id] = sio
-                
-                # Lists for collecting cascade updates (bulk save at end)
-                sibling_items_to_update = []
-                sibling_outlets_to_update = []
-                sibling_outlets_to_create = []
-                
-                # Process rows and collect updates
-                items_to_update = []
-                outlets_to_update = []
-                outlets_to_create = []
-                updated_count = 0
-                not_found_items = []
-                errors = []
-                no_change_count = 0
-                
+                # Use .only() to reduce memory and query time
+                chunk_items = Item.objects.filter(platform=platform).filter(item_filter).only(*item_fields)
+                for item in chunk_items:
+                    key = (item.item_code, item.units)
+                    if key not in items_dict:
+                        items_dict[key] = []
+                    items_dict[key].append(item)
+            
+            # Pre-load ItemOutlet records with .only()
+            all_item_ids = [item.id for items_list in items_dict.values() for item in items_list]
+            outlets_map = {}
+            
+            # Determine which outlet fields we need
+            outlet_fields = ['id', 'item_id', 'outlet_id']
+            if 'mrp' in present_value_headers:
+                outlet_fields.extend(['outlet_mrp', 'outlet_selling_price'])
+            if 'cost' in present_value_headers:
+                outlet_fields.append('outlet_cost')
+            if 'stock' in present_value_headers:
+                outlet_fields.append('outlet_stock')
+            
+            for i in range(0, len(all_item_ids), CHUNK_SIZE):
+                chunk_ids = all_item_ids[i:i + CHUNK_SIZE]
+                chunk_outlets = ItemOutlet.objects.filter(
+                    item_id__in=chunk_ids,
+                    outlet=outlet
+                ).only(*outlet_fields)
+                for io in chunk_outlets:
+                    outlets_map[io.item_id] = io
+            
+            # Collect updates for bulk operations - use SETS for O(1) lookups
+            items_to_update_set = set()
+            items_to_update = []
+            outlets_to_update_set = set()
+            outlets_to_update = []
+            outlets_to_create = []
+            
+            updated_count = 0
+            not_found_items = []
+            errors = []
+            no_change_count = 0
+            
+            with transaction.atomic():
                 for row_num, row in csv_rows:
                     try:
                         item_code = row['item_code']
                         units = row['units']
                         
-                        item = items_map.get((item_code, units))
-                        if not item:
-                            not_found_items.append(f"{item_code} ({units})")
-                            continue
-                        
-                        # Get or prepare ItemOutlet
-                        item_outlet = outlets_map.get(item.id)
-                        if not item_outlet:
-                            item_outlet = ItemOutlet(
-                                item=item,
-                                outlet=outlet,
-                                outlet_stock=item.stock or 0,
-                                outlet_selling_price=item.selling_price or Decimal('0'),
-                                outlet_mrp=item.mrp or Decimal('0'),
-                                is_active_in_outlet=True
-                            )
-                            outlets_map[item.id] = item_outlet
-                            outlets_to_create.append(item_outlet)
-                        
-                        # ============================================================
-                        # HASH-BASED CHANGE DETECTION (Industry-standard CDC approach)
-                        # Skip unchanged rows for 15-20x performance improvement
-                        # ============================================================
-                        mrp_str = row.get('mrp', '')
-                        cost_str = row.get('cost', '')
-                        stock_str = row.get('stock', '')
-                        
-                        # Compute hash of incoming CSV data
-                        mrp_clean = mrp_str.replace(',', '') if mrp_str else None
-                        cost_clean = cost_str.replace(',', '') if cost_str else None
-                        stock_clean = stock_str.replace(',', '') if stock_str else None
-                        incoming_hash = compute_data_hash(mrp=mrp_clean, cost=cost_clean, stock=stock_clean)
-                        
-                        # Early exit: If hash matches, skip this row (no changes detected)
-                        if item_outlet.data_hash and item_outlet.data_hash == incoming_hash:
-                            no_change_count += 1
-                            continue  # Skip to next row - O(1) optimization!
-                        
-                        item_changed = False
-                        outlet_changed = False
-                        
-                        # Update MRP and calculate selling_price
-                        if mrp_str:
-                            try:
-                                # Remove commas from formatted numbers
-                                mrp_clean = mrp_str.replace(',', '')
-                                new_mrp = Decimal(mrp_clean)
-                                if new_mrp < 0:
-                                    new_mrp = Decimal('0')
-                                if item.mrp != new_mrp:
-                                    item.mrp = new_mrp
-                                    item_changed = True
-                                    
-                                    # Calculate selling_price based on platform and wrap
-                                    # Import PricingCalculator for Talabat margin calculations
-                                    from .utils import PricingCalculator
-                                    
-                                    if item.wrap == '9900':
-                                        # wrap=9900: Parent=MRP, Child=MRP÷WDF
-                                        wdf = item.weight_division_factor or Decimal('1')
-                                        # Use WDF to detect parent (WDF=1 means 1 KG = parent)
-                                        # SKU can be any value from CSV, so we use WDF instead
-                                        is_parent = wdf == Decimal('1')
-                                        
-                                        if platform == 'talabat':
-                                            # Talabat: Apply margin calculation
-                                            calc = PricingCalculator()
-                                            if is_parent:
-                                                # Parent: Use MRP directly with margin
-                                                new_selling_price, _ = calc.calculate_talabat_price(
-                                                    new_mrp,
-                                                    margin_percentage=item.effective_talabat_margin
-                                                )
-                                            else:
-                                                # Child: First divide MRP by WDF, then apply margin
-                                                base_price = (new_mrp / wdf).quantize(Decimal('0.01'))
-                                                new_selling_price, _ = calc.calculate_talabat_price(
-                                                    base_price,
-                                                    margin_percentage=item.effective_talabat_margin
-                                                )
-                                        else:
-                                            # Pasons: No margin applied
-                                            if is_parent:
-                                                new_selling_price = new_mrp
-                                            else:
-                                                new_selling_price = (new_mrp / wdf).quantize(Decimal('0.01'))
-                                        
-                                        item.selling_price = new_selling_price
-                                        item_outlet.outlet_selling_price = new_selling_price
-                                        outlet_changed = True
-                                        
-                                    elif item.wrap == '10000' or item.wrap is None:
-                                        # wrap=10000 or no wrap: selling_price based on MRP
-                                        if platform == 'talabat':
-                                            # Talabat: Apply margin calculation
-                                            calc = PricingCalculator()
-                                            new_selling_price, _ = calc.calculate_talabat_price(
-                                                new_mrp,
-                                                margin_percentage=item.effective_talabat_margin
-                                            )
-                                        else:
-                                            # Pasons: Just use MRP, no margin
-                                            new_selling_price = new_mrp
-                                        
-                                        item.selling_price = new_selling_price
-                                        item_outlet.outlet_selling_price = new_selling_price
-                                        outlet_changed = True
-                                
-                                if item_outlet.outlet_mrp != new_mrp:
-                                    item_outlet.outlet_mrp = new_mrp
-                                    outlet_changed = True
-                            except InvalidOperation:
-                                errors.append(f"Row {row_num}: Invalid MRP '{mrp_str}'")
-                        
-                        # Update Cost and calculate converted_cost
-                        # (cost_str already extracted for hash calculation above)
-                        if cost_str:
-                            try:
-                                # Remove commas from formatted numbers
-                                cost_clean = cost_str.replace(',', '')
-                                new_cost = Decimal(cost_clean)
-                                if new_cost < 0:
-                                    new_cost = Decimal('0')
-                                if item.cost != new_cost:
-                                    item.cost = new_cost
-                                    # wrap=9900: converted_cost = cost ÷ WDF (3 decimals)
-                                    # wrap=10000: converted_cost = cost (no division)
-                                    if item.wrap == '9900':
-                                        wdf = item.weight_division_factor or Decimal('1')
-                                        if wdf > 0:
-                                            item.converted_cost = (new_cost / wdf).quantize(Decimal('0.001'))
-                                    else:
-                                        item.converted_cost = new_cost
-                                    item_changed = True
-                                
-                                # Update OUTLET-LEVEL cost
-                                # Store RAW cost (same as item.cost) - conversion happens in converted_cost
-                                # This prevents double-division when displaying
-                                if item_outlet.outlet_cost != new_cost:
-                                    item_outlet.outlet_cost = new_cost
-                                    outlet_changed = True
-                            except InvalidOperation:
-                                errors.append(f"Row {row_num}: Invalid cost '{cost_str}'")
-                        
-                        # Update Stock
-                        # (stock_str already extracted for hash calculation above)
-                        if stock_str:
-                            try:
-                                # Remove commas from formatted numbers (e.g., "1,350.00" → "1350.00")
-                                stock_clean = stock_str.replace(',', '')
-                                csv_stock_kg = int(float(stock_clean))
-                                if csv_stock_kg < 0:
-                                    csv_stock_kg = 0
-                                
-                                # For wrap=9900: stock_kg × WDF = available units for this size
-                                # Example: 3 KG × WDF 4 = 12 packs (for 250gm item)
-                                if item.wrap == '9900':
-                                    wdf = item.weight_division_factor or Decimal('1')
-                                    new_stock = int(csv_stock_kg * float(wdf))
-                                else:
-                                    new_stock = csv_stock_kg
-                                
-                                if item.stock != new_stock:
-                                    item.stock = new_stock
-                                    item_changed = True
-                                if item_outlet.outlet_stock != new_stock:
-                                    item_outlet.outlet_stock = new_stock
-                                    outlet_changed = True
-                            except ValueError:
-                                errors.append(f"Row {row_num}: Invalid stock '{stock_str}'")
-                        
-                        # ============================================================
-                        # CASCADE LOGIC: Parent to Children ONLY
-                        # For wrap=9900 items, cascade from PARENT (WDF=1) to children (WDF>1)
-                        # Do NOT cascade from children back to parent!
-                        # ============================================================
-                        # Only cascade if this item is a PARENT (WDF=1)
-                        wdf_for_cascade = item.weight_division_factor or Decimal('1')
-                        is_cascade_parent = wdf_for_cascade == Decimal('1')
-                        has_mrp_to_cascade = bool(mrp_str)
-                        has_cost_to_cascade = bool(cost_str)
-                        has_stock_to_cascade = bool(stock_str)
-                        
-                        # Only cascade FROM parent (WDF=1) TO children (WDF>1)
-                        # OPTIMIZED: Use pre-fetched siblings_map instead of querying per row
-                        if item.wrap == '9900' and is_cascade_parent and (has_mrp_to_cascade or has_cost_to_cascade or has_stock_to_cascade):
-                            # Get pre-fetched sibling items (no DB query here!)
-                            sibling_items_list = siblings_map.get(item_code, [])
-                            
-                            for sibling_item in sibling_items_list:
-                                try:
-                                    # Skip self
-                                    if sibling_item.sku == item.sku:
-                                        continue
-                                        
-                                    sibling_wdf = sibling_item.weight_division_factor or Decimal('1')
-                                    
-                                    # Only cascade to CHILDREN (WDF > 1), not to other parents
-                                    if sibling_wdf == Decimal('1'):
-                                        continue
-                                    
-                                    # Only cascade if SKU starts with item_code (e.g., 9900422 -> 9900422500)
-                                    if not str(sibling_item.sku).startswith(str(item_code)):
-                                        continue
-                                    
-                                    # Only cascade if units match (normalized - remove dots, lowercase)
-                                    parent_units = (item.units or '').replace('.', '').lower().strip()
-                                    child_units = (sibling_item.units or '').replace('.', '').lower().strip()
-                                    if parent_units != child_units:
-                                        continue
-                                    
-                                    if sibling_wdf != 0:
-                                        # OPTIMIZED: Use pre-fetched outlet or create new (no DB query!)
-                                        sibling_item_outlet = sibling_outlets_map.get(sibling_item.id)
-                                        sibling_is_new = sibling_item_outlet is None
-                                        
-                                        if sibling_is_new:
-                                            sibling_item_outlet = ItemOutlet(
-                                                item=sibling_item,
-                                                outlet=outlet,
-                                                outlet_stock=sibling_item.stock or 0,
-                                                is_active_in_outlet=True
-                                            )
-                                            sibling_outlets_map[sibling_item.id] = sibling_item_outlet
-                                        
-                                        sibling_item_changed = False
-                                        sibling_outlet_changed = False
-                                        
-                                        # CASCADE MRP: sibling_selling_price = csv_mrp ÷ sibling_wdf
-                                        if has_mrp_to_cascade:
-                                            virtual_parent_mrp = Decimal(mrp_str.replace(',', ''))
-                                            sibling_mrp = virtual_parent_mrp  # Sibling uses same MRP
-                                            if sibling_item_outlet.outlet_mrp != sibling_mrp:
-                                                sibling_item_outlet.outlet_mrp = sibling_mrp
-                                                sibling_outlet_changed = True
-                                            
-                                            # Calculate sibling selling_price
-                                            if platform == 'talabat':
-                                                from .utils import PricingCalculator
-                                                base_price = (virtual_parent_mrp / sibling_wdf).quantize(Decimal('0.01'))
-                                                calc = PricingCalculator()
-                                                sibling_selling_price, _ = calc.calculate_talabat_price(
-                                                    base_price,
-                                                    margin_percentage=sibling_item.effective_talabat_margin
-                                                )
-                                            else:
-                                                # Pasons: sibling_selling_price = csv_mrp ÷ sibling_wdf
-                                                sibling_selling_price = (virtual_parent_mrp / sibling_wdf).quantize(Decimal('0.01'))
-                                            
-                                            if sibling_item_outlet.outlet_selling_price != sibling_selling_price:
-                                                sibling_item_outlet.outlet_selling_price = sibling_selling_price
-                                                sibling_outlet_changed = True
-                                        
-                                        # CASCADE COST: Store raw cost, calculate converted_cost
-                                        if has_cost_to_cascade:
-                                            virtual_parent_cost = Decimal(cost_str.replace(',', ''))
-                                            if virtual_parent_cost < 0:
-                                                virtual_parent_cost = Decimal('0')
-                                            if sibling_item_outlet.outlet_cost != virtual_parent_cost:
-                                                sibling_item_outlet.outlet_cost = virtual_parent_cost
-                                                sibling_outlet_changed = True
-                                            
-                                            # Update sibling item: cost = raw, converted_cost = cost/WDF
-                                            converted_cost = (virtual_parent_cost / sibling_wdf).quantize(Decimal('0.001'))
-                                            if converted_cost < 0:
-                                                converted_cost = Decimal('0')
-                                            if sibling_item.cost != virtual_parent_cost:
-                                                sibling_item.cost = virtual_parent_cost
-                                                sibling_item.converted_cost = converted_cost
-                                                sibling_item_changed = True
-                                        
-                                        # CASCADE STOCK: stock_kg × WDF = available units
-                                        if has_stock_to_cascade:
-                                            virtual_parent_stock = int(float(stock_str.replace(',', '')))
-                                            sibling_stock = int(virtual_parent_stock * float(sibling_wdf))
-                                            sibling_stock = max(0, sibling_stock)
-                                            if sibling_item_outlet.outlet_stock != sibling_stock:
-                                                sibling_item_outlet.outlet_stock = sibling_stock
-                                                sibling_outlet_changed = True
-                                            if sibling_item.stock != sibling_stock:
-                                                sibling_item.stock = sibling_stock
-                                                sibling_item_changed = True
-                                        
-                                        # Collect for bulk update (no individual save!)
-                                        if sibling_item_changed and sibling_item not in sibling_items_to_update:
-                                            sibling_items_to_update.append(sibling_item)
-                                        
-                                        if sibling_outlet_changed or sibling_is_new:
-                                            update_item_outlet_hash(sibling_item_outlet)
-                                            if sibling_is_new:
-                                                if sibling_item_outlet not in sibling_outlets_to_create:
-                                                    sibling_outlets_to_create.append(sibling_item_outlet)
-                                            elif sibling_item_outlet not in sibling_outlets_to_update:
-                                                sibling_outlets_to_update.append(sibling_item_outlet)
-                                        
-                                except Exception as cascade_error:
-                                    errors.append(f"Row {row_num}: Cascade failed for {sibling_item.sku} - {str(cascade_error)}")
-                        
-                        # Track changes
-                        if item_changed:
-                            items_to_update.append(item)
-                        if outlet_changed and item_outlet not in outlets_to_create:
-                            # Update data_hash for future change detection
-                            update_item_outlet_hash(item_outlet)
-                            outlets_to_update.append(item_outlet)
-                        
-                        # Also update hash for newly created outlets
-                        if item_outlet in outlets_to_create and outlet_changed:
-                            update_item_outlet_hash(item_outlet)
-                        
-                        if item_changed or outlet_changed:
-                            updated_count += 1
-                        else:
-                            no_change_count += 1
-                        
-                    except Exception as e:
-                        errors.append(f"Row {row_num}: {str(e)}")
-                
-                # Bulk create new ItemOutlets
-                if outlets_to_create:
-                    ItemOutlet.objects.bulk_create(outlets_to_create, ignore_conflicts=True)
-                
-                # Bulk update Items
-                if items_to_update:
-                    Item.objects.bulk_update(
-                        items_to_update,
-                        ['mrp', 'cost', 'stock', 'converted_cost', 'selling_price'],
-                        batch_size=500
-                    )
-                
-                # Bulk update ItemOutlets (including data_hash for future change detection)
-                if outlets_to_update:
-                    ItemOutlet.objects.bulk_update(
-                        outlets_to_update,
-                        ['outlet_mrp', 'outlet_stock', 'outlet_selling_price', 'outlet_cost', 'data_hash'],
-                        batch_size=500
-                    )
-                
-                # PERFORMANCE: Bulk operations for CASCADE sibling items/outlets
-                # This replaces individual saves in the cascade loop
-                if sibling_items_to_update:
-                    Item.objects.bulk_update(
-                        sibling_items_to_update,
-                        ['cost', 'converted_cost', 'stock'],
-                        batch_size=500
-                    )
-                
-                if sibling_outlets_to_create:
-                    ItemOutlet.objects.bulk_create(sibling_outlets_to_create, ignore_conflicts=True)
-                
-                if sibling_outlets_to_update:
-                    ItemOutlet.objects.bulk_update(
-                        sibling_outlets_to_update,
-                        ['outlet_mrp', 'outlet_stock', 'outlet_selling_price', 'outlet_cost', 'data_hash'],
-                        batch_size=500
-                    )
-                
-                # Success message
-                if updated_count > 0:
-                    messages.success(request, f"Updated {updated_count} products at {outlet.name} ({platform.title()}).")
-                if no_change_count > 0:
-                    messages.info(request, f"{no_change_count} products already up-to-date (no changes).")
-                if not_found_items:
-                    messages.warning(request, f"{len(not_found_items)} items not found on {platform.title()}.")
-                if errors:
-                    for error in errors[:3]:
-                        messages.error(request, error)
-                    if len(errors) > 3:
-                        messages.warning(request, f"And {len(errors) - 3} more errors...")
-                
-                # Log upload history
-                from .models import UploadHistory
-                upload_status = 'success' if not errors else ('partial' if updated_count > 0 else 'failed')
-                UploadHistory.objects.create(
-                    file_name=csv_file.name,
-                    platform=platform,
-                    outlet=outlet,
-                    update_type='product',
-                    records_total=len(csv_rows),
-                    records_success=updated_count,
-                    records_failed=len(errors),
-                    records_skipped=len(not_found_items) + no_change_count,
-                    status=upload_status,
-                    uploaded_by=request.user if request.user.is_authenticated else None,
-                )
-                
-                return redirect('integration:product_update')
-                
-            except Outlet.DoesNotExist:
-                messages.error(request, "Selected outlet not found.")
-            except Exception as e:
-                messages.error(request, f"Error processing CSV: {str(e)}")
-        else:
-            messages.error(request, "Please fill all required fields and select a CSV file.")
-    
-    # Get outlets for both platforms
-    outlets = Outlet.objects.filter(is_active=True).order_by('platforms', 'name')
-    
-    context = {
-        'page_title': 'Product Update',
-        'active_nav': 'bulk_operations',
-        'outlets': outlets,
-        'platforms': ['pasons', 'talabat']
-    }
-    return render(request, 'product_update.html', context)
-
-
-@login_required
-@rate_limit(max_requests=20, time_window_seconds=60)  # 20 requests per minute
-def stock_update(request):
-    """
-    Stock update view for updating stock quantities via CSV
-    Uses Item Code + Units combination as unique identifier within platform
-    
-    Required CSV headers: item_code, units, stock
-    """
-    from .models import Outlet, Item, ItemOutlet
-    from django.contrib import messages
-    
-    if request.method == 'POST':
-        # Handle CSV upload and stock updates
-        platform = request.POST.get('platform')
-        outlet_id = request.POST.get('outlet')
-        operation = request.POST.get('operation')
-        csv_file = request.FILES.get('csv_file')
-        
-        # Validate operation parameter - only SET operation allowed
-        valid_operations = {'set'}
-        if operation and operation not in valid_operations:
-            messages.error(request, f"Invalid operation '{operation}'. Only 'set' (replace stock) is allowed.")
-            return redirect('integration:stock_update')
-        
-        if platform and outlet_id and operation and csv_file:
-            try:
-                # Get the selected outlet
-                outlet = Outlet.objects.get(id=outlet_id)
-                
-                # Process CSV file
-                import csv
-                import io
-                
-                # Read CSV content with encoding fallback
-                csv_content, _encoding_used = decode_csv_upload(csv_file)
-                csv_reader = csv.DictReader(io.StringIO(csv_content))
-                
-                # Normalize headers to lowercase
-                if csv_reader.fieldnames:
-                    headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
-                else:
-                    messages.error(request, "CSV file has no headers")
-                    return redirect('integration:stock_update')
-                
-                # STRICT HEADER VALIDATION: Only these 3 headers allowed
-                allowed_headers = {'item_code', 'units', 'stock'}
-                required_headers = {'item_code', 'units', 'stock'}
-                
-                # Check for missing required headers
-                missing = required_headers - set(headers)
-                if missing:
-                    messages.error(request, f"Missing required columns: {', '.join(sorted(missing))}")
-                    return redirect('integration:stock_update')
-                
-                # Check for invalid/extra headers
-                extra_headers = set(headers) - allowed_headers
-                if extra_headers:
-                    messages.error(request, f"Invalid columns not allowed: {', '.join(sorted(extra_headers))}. Only allowed: item_code, units, stock")
-                    return redirect('integration:stock_update')
-                
-                updated_items = []
-                not_found_items = []
-                errors = []
-                
-                for row_num, original_row in enumerate(csv_reader, start=2):
-                    try:
-                        # Normalize row keys to lowercase
-                        row = {k.strip().lower(): v for k, v in original_row.items()}
-                        
-                        item_code = row.get('item_code', '').strip()
-                        units = row.get('units', '').strip()
-                        stock_value = row.get('stock', '').strip()
-                        
-                        if not item_code:
-                            errors.append(f"Row {row_num}: item_code is required")
-                            continue
-                        if not units:
-                            errors.append(f"Row {row_num}: units is required")
-                            continue
-                        if not stock_value:
-                            errors.append(f"Row {row_num}: stock is required")
-                            continue
-                        
-                        try:
-                            # Accept both integers and decimals for weight-based items
-                            stock_float = float(stock_value)
-                            stock_quantity = int(stock_float) if stock_float == int(stock_float) else stock_float
-                            # Replace negative stock with 0 (except for subtract operation)
-                            if stock_quantity < 0 and operation != 'subtract':
-                                stock_quantity = 0  # Replace negative with 0
-                        except ValueError:
-                            errors.append(f"Row {row_num}: Stock value must be a number")
-                            continue
-                        
-                        # Find existing item by platform + item_code + units
-                        item = Item.objects.filter(platform=platform, item_code=item_code, units=units).first()
-                        if not item:
-                            not_found_items.append(f"{item_code} ({units})")
-                            continue
-                        
-                        # Get or create ItemOutlet
-                        item_outlet, created = ItemOutlet.objects.get_or_create(
-                            item=item,
-                            outlet=outlet,
-                            defaults={
-                                'outlet_stock': item.stock,
-                                'outlet_selling_price': item.selling_price,
-                                'is_active_in_outlet': True
-                            }
-                        )
-                        
-                        # SET operation: Replace stock with new value - only if changed
-                        new_stock = stock_quantity
-                        
-                        # ZERO FLOOR: Child SKUs (SKU != item_code) cannot have negative stock
-                        is_child_sku = str(item.sku).strip() != str(item.item_code).strip()
-                        if is_child_sku and new_stock < 0:
-                            new_stock = 0
-                        
-                        # Track what changed for optimized update
-                        item_changed = False
-                        outlet_changed = False
-                        
-                        # Only update Item.stock if different
-                        if item.stock != new_stock:
-                            item.stock = new_stock
-                            item.save(update_fields=['stock'])
-                            item_changed = True
-                        
-                        # Only update ItemOutlet.outlet_stock if different
-                        if item_outlet.outlet_stock != new_stock:
-                            item_outlet.outlet_stock = new_stock
-                            item_outlet.save(update_fields=['outlet_stock'])
-                            outlet_changed = True
-                        
-                        if item_changed or outlet_changed:
-                            updated_items.append(f"{item_code} ({units})")
-                        
-                    except Exception as e:
-                        errors.append(f"Row {row_num}: Error - {str(e)}")
-                
-                # Success message
-                if updated_items:
-                    messages.success(request, f"Successfully updated stock for {len(updated_items)} items on {platform.title()} at {outlet.name}.")
-                
-                # Not found items
-                if not_found_items:
-                    if len(not_found_items) <= 5:
-                        messages.warning(request, f"Items not found on {platform.title()}: {', '.join(not_found_items)}")
-                    else:
-                        messages.warning(request, f"{len(not_found_items)} items not found on {platform.title()}")
-                
-                if errors:
-                    for error in errors[:5]:  # Show first 5 errors
-                        messages.error(request, error)
-                    if len(errors) > 5:
-                        messages.warning(request, f"And {len(errors) - 5} more errors...")
-                
-                # Log upload history
-                from .models import UploadHistory
-                total_records = len(updated_items) + len(not_found_items) + len(errors)
-                upload_status = 'success' if not errors else ('partial' if updated_items else 'failed')
-                UploadHistory.objects.create(
-                    file_name=csv_file.name,
-                    platform=platform,
-                    outlet=outlet,
-                    update_type='stock',
-                    records_total=total_records,
-                    records_success=len(updated_items),
-                    records_failed=len(errors),
-                    records_skipped=len(not_found_items),
-                    status=upload_status,
-                    uploaded_by=request.user if request.user.is_authenticated else None,
-                )
-                
-                return redirect('integration:stock_update')
-                
-            except Outlet.DoesNotExist:
-                messages.error(request, "Selected outlet not found.")
-            except Exception as e:
-                messages.error(request, f"Error processing CSV file: {str(e)}")
-        else:
-            messages.error(request, "Please fill all required fields and select a CSV file.")
-    
-    context = {
-        'page_title': 'Stock Update',
-        'active_nav': 'bulk_operations'
-    }
-    return render(request, 'stock_update.html', context)
-
-
-@login_required
-def stock_update_preview(request):
-    """
-    Preview endpoint for stock update CSV
-    Returns preview data in JSON format
-    """
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'message': 'Only POST method allowed'})
-    
-    try:
-        from .models import Item
-        import csv
-        import io
-        
-        platform = request.POST.get('platform')
-        csv_file = request.FILES.get('csv_file')
-        
-        if not platform or not csv_file:
-            return JsonResponse({'success': False, 'message': 'Platform and CSV file are required'})
-        
-        # Read CSV content
-        csv_content, _encoding_used = decode_csv_upload(csv_file)
-        csv_reader = csv.DictReader(io.StringIO(csv_content))
-        
-        # Normalize headers
-        if csv_reader.fieldnames:
-            headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
-        else:
-            return JsonResponse({'success': False, 'message': 'CSV file has no headers'})
-        
-        # STRICT HEADER VALIDATION: Only these 3 headers allowed
-        allowed_headers = {'item_code', 'units', 'stock'}
-        required_headers = {'item_code', 'units', 'stock'}
-        
-        # Check for missing required headers
-        missing_headers = [h for h in required_headers if h not in headers]
-        if missing_headers:
-            return JsonResponse({
-                'success': False,
-                'message': f"Missing required columns: {', '.join(missing_headers)}"
-            })
-        
-        # Check for invalid/extra headers
-        extra_headers = set(headers) - allowed_headers
-        if extra_headers:
-            return JsonResponse({
-                'success': False,
-                'message': f"Invalid columns not allowed: {', '.join(sorted(extra_headers))}. Only allowed: item_code, units, stock"
-            })
-        
-        rows = []
-        errors = []
-        total_rows = 0
-        preview_limit = 50
-        
-        for row_num, original_row in enumerate(csv_reader, start=2):
-            total_rows += 1
-            
-            # Normalize row keys
-            row = {k.strip().lower(): v for k, v in original_row.items()}
-            
-            item_code = row.get('item_code', '').strip()
-            units = row.get('units', '').strip()
-            stock = row.get('stock', '').strip()
-            
-            row_errors = []
-            status = 'valid'
-            
-            # Validate required fields
-            if not item_code:
-                row_errors.append('item_code is required')
-            if not units:
-                row_errors.append('units is required')
-            if not stock:
-                row_errors.append('stock is required')
-            else:
-                try:
-                    stock_val = float(stock.replace(',', ''))
-                    if stock_val < 0:
-                        row_errors.append('stock cannot be negative')
-                except ValueError:
-                    row_errors.append('stock must be a number')
-            
-            # Check if item exists (only for preview)
-            if item_code and units and not row_errors:
-                exists = Item.objects.filter(
-                    platform=platform,
-                    item_code=item_code,
-                    units=units
-                ).exists()
-                if not exists:
-                    row_errors.append(f'Item not found in {platform}')
-            
-            if row_errors:
-                status = 'error'
-                errors.extend([f"Row {row_num}: {e}" for e in row_errors])
-            
-            # Only include first N rows in preview
-            if len(rows) < preview_limit:
-                rows.append({
-                    'row_number': row_num,
-                    'status': status,
-                    'data': {
-                        'item_code': item_code,
-                        'units': units,
-                        'stock': stock
-                    },
-                    'errors': row_errors
-                })
-        
-        return JsonResponse({
-            'success': True,
-            'total_rows': total_rows,
-            'preview_rows': len(rows),
-            'rows': rows,
-            'errors': errors[:10],  # Limit displayed errors
-            'platform': platform
-        })
-        
-    except Exception as e:
-        return JsonResponse({'success': False, 'message': f'Error processing CSV: {str(e)}'})
-
-
-@login_required
-@rate_limit(max_requests=20, time_window_seconds=60)  # 20 requests per minute
-def price_update(request):
-    """
-    Price update view for updating product prices via CSV
-    Uses Item Code + Units combination as unique identifier within platform
-    
-    Required CSV headers: item_code, units
-    Price headers based on type: selling_price, cost, mrp
-    """
-    from .models import Outlet, Item, ItemOutlet
-    from django.contrib import messages
-    from decimal import Decimal, InvalidOperation
-    
-    if request.method == 'POST':
-        # Handle CSV upload and price updates
-        platform = request.POST.get('platform')
-        outlet_id = request.POST.get('outlet')
-        price_type = request.POST.get('price_type')
-        csv_file = request.FILES.get('csv_file')
-        
-        if platform and outlet_id and price_type and csv_file:
-            try:
-                # Get the selected outlet
-                outlet = Outlet.objects.get(id=outlet_id)
-                
-                # Process CSV file
-                import csv
-                import io
-                
-                # Read CSV content with encoding fallback
-                csv_content, _encoding_used = decode_csv_upload(csv_file)
-                csv_reader = csv.DictReader(io.StringIO(csv_content))
-                
-                # Normalize headers to lowercase
-                if csv_reader.fieldnames:
-                    headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
-                else:
-                    messages.error(request, "CSV file has no headers")
-                    return redirect('integration:price_update')
-                
-                # STRICT HEADER VALIDATION based on price_type
-                # Base required headers
-                base_headers = {'item_code', 'units'}
-                
-                # Determine allowed headers based on price_type
-                if price_type == 'cost':
-                    allowed_headers = {'item_code', 'units', 'cost'}
-                    required_headers = {'item_code', 'units', 'cost'}
-                elif price_type == 'mrp':
-                    allowed_headers = {'item_code', 'units', 'mrp'}
-                    required_headers = {'item_code', 'units', 'mrp'}
-                elif price_type == 'cost_mrp':
-                    allowed_headers = {'item_code', 'units', 'cost', 'mrp'}
-                    required_headers = {'item_code', 'units', 'cost', 'mrp'}
-                else:
-                    messages.error(request, "Invalid price type selected")
-                    return redirect('integration:price_update')
-                
-                # Check for missing required headers
-                missing = required_headers - set(headers)
-                if missing:
-                    messages.error(request, f"Missing required columns: {', '.join(sorted(missing))}")
-                    return redirect('integration:price_update')
-                
-                # Check for invalid/extra headers
-                extra_headers = set(headers) - allowed_headers
-                if extra_headers:
-                    messages.error(request, f"Invalid columns not allowed: {', '.join(sorted(extra_headers))}. Only allowed: {', '.join(sorted(allowed_headers))}")
-                    return redirect('integration:price_update')
-                
-                # OPTIMIZATION: Parse CSV once to collect all item codes
-                csv_reader_list = list(csv_reader)
-                item_keys = set()
-                for original_row in csv_reader_list:
-                    row = {k.strip().lower(): v for k, v in original_row.items()}
-                    item_code = row.get('item_code', '').strip()
-                    units = row.get('units', '').strip()
-                    if item_code and units:
-                        item_keys.add((item_code, units))
-                
-                # OPTIMIZATION: Batch load items in chunks to avoid "Expression tree too large" error
-                # Split item_keys into chunks of 500 to stay within Django's query limit
-                items_dict = {}
-                item_keys_list = list(item_keys)
-                CHUNK_SIZE = 500
-                
-                for i in range(0, len(item_keys_list), CHUNK_SIZE):
-                    chunk = item_keys_list[i:i + CHUNK_SIZE]
-                    
-                    # Build Q query for this chunk only
-                    from django.db.models import Q
-                    query = Q()
-                    for item_code, units in chunk:
-                        query |= Q(item_code=item_code, units=units)
-                    
-                    # Fetch items for this chunk
-                    items_in_chunk = Item.objects.filter(platform=platform).filter(query)
-                    for item in items_in_chunk:
-                        # Store as LIST to handle multiple items with same (item_code, units)
-                        key = (item.item_code, item.units)
-                        if key not in items_dict:
-                            items_dict[key] = []
-                        items_dict[key].append(item)
-                
-                # OPTIMIZATION: Pre-load all ItemOutlet records for this outlet
-                # This prevents get_or_create queries in the loop
-                # Flatten items_dict (which now contains lists) to get all item IDs
-                item_ids = [item.id for items_list in items_dict.values() for item in items_list]
-                existing_item_outlets = ItemOutlet.objects.filter(
-                    outlet=outlet,
-                    item_id__in=item_ids
-                ).select_related('item')
-                
-                # Build ItemOutlet lookup dictionary
-                item_outlet_dict = {}
-                for io in existing_item_outlets:
-                    item_outlet_dict[io.item_id] = io
-                
-                updated_items = []
-                not_found_items = []
-                unchanged_items = []  # Track items that didn't need updating
-                errors = []
-                items_to_create = []  # For bulk creating new ItemOutlets
-                new_item_count = 0  # Track NEW ItemOutlet records
-                
-                for row_num, original_row in enumerate(csv_reader_list, start=2):
-                    try:
-                        # Normalize row keys to lowercase
-                        row = {k.strip().lower(): v for k, v in original_row.items()}
-                        
-                        item_code = row.get('item_code', '').strip()
-                        units = row.get('units', '').strip()
-                        
-                        if not item_code:
-                            errors.append(f"Row {row_num}: item_code is required")
-                            continue
-                        if not units:
-                            errors.append(f"Row {row_num}: units is required")
-                            continue
-                        
-                        # OPTIMIZATION: Look up items from pre-loaded dictionary (now returns LIST)
                         items_list = items_dict.get((item_code, units))
                         if not items_list:
                             not_found_items.append(f"{item_code} ({units})")
                             continue
                         
-                        # CRITICAL FIX: Process ALL items in list, not just the first
-                        # Reason: When there's NO PARENT (WDF=1), all SKUs are CHILDREN (WDF>1)
-                        # Each child must be updated independently with its own WDF calculation
-                        for item_index, item in enumerate(items_list):
-                        
-                            # OPTIMIZATION: Look up or prepare ItemOutlet from pre-loaded dictionary
-                            item_outlet = item_outlet_dict.get(item.id)
-                            is_new_item_outlet = False
-                            if not item_outlet:
-                                # Create new ItemOutlet (will be bulk-created later)
-                                item_outlet = ItemOutlet(
-                                    item=item,
-                                    outlet=outlet,
-                                    is_active_in_outlet=True,
-                                    outlet_stock=0
-                                )
-                                items_to_create.append(item_outlet)
-                                item_outlet_dict[item.id] = item_outlet
-                                is_new_item_outlet = True
-                                new_item_count += 1
-                            
-                            # Calculate outlet-specific MRP and selling price
-                            outlet_changed_fields = []
-                        
-                            if price_type in ['mrp', 'cost_mrp']:
-                                mrp_str = row.get('mrp', '').strip()
-                                if mrp_str:
-                                    try:
-                                        mrp = Decimal(mrp_str)
-                                        if mrp < 0:
-                                            errors.append(f"Row {row_num}: MRP cannot be negative")
-                                            continue
-                                        
-                                        # Store outlet-specific MRP (round to 2 decimal places)
-                                        mrp_rounded = mrp.quantize(Decimal('0.01'))
-                                        current_mrp = item_outlet.outlet_mrp.quantize(Decimal('0.01')) if item_outlet.outlet_mrp else Decimal('0.00')
-                                        
-                                        if current_mrp != mrp_rounded:
-                                            item_outlet.outlet_mrp = mrp_rounded
-                                            outlet_changed_fields.append('outlet_mrp')
-                                        
-                                        # Calculate outlet-specific selling price based on wrap type
-                                        from .utils import PricingCalculator
-                                        
-                                        if item.wrap == '9900':
-                                            # Wrap items (weighed: fruits, fish, etc.)
-                                            # Parent (KGS/KG): selling_price = MRP (as-is)
-                                            # Child (100GM, 250GM, etc.): selling_price = MRP ÷ WDF
-                                            # 
-                                            # Detection Logic:
-                                            # Use WDF to detect parent (WDF=1 means 1 KG = parent)
-                                            # SKU can be any value from CSV, so we use WDF instead of SKU comparison
-                                            # WDF=1 → Parent (1 KG)
-                                            # WDF=2 → Child (500GM)
-                                            # WDF=4 → Child (250GM)
-                                            # WDF=10 → Child (100GM)
-                                            wdf = item.weight_division_factor or Decimal('1')
-                                            is_parent_unit = wdf == Decimal('1')
-                                            
-                                            if outlet.platforms == 'talabat':
-                                                # Talabat: Apply margin calculation
-                                                if is_parent_unit:
-                                                    # Parent: Use MRP directly with margin
-                                                    calc = PricingCalculator()
-                                                    outlet_selling_price, _ = calc.calculate_talabat_price(
-                                                        mrp_rounded,
-                                                        margin_percentage=item.effective_talabat_margin
-                                                    )
-                                                else:
-                                                    # Child: First divide MRP by WDF, then apply margin
-                                                    wdf = item.weight_division_factor or Decimal('1')
-                                                    base_price = (mrp_rounded / wdf).quantize(Decimal('0.01'))
-                                                    calc = PricingCalculator()
-                                                    outlet_selling_price, _ = calc.calculate_talabat_price(
-                                                        base_price,
-                                                        margin_percentage=item.effective_talabat_margin
-                                                    )
-                                            else:
-                                                # Pasons: No margin applied
-                                                if is_parent_unit:
-                                                    # Parent (KGS): selling_price = MRP (as-is)
-                                                    outlet_selling_price = mrp_rounded
-                                                else:
-                                                    # Child (100GM, 250GM, etc.): selling_price = MRP ÷ WDF
-                                                    wdf = item.weight_division_factor or Decimal('1')
-                                                    outlet_selling_price = (mrp_rounded / wdf).quantize(Decimal('0.01'))
+                        # Process ALL items for this (item_code, units) key
+                        for item in items_list:
+                            try:
+                                item_outlet = outlets_map.get(item.id)
+                                is_new_outlet = False
+                                
+                                if not item_outlet:
+                                    item_outlet = ItemOutlet(
+                                        item=item,
+                                        outlet=outlet,
+                                        outlet_stock=item.stock or 0,
+                                        outlet_selling_price=item.selling_price or Decimal('0'),
+                                        outlet_mrp=item.mrp or Decimal('0'),
+                                        outlet_cost=item.cost or Decimal('0'),
+                                        is_active_in_outlet=True
+                                    )
+                                    outlets_map[item.id] = item_outlet
+                                    outlets_to_create.append(item_outlet)
+                                    is_new_outlet = True
+                                
+                                item_changed = False
+                                outlet_changed = False
+                                
+                                # CHECK LOCKS before processing updates
+                                # CLS locks (item-level)
+                                cls_price_locked = bool(getattr(item, 'price_locked', False))
+                                cls_status_locked = bool(getattr(item, 'status_locked', False))
+                                # BLS locks (outlet-level)
+                                bls_price_locked = bool(getattr(item_outlet, 'price_locked', False))
+                                bls_status_locked = bool(getattr(item_outlet, 'status_locked', False))
+                                
+                                # Process MRP - OPTIMIZED: No cascade, direct update only
+                                # SKIP if price is locked (CLS or BLS)
+                                if 'mrp' in present_value_headers:
+                                    mrp_str = row.get('mrp', '').strip()
+                                    if mrp_str:
+                                        # CHECK PRICE LOCK - skip if locked
+                                        if cls_price_locked or bls_price_locked:
+                                            # Price is locked - skip this update silently
+                                            pass
                                         else:
-                                            # Regular items (wrap=10000): Use MRP as-is, no WDF division
-                                            if outlet.platforms == 'talabat':
-                                                calc = PricingCalculator()
-                                                outlet_selling_price, _ = calc.calculate_talabat_price(
-                                                    mrp_rounded,
-                                                    margin_percentage=item.effective_talabat_margin
-                                                )
-                                            else:
-                                                # Pasons: Just use MRP, no margin
-                                                outlet_selling_price = mrp_rounded
-                                        
-                                        # Only update if value changed (compare rounded values)
-                                        current_selling_price = item_outlet.outlet_selling_price.quantize(Decimal('0.01')) if item_outlet.outlet_selling_price else Decimal('0.00')
-                                        
-                                        if current_selling_price != outlet_selling_price:
-                                            item_outlet.outlet_selling_price = outlet_selling_price
-                                            outlet_changed_fields.append('outlet_selling_price')
-                                        
-                                        # CASCADE LOGIC: When parent item (e.g., KGS) is updated,
-                                        # also update all other units of same item_code (e.g., 250GM, 100GM)
-                                        # Each child gets its own MRP and selling_price calculated independently
-                                        # Only cascade from PARENT items (WDF=1 means 1 KG = parent)
-                                        parent_wdf = item.weight_division_factor or Decimal('1')
-                                        is_cascade_parent = parent_wdf == Decimal('1')
-                                        
-                                        if outlet_changed_fields and item.wrap == '9900' and is_cascade_parent:
-                                            # Find all items with same item_code but different SKU (children)
-                                            all_items_same_code = Item.objects.filter(
-                                                item_code=item_code,
-                                                platform=platform
-                                            ).exclude(sku=item.sku)  # Exclude the parent we just updated
-                                            
-                                            for child_item in all_items_same_code:
-                                                try:
-                                                    # Calculate child MRP from parent MRP
-                                                    # Formula: child_mrp = parent_mrp ÷ child_wdf
-                                                    # Example: parent=9.95 per KG, child_wdf=2 → child_mrp=4.98 per 500GM
-                                                    child_wdf = child_item.weight_division_factor or Decimal('1')
-                                                    
-                                                    # Only cascade to CHILDREN (WDF > 1), not to other parents
-                                                    if child_wdf == Decimal('1'):
-                                                        continue
-                                                    
-                                                    # Only cascade if SKU starts with item_code (e.g., 9900422 -> 9900422500)
-                                                    if not str(child_item.sku).startswith(str(item_code)):
-                                                        continue
-                                                    
-                                                    # Only cascade if units match (normalized - remove dots, lowercase)
-                                                    parent_units = (item.units or '').replace('.', '').lower().strip()
-                                                    child_units = (child_item.units or '').replace('.', '').lower().strip()
-                                                    if parent_units != child_units:
-                                                        continue
-                                                    
-                                                    if child_wdf != 0:
-                                                        child_mrp = (mrp_rounded / child_wdf).quantize(Decimal('0.01'))
-                                                        
-                                                        # Get or create ItemOutlet for child item
-                                                        child_item_outlet, is_new = ItemOutlet.objects.get_or_create(
-                                                            item=child_item,
-                                                            outlet=outlet,
-                                                            defaults={'outlet_mrp': child_mrp}
-                                                        )
-                                                        
-                                                        # Update child MRP if it changed
-                                                        child_current_mrp = child_item_outlet.outlet_mrp.quantize(Decimal('0.01')) if child_item_outlet.outlet_mrp else Decimal('0.00')
-                                                        
-                                                        if child_current_mrp != child_mrp or is_new:
-                                                            child_item_outlet.outlet_mrp = child_mrp
-                                                            
-                                                            # Calculate child selling price using CHILD's own WDF
-                                                            # Formula: child_selling_price = parent_mrp ÷ child_wdf
-                                                            # Each child uses its own WDF to get correct price per unit
-                                                            child_wdf = child_item.weight_division_factor or Decimal('1')
-                                                            
-                                                            if outlet.platforms == 'talabat':
-                                                                # For Talabat: Apply margin on top of the base price
-                                                                base_selling_price = (mrp_rounded / child_wdf).quantize(Decimal('0.01'))
-                                                                calc = PricingCalculator()
-                                                                child_selling_price, _ = calc.calculate_talabat_price(
-                                                                    base_selling_price,
-                                                                    margin_percentage=child_item.effective_talabat_margin
-                                                                )
-                                                            else:
-                                                                # For Pasons: Use base price directly (parent_mrp ÷ child_wdf)
-                                                                child_selling_price = (mrp_rounded / child_wdf).quantize(Decimal('0.01'))
-                                                            
-                                                            child_item_outlet.outlet_selling_price = child_selling_price
-                                                            child_item_outlet.save(update_fields=['outlet_mrp', 'outlet_selling_price'])
-                                                except Exception as cascade_error:
-                                                    # Log cascade error but continue processing
-                                                    errors.append(f"Row {row_num}: Cascade update failed for {child_item.item_code} ({child_item.units}) - {str(cascade_error)}")
-                                        
-                                    except (InvalidOperation, ValueError):
-                                        errors.append(f"Row {row_num}: Invalid MRP format")
-                                        continue
-                            elif price_type == 'mrp':
-                                errors.append(f"Row {row_num}: MRP is required")
-                                continue
-                        
-                        if price_type in ['cost', 'cost_mrp']:
-                            cost_str = row.get('cost', '').strip()
-                            original_csv_cost = None  # Save original for additional items
-                            if cost_str:
-                                try:
-                                    cost = Decimal(cost_str)
-                                    # Replace negative cost with 0
-                                    if cost < 0:
-                                        cost = Decimal('0')
-                                    original_csv_cost = cost  # Store after validation
-                                    
-                                    # COST LOGIC: Store RAW cost, calculate converted_cost
-                                    # item.cost = RAW cost from CSV (same for parent and all children)
-                                    # item.converted_cost = cost ÷ WDF (calculated)
-                                    # outlet_cost = RAW cost
-                                    
-                                    # Update item-level cost (RAW)
-                                    item_cost_changed = False
-                                    if item.cost != cost:
-                                        item.cost = cost
-                                        item_cost_changed = True
-                                    
-                                    # Calculate converted_cost based on wrap type
-                                    if item.wrap == '9900':
-                                        # wrap=9900: converted_cost = cost ÷ WDF (3 decimals)
-                                        wdf = item.weight_division_factor or Decimal('1')
-                                        if wdf > 0:
-                                            new_converted_cost = (cost / wdf).quantize(Decimal('0.001'))
-                                        else:
-                                            new_converted_cost = cost
-                                    else:
-                                        # wrap=10000: converted_cost = cost (no division)
-                                        new_converted_cost = cost
-                                    
-                                    if item.converted_cost != new_converted_cost:
-                                        item.converted_cost = new_converted_cost
-                                        item_cost_changed = True
-                                    
-                                    if item_cost_changed:
-                                        item.save(update_fields=['cost', 'converted_cost'])
-                                    
-                                    # Update OUTLET-LEVEL cost (RAW cost, same as item.cost)
-                                    if item_outlet.outlet_cost != cost:
-                                        item_outlet.outlet_cost = cost
-                                        outlet_changed_fields.append('outlet_cost')
-                                    
-                                    # CASCADE COST LOGIC: When parent cost is updated (wrap=9900 only)
-                                    # Parent detection: WDF == 1 (not SKU-based)
-                                    # Each child gets: same RAW cost, but converted_cost = cost ÷ child_wdf
-                                    parent_wdf_for_cost = item.weight_division_factor or Decimal('1')
-                                    is_cascade_cost_parent = parent_wdf_for_cost == Decimal('1')
-                                    
-                                    if item.wrap == '9900' and is_cascade_cost_parent:
-                                        # Find all children with same item_code (exclude current item)
-                                        all_items_same_code = Item.objects.filter(
-                                            item_code=item_code,
-                                            platform=platform
-                                        ).exclude(pk=item.pk)
-                                        
-                                        for child_item in all_items_same_code:
                                             try:
-                                                child_wdf = child_item.weight_division_factor or Decimal('1')
+                                                new_mrp = Decimal(mrp_str.replace(',', ''))
+                                                if new_mrp < 0:
+                                                    new_mrp = Decimal('0')
                                                 
-                                                # Only cascade to CHILDREN (WDF > 1), not to other parents
-                                                if child_wdf == Decimal('1'):
-                                                    continue
+                                                mrp_rounded = new_mrp.quantize(Decimal('0.01'))
                                                 
-                                                # Only cascade if SKU starts with item_code (e.g., 9900422 -> 9900422500)
-                                                if not str(child_item.sku).startswith(str(item_code)):
-                                                    continue
+                                                # Update item MRP
+                                                if item.mrp != mrp_rounded:
+                                                    item.mrp = mrp_rounded
+                                                    item_changed = True
                                                 
-                                                # Only cascade if units match (normalized - remove dots, lowercase)
-                                                parent_units = (item.units or '').replace('.', '').lower().strip()
-                                                child_units = (child_item.units or '').replace('.', '').lower().strip()
-                                                if parent_units != child_units:
-                                                    continue
+                                                # Calculate selling price with proper conversion
+                                                new_selling_price = calculate_item_selling_price(item, mrp_rounded, platform)
+                                                if item.selling_price != new_selling_price:
+                                                    item.selling_price = new_selling_price
+                                                    item_changed = True
                                                 
-                                                if child_wdf != 0:
-                                                    # Child gets same RAW cost as parent
-                                                    # converted_cost = cost ÷ child_wdf (3 decimals)
-                                                    child_converted_cost = (cost / child_wdf).quantize(Decimal('0.001'))
-                                                    
-                                                    # ZERO FLOOR: Child SKUs cannot have negative cost
-                                                    if child_converted_cost < 0:
-                                                        child_converted_cost = Decimal('0')
-                                                    
-                                                    # Update child item: RAW cost + converted_cost
-                                                    child_changed = False
-                                                    if child_item.cost != cost:
-                                                        child_item.cost = cost
-                                                        child_changed = True
-                                                    if child_item.converted_cost != child_converted_cost:
-                                                        child_item.converted_cost = child_converted_cost
-                                                        child_changed = True
-                                                    if child_changed:
-                                                        child_item.save(update_fields=['cost', 'converted_cost'])
-                                                    
-                                                    # Update child outlet_cost (RAW cost)
-                                                    child_item_outlet, _ = ItemOutlet.objects.get_or_create(
-                                                        item=child_item,
-                                                        outlet=outlet,
-                                                        defaults={'outlet_cost': cost}
-                                                    )
-                                                    if child_item_outlet.outlet_cost != cost:
-                                                        child_item_outlet.outlet_cost = cost
-                                                        child_item_outlet.save(update_fields=['outlet_cost'])
-                                            except Exception as cost_cascade_error:
-                                                errors.append(f"Row {row_num}: Cost cascade failed for {child_item.sku} - {str(cost_cascade_error)}")
-                                except (InvalidOperation, ValueError):
-                                    errors.append(f"Row {row_num}: Invalid cost format")
-                                    continue
-                            elif price_type == 'cost':
-                                errors.append(f"Row {row_num}: Cost is required")
-                                continue
-                        
-                            # FIXED: This block must be INSIDE the for loop (28 spaces indent)
-                            if outlet_changed_fields:
-                                if not is_new_item_outlet:
-                                    # Only save existing ItemOutlet records
-                                    # New ones will be bulk-created later
-                                    item_outlet.save(update_fields=outlet_changed_fields)
-                                updated_items.append(f"{item_code} ({units}) - SKU:{item.sku}")
-                            else:
-                                # Item found but no changes needed
-                                if not is_new_item_outlet:
-                                    unchanged_items.append(f"{item_code} ({units}) - SKU:{item.sku}")
-                        
-                        # REMOVED: Old duplicate logic for "REMAINING items" - now handled by main loop above
-                        # The for loop at line 1986 now correctly processes ALL items in items_list
-                        if False and len(items_list) > 1:  # DISABLED - no longer needed
-                            for additional_item in items_list[1:]:
-                                try:
-                                    # Get or create ItemOutlet for additional item
-                                    add_item_outlet = item_outlet_dict.get(additional_item.id)
-                                    add_is_new = False
-                                    if not add_item_outlet:
-                                        add_item_outlet = ItemOutlet(
-                                            item=additional_item,
-                                            outlet=outlet,
-                                            is_active_in_outlet=True,
-                                            outlet_stock=0
-                                        )
-                                        items_to_create.append(add_item_outlet)
-                                        item_outlet_dict[additional_item.id] = add_item_outlet
-                                        add_is_new = True
-                                        new_item_count += 1
-                                    
-                                    # Copy MRP from first item and calculate selling_price
-                                    if price_type in ['mrp', 'cost_mrp'] and item_outlet.outlet_mrp:
-                                        add_item_outlet.outlet_mrp = item_outlet.outlet_mrp
+                                                # Update outlet MRP and selling price
+                                                current_outlet_mrp = item_outlet.outlet_mrp or Decimal('0')
+                                                if current_outlet_mrp != mrp_rounded:
+                                                    item_outlet.outlet_mrp = mrp_rounded
+                                                    outlet_changed = True
+                                                
+                                                current_outlet_sp = item_outlet.outlet_selling_price or Decimal('0')
+                                                if current_outlet_sp != new_selling_price:
+                                                    item_outlet.outlet_selling_price = new_selling_price
+                                                    outlet_changed = True
+                                            
+                                            except InvalidOperation:
+                                                errors.append(f"Row {row_num}: Invalid MRP '{mrp_str}'")
+                                
+                                # Process Cost
+                                if 'cost' in present_value_headers:
+                                    cost_str = row.get('cost', '').strip()
+                                    if cost_str:
+                                        try:
+                                            new_cost = Decimal(cost_str.replace(',', ''))
+                                            if new_cost < 0:
+                                                new_cost = Decimal('0')
+                                            
+                                            # Update item cost
+                                            if item.cost != new_cost:
+                                                item.cost = new_cost
+                                                item.converted_cost = calculate_item_converted_cost(item, new_cost)
+                                                item_changed = True
+                                            
+                                            # Update outlet cost
+                                            current_outlet_cost = item_outlet.outlet_cost or Decimal('0')
+                                            if current_outlet_cost != new_cost:
+                                                item_outlet.outlet_cost = new_cost
+                                                outlet_changed = True
                                         
-                                        # Calculate selling_price based on wrap type and parent/child status
-                                        if additional_item.wrap == '9900':
-                                            is_add_parent = str(additional_item.sku).strip() == str(additional_item.item_code).strip()
-                                            if outlet.platforms == 'talabat':
-                                                from .utils import PricingCalculator
-                                                if is_add_parent:
-                                                    calc = PricingCalculator()
-                                                    add_selling_price, _ = calc.calculate_talabat_price(
-                                                        add_item_outlet.outlet_mrp,
-                                                        margin_percentage=additional_item.effective_talabat_margin
-                                                    )
+                                        except InvalidOperation:
+                                            errors.append(f"Row {row_num}: Invalid cost '{cost_str}'")
+                                
+                                # Process Stock
+                                # NOTE: Stock quantity updates even if status_locked (stock number can change)
+                                # BUT: is_active_in_outlet stays FALSE if status_locked (item stays Disabled)
+                                if 'stock' in present_value_headers:
+                                    stock_str = row.get('stock', '').strip()
+                                    if stock_str:
+                                        try:
+                                            csv_stock = int(float(stock_str.replace(',', '')))
+                                            if csv_stock < 0:
+                                                csv_stock = 0
+                                            
+                                            # Apply stock conversion based on wrap type
+                                            if item.wrap == '9900':
+                                                # wrap=9900: stock × WDF (e.g., 10 KG × 4 = 40 packs of 250g)
+                                                wdf = item.weight_division_factor or Decimal('1')
+                                                new_stock = int(csv_stock * float(wdf))
+                                            elif item.wrap == '10000':
+                                                # wrap=10000: stock ÷ OCQ (e.g., 50 ÷ 4 = 12.5 cases)
+                                                ocq = item.outer_case_quantity or 1
+                                                if ocq > 0:
+                                                    new_stock = int(csv_stock / ocq)
                                                 else:
-                                                    wdf = additional_item.weight_division_factor or Decimal('1')
-                                                    base_price = (add_item_outlet.outlet_mrp / wdf).quantize(Decimal('0.01'))
-                                                    calc = PricingCalculator()
-                                                    add_selling_price, _ = calc.calculate_talabat_price(
-                                                        base_price,
-                                                        margin_percentage=additional_item.effective_talabat_margin
-                                                    )
+                                                    new_stock = csv_stock
                                             else:
-                                                if is_add_parent:
-                                                    add_selling_price = add_item_outlet.outlet_mrp
-                                                else:
-                                                    wdf = additional_item.weight_division_factor or Decimal('1')
-                                                    add_selling_price = (add_item_outlet.outlet_mrp / wdf).quantize(Decimal('0.01'))
-                                        else:
-                                            add_selling_price = add_item_outlet.outlet_mrp
+                                                new_stock = csv_stock
+                                            
+                                            # Update item stock (quantity always updates)
+                                            if item.stock != new_stock:
+                                                item.stock = new_stock
+                                                item_changed = True
+                                            
+                                            # Update outlet stock (quantity always updates)
+                                            if item_outlet.outlet_stock != new_stock:
+                                                item_outlet.outlet_stock = new_stock
+                                                outlet_changed = True
+                                            
+                                            # ENFORCE STATUS LOCK: If locked, keep is_active_in_outlet = FALSE
+                                            # This prevents stock update from enabling a locked item
+                                            if cls_status_locked or bls_status_locked:
+                                                # Status is locked - ensure item stays disabled
+                                                if item_outlet.is_active_in_outlet:
+                                                    item_outlet.is_active_in_outlet = False
+                                                    outlet_changed = True
                                         
-                                        add_item_outlet.outlet_selling_price = add_selling_price
-                                        if not add_is_new:
-                                            add_item_outlet.save(update_fields=['outlet_mrp', 'outlet_selling_price'])
-                                    
-                                    # COST: Also process cost for additional items
-                                    # Use ORIGINAL CSV cost (RAW), calculate converted_cost
-                                    if price_type in ['cost', 'cost_mrp'] and original_csv_cost:
-                                        # Store RAW cost, calculate converted_cost based on wrap type
-                                        add_cost_changed = False
-                                        
-                                        if additional_item.cost != original_csv_cost:
-                                            additional_item.cost = original_csv_cost
-                                            add_cost_changed = True
-                                        
-                                        # Calculate converted_cost based on wrap type
-                                        if additional_item.wrap == '9900':
-                                            add_wdf = additional_item.weight_division_factor or Decimal('1')
-                                            if add_wdf > 0:
-                                                add_converted_cost = (original_csv_cost / add_wdf).quantize(Decimal('0.001'))
-                                            else:
-                                                add_converted_cost = original_csv_cost
-                                        else:
-                                            # wrap=10000: converted_cost = cost (no division)
-                                            add_converted_cost = original_csv_cost
-                                        
-                                        if additional_item.converted_cost != add_converted_cost:
-                                            additional_item.converted_cost = add_converted_cost
-                                            add_cost_changed = True
-                                        
-                                        if add_cost_changed:
-                                            additional_item.save(update_fields=['cost', 'converted_cost'])
-                                        
-                                        # Update outlet_cost (RAW cost)
-                                        if add_item_outlet.outlet_cost != original_csv_cost:
-                                            add_item_outlet.outlet_cost = original_csv_cost
-                                            if not add_is_new:
-                                                add_item_outlet.save(update_fields=['outlet_cost'])
-                                except Exception as add_error:
-                                    errors.append(f"Row {row_num}: Additional item update failed for {additional_item.sku} - {str(add_error)}")
-                        
+                                        except ValueError:
+                                            errors.append(f"Row {row_num}: Invalid stock '{stock_str}'")
+                                
+                                # Track changes - O(1) set lookup
+                                if item_changed and item.id not in items_to_update_set:
+                                    items_to_update_set.add(item.id)
+                                    items_to_update.append(item)
+                                if outlet_changed and not is_new_outlet and id(item_outlet) not in outlets_to_update_set:
+                                    outlets_to_update_set.add(id(item_outlet))
+                                    outlets_to_update.append(item_outlet)
+                                
+                                if item_changed or outlet_changed:
+                                    updated_count += 1
+                                else:
+                                    no_change_count += 1
+                            
+                            except Exception as e:
+                                errors.append(f"Row {row_num}: {str(e)}")
+                    
                     except Exception as e:
-                        errors.append(f"Row {row_num}: Error - {str(e)}")
+                        errors.append(f"Row {row_num}: {str(e)}")
                 
-                # OPTIMIZATION: Bulk create new ItemOutlets (if any)
-                if items_to_create:
-                    ItemOutlet.objects.bulk_create(items_to_create, ignore_conflicts=True)
+                # Bulk operations - OPTIMIZED: only update fields that were changed
+                if outlets_to_create:
+                    ItemOutlet.objects.bulk_create(outlets_to_create, ignore_conflicts=True)
                 
-                # Success message - show NEW vs CHANGED separately
-                changed_count = len(updated_items) - new_item_count
-                if new_item_count > 0:
-                    messages.success(request, f"Created {new_item_count} NEW outlet-item associations on {platform.title()} at {outlet.name}.")
-                if changed_count > 0:
-                    messages.success(request, f"Updated prices for {changed_count} existing items on {platform.title()} at {outlet.name}.")
+                if items_to_update:
+                    # Only update fields based on what was in the CSV
+                    item_update_fields = []
+                    if 'mrp' in present_value_headers:
+                        item_update_fields.extend(['mrp', 'selling_price'])
+                    if 'cost' in present_value_headers:
+                        item_update_fields.extend(['cost', 'converted_cost'])
+                    if 'stock' in present_value_headers:
+                        item_update_fields.append('stock')
+                    
+                    if item_update_fields:
+                        Item.objects.bulk_update(items_to_update, item_update_fields, batch_size=500)
                 
-                # Unchanged items (already up-to-date)
-                if unchanged_items:
-                    messages.info(request, f"{len(unchanged_items)} items already have correct prices (no changes needed).")
-                
-                # Not found items
-                if not_found_items:
-                    if len(not_found_items) <= 5:
-                        messages.warning(request, f"Items not found on {platform.title()}: {', '.join(not_found_items)}")
-                    else:
-                        messages.warning(request, f"{len(not_found_items)} items not found on {platform.title()}")
-                
-                # Errors
-                if errors:
-                    for error in errors[:5]:
-                        messages.error(request, error)
-                    if len(errors) > 5:
-                        messages.warning(request, f"And {len(errors) - 5} more errors...")
-                
-                # Log upload history
-                from .models import UploadHistory
-                # Determine update type based on price_type
-                update_type_map = {'cost': 'price_cost', 'mrp': 'price_mrp', 'cost_mrp': 'price_both'}
-                total_records = len(updated_items) + len(unchanged_items) + len(not_found_items) + len(errors)
-                upload_status = 'success' if not errors else ('partial' if updated_items else 'failed')
-                UploadHistory.objects.create(
-                    file_name=csv_file.name,
-                    platform=platform,
-                    outlet=outlet,
-                    update_type=update_type_map.get(price_type, 'price_both'),
-                    records_total=total_records,
-                    records_success=len(updated_items),
-                    records_failed=len(errors),
-                    records_skipped=len(not_found_items) + len(unchanged_items),
-                    status=upload_status,
-                    uploaded_by=request.user if request.user.is_authenticated else None,
-                )
-                
-                return redirect('integration:price_update')
-                
-            except Outlet.DoesNotExist:
-                messages.error(request, "Selected outlet not found.")
-            except Exception as e:
-                messages.error(request, f"Error processing CSV file: {str(e)}")
-        else:
-            messages.error(request, "Please fill all required fields and select a CSV file.")
+                if outlets_to_update:
+                    # Only update outlet fields based on what was in the CSV
+                    outlet_update_fields = []
+                    if 'mrp' in present_value_headers:
+                        outlet_update_fields.extend(['outlet_mrp', 'outlet_selling_price'])
+                    if 'cost' in present_value_headers:
+                        outlet_update_fields.append('outlet_cost')
+                    if 'stock' in present_value_headers:
+                        outlet_update_fields.append('outlet_stock')
+                        # Also update is_active_in_outlet for status lock enforcement
+                        outlet_update_fields.append('is_active_in_outlet')
+                    
+                    if outlet_update_fields:
+                        ItemOutlet.objects.bulk_update(outlets_to_update, outlet_update_fields, batch_size=500)
+            
+            # Success messages
+            if updated_count > 0:
+                messages.success(request, f"Updated {updated_count} products at {outlet.name} ({platform.title()}).")
+            if no_change_count > 0:
+                messages.info(request, f"{no_change_count} products already up-to-date.")
+            if not_found_items:
+                if len(not_found_items) <= 5:
+                    messages.warning(request, f"Items not found: {', '.join(not_found_items)}")
+                else:
+                    messages.warning(request, f"{len(not_found_items)} items not found.")
+            if errors:
+                for error in errors[:3]:
+                    messages.error(request, error)
+                if len(errors) > 3:
+                    messages.warning(request, f"And {len(errors) - 3} more errors...")
+            
+            # Log upload history
+            UploadHistory.objects.create(
+                file_name=csv_file.name,
+                platform=platform,
+                outlet=outlet,
+                update_type='product',
+                records_total=len(csv_rows),
+                records_success=updated_count,
+                records_failed=len(errors),
+                records_skipped=len(not_found_items) + no_change_count,
+                status='success' if not errors else ('partial' if updated_count > 0 else 'failed'),
+                uploaded_by=request.user if request.user.is_authenticated else None,
+            )
+            
+            return redirect('integration:product_update')
+            
+        except Outlet.DoesNotExist:
+            messages.error(request, "Selected outlet not found.")
+        except Exception as e:
+            logger.error(f"Product update error: {str(e)}", exc_info=True)
+            messages.error(request, f"Error processing CSV: {str(e)}")
+        
+        return redirect('integration:product_update')
     
+    # Fallback for other methods
+    outlets = Outlet.objects.filter(is_active=True).order_by('name')
     context = {
-        'page_title': 'Price Update',
-        'active_nav': 'bulk_operations'
+        'page_title': 'Product Update',
+        'active_nav': 'bulk_operations',
+        'outlets': outlets
     }
-    return render(request, 'price_update.html', context)
+    return render(request, 'product_update.html', context)
 
 
 def rules_update_price(request):
     """
-    TALABAT-ONLY Margin Update via CSV
-    
-    This endpoint is EXCLUSIVELY for updating Talabat platform margins.
-    CSV Required Headers: item_code, units, sku, margin
-    
-    - Platform MUST be 'talabat' (enforced)
-    - Updates Item.talabat_margin field
-    - Uses Item Code + Units + SKU for matching
-    - Margin is stored as percentage (e.g., 17 for 17%)
+    OPTIMIZED Talabat Margin Update via CSV
+    Fast bulk update - just updates margin values directly
     """
-    from .models import Outlet, Item
+    from .models import Item
     from django.contrib import messages
     from decimal import Decimal, InvalidOperation
     import csv
     import io
     
     if request.method == 'POST':
-        # Handle CSV upload for Talabat margin updates
         platform = request.POST.get('platform')
         csv_file = request.FILES.get('csv_file')
         
-        # ENFORCE: Talabat-only platform
         if platform != 'talabat':
-            messages.error(request, "This endpoint is ONLY for Talabat platform margin updates. Please select Talabat.")
+            messages.error(request, "This endpoint is ONLY for Talabat margin updates.")
             return redirect('integration:rules_update_price')
         
         if platform and csv_file:
             try:
-                # Process CSV file
-                csv_content, _encoding_used = decode_csv_upload(csv_file)
+                csv_content, _ = decode_csv_upload(csv_file)
                 csv_reader = csv.DictReader(io.StringIO(csv_content))
                 
-                # Normalize headers to lowercase
-                if csv_reader.fieldnames:
-                    headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
-                else:
+                if not csv_reader.fieldnames:
                     messages.error(request, "CSV file has no headers")
                     return redirect('integration:rules_update_price')
                 
-                # STRICT HEADER VALIDATION: Only these 4 headers allowed
-                allowed_headers = {'item_code', 'units', 'sku', 'margin'}
+                headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
                 required_headers = {'item_code', 'units', 'sku', 'margin'}
                 
-                # Check for missing required headers
-                missing_headers = required_headers - set(headers)
-                if missing_headers:
-                    messages.error(request, f"Missing required columns: {', '.join(sorted(missing_headers))}")
-                    messages.info(request, "Required: item_code, units, sku, margin")
+                missing = required_headers - set(headers)
+                if missing:
+                    messages.error(request, f"Missing columns: {', '.join(sorted(missing))}")
                     return redirect('integration:rules_update_price')
                 
-                # Check for invalid/extra headers
-                extra_headers = set(headers) - allowed_headers
-                if extra_headers:
-                    messages.error(request, f"Invalid columns not allowed: {', '.join(sorted(extra_headers))}. Only allowed: item_code, units, sku, margin")
-                    return redirect('integration:rules_update_price')
-                
-                updated_items = []
-                not_found_items = []
+                # Parse CSV rows (fast - no DB)
+                csv_rows = []
                 errors = []
-                
-                # Build rows to process
-                rows_to_process = []
                 for row_num, original_row in enumerate(csv_reader, start=2):
-                    try:
-                        row = {k.strip().lower(): v for k, v in original_row.items()}
-                        
-                        item_code = row.get('item_code', '').strip()
-                        units = row.get('units', '').strip()
-                        sku = row.get('sku', '').strip()
-                        margin_str = row.get('margin', '').strip()
-                        
-                        if not item_code:
-                            errors.append(f"Row {row_num}: item_code is required")
-                            continue
-                        if not units:
-                            errors.append(f"Row {row_num}: units is required")
-                            continue
-                        if not sku:
-                            errors.append(f"Row {row_num}: sku is required")
-                            continue
-                        if not margin_str:
-                            errors.append(f"Row {row_num}: margin is required")
-                            continue
-                        
-                        try:
-                            margin = Decimal(margin_str)
-                            if margin < 0:
-                                errors.append(f"Row {row_num}: Margin cannot be negative")
-                                continue
-                            if margin > 100:
-                                errors.append(f"Row {row_num}: Margin cannot exceed 100%")
-                                continue
-                        except (InvalidOperation, ValueError):
-                            errors.append(f"Row {row_num}: Invalid margin format '{margin_str}'")
-                            continue
-                        
-                        rows_to_process.append({
-                            'row_num': row_num,
-                            'item_code': item_code,
-                            'units': units,
-                            'sku': sku,
-                            'margin': margin
-                        })
+                    row = {k.strip().lower(): v.strip() if v else '' for k, v in original_row.items()}
+                    item_code = row.get('item_code', '')
+                    units = row.get('units', '')
+                    sku = row.get('sku', '')
+                    margin_str = row.get('margin', '')
                     
-                    except Exception as e:
-                        errors.append(f"Row {row_num}: Error - {str(e)}")
+                    if not item_code or not units or not sku or not margin_str:
+                        errors.append(f"Row {row_num}: Missing required field")
+                        continue
+                    
+                    try:
+                        margin = Decimal(margin_str)
+                        if margin < 0 or margin > 100:
+                            errors.append(f"Row {row_num}: Invalid margin")
+                            continue
+                    except (InvalidOperation, ValueError):
+                        errors.append(f"Row {row_num}: Invalid margin")
+                        continue
+                    
+                    csv_rows.append({
+                        'item_code': item_code,
+                        'units': units,
+                        'sku': sku,
+                        'margin': margin
+                    })
                 
-                # Bulk fetch all items
-                item_keys = [(r['item_code'], r['units'], r['sku']) for r in rows_to_process]
-                items_qs = Item.objects.filter(
-                    platform='talabat',
-                    item_code__in=[k[0] for k in item_keys],
-                    units__in=[k[1] for k in item_keys],
-                    sku__in=[k[2] for k in item_keys]
+                if not csv_rows:
+                    messages.warning(request, "No valid rows in CSV")
+                    return redirect('integration:rules_update_price')
+                
+                # BULK FETCH: Single query with .only() for speed
+                items_qs = Item.objects.filter(platform='talabat').only(
+                    'id', 'item_code', 'units', 'sku', 'talabat_margin'
                 )
                 
-                # Create lookup dict
-                items_dict = {}
-                for item in items_qs:
-                    key = (item.item_code, item.units, item.sku)
-                    items_dict[key] = item
+                # Build lookup dict
+                items_dict = {(i.item_code, i.units, i.sku): i for i in items_qs}
                 
-                # Process and update margins
+                # Process - FAST: just update margin directly
                 items_to_update = []
-                for row_data in rows_to_process:
+                updated_count = 0
+                not_found_count = 0
+                
+                for row_data in csv_rows:
                     key = (row_data['item_code'], row_data['units'], row_data['sku'])
                     item = items_dict.get(key)
                     
                     if not item:
-                        not_found_items.append(f"{row_data['item_code']} ({row_data['units']}) - SKU: {row_data['sku']}")
+                        not_found_count += 1
                         continue
                     
-                    # Only update if margin actually changed
-                    old_margin = item.talabat_margin
-                    new_margin = row_data['margin']
-                    
-                    if old_margin != new_margin:
-                        item.talabat_margin = new_margin
-                        items_to_update.append(item)
-                        
-                        updated_items.append({
-                            'item_code': row_data['item_code'],
-                            'units': row_data['units'],
-                            'sku': row_data['sku'],
-                            'old_margin': old_margin if old_margin else 'None (auto-detect)',
-                            'new_margin': f"{new_margin}%"
-                        })
+                    # Direct update - no change detection needed
+                    item.talabat_margin = row_data['margin']
+                    items_to_update.append(item)
+                    updated_count += 1
                 
-                # Bulk update all items
+                # Bulk update
                 if items_to_update:
-                    Item.objects.bulk_update(
-                        items_to_update,
-                        ['talabat_margin', 'updated_at']
-                    )
+                    Item.objects.bulk_update(items_to_update, ['talabat_margin'])
                 
-                # Display results
-                if updated_items:
-                    success_summary = f"Successfully updated {len(updated_items)} Talabat margin(s)"
-                    messages.success(request, success_summary)
-                
-                if not_found_items:
-                    not_found_summary = f"{len(not_found_items)} item(s) not found in Talabat platform"
-                    messages.warning(request, not_found_summary)
-                
+                # Messages
+                if updated_count > 0:
+                    messages.success(request, f"Updated {updated_count} Talabat margin(s)")
+                if not_found_count > 0:
+                    messages.warning(request, f"{not_found_count} item(s) not found")
                 if errors:
-                    error_summary = f"{len(errors)} error(s) occurred during processing"
-                    messages.error(request, error_summary)
+                    messages.error(request, f"{len(errors)} error(s)")
                 
-                if not updated_items and not errors and not not_found_items:
-                    messages.warning(request, "No items were processed. Please check your CSV file.")
-                
-                # Log upload history
+                # Log history
                 from .models import UploadHistory
-                total_records = len(updated_items) + len(not_found_items) + len(errors)
-                upload_status = 'success' if not errors else ('partial' if updated_items else 'failed')
                 UploadHistory.objects.create(
                     file_name=csv_file.name,
                     platform='talabat',
-                    outlet=None,  # Rules update is global
+                    outlet=None,
                     update_type='rules_price',
-                    records_total=total_records,
-                    records_success=len(updated_items),
+                    records_total=len(csv_rows),
+                    records_success=updated_count,
                     records_failed=len(errors),
-                    records_skipped=len(not_found_items),
-                    status=upload_status,
+                    records_skipped=not_found_count,
+                    status='success' if not errors else 'partial',
                     uploaded_by=request.user if request.user.is_authenticated else None,
                 )
                 
                 return redirect('integration:rules_update_price')
                 
             except Exception as e:
-                messages.error(request, f"Error processing CSV file: {str(e)}")
+                messages.error(request, f"Error: {str(e)}")
         else:
-            messages.error(request, "Please select Talabat platform and upload a CSV file.")
+            messages.error(request, "Please select Talabat and upload CSV.")
     
     context = {
         'page_title': 'Talabat Margin Update',
@@ -2659,150 +1558,146 @@ def rules_update_price(request):
 @login_required
 def rules_update_stock_preview(request):
     """
-    Preview endpoint for stock conversion rules update - parses CSV and shows ONLY items with changes
+    OPTIMIZED Preview endpoint for stock conversion rules update
+    Uses bulk fetch instead of per-row queries for fast performance
     """
-    if request.method == 'POST':
-        platform = request.POST.get('platform')
-        csv_file = request.FILES.get('csv_file')
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid request'})
+    
+    platform = request.POST.get('platform')
+    csv_file = request.FILES.get('csv_file')
+    
+    if not platform or not csv_file:
+        return JsonResponse({'success': False, 'message': 'Platform and CSV file required'})
+    
+    try:
+        from .models import Item
+        from decimal import Decimal, InvalidOperation
+        import csv
+        import io
         
-        if not platform or not csv_file:
-            return JsonResponse({'success': False, 'message': 'Platform and CSV file required'})
+        csv_content, _encoding_used = decode_csv_upload(csv_file)
+        csv_reader = csv.DictReader(io.StringIO(csv_content))
         
-        try:
-            from .models import Item
-            from decimal import Decimal, InvalidOperation
-            import csv
-            import io
+        if not csv_reader.fieldnames:
+            return JsonResponse({'success': False, 'message': 'CSV has no headers'})
+        
+        headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
+        
+        # Header validation
+        allowed_headers = {'item_code', 'units', 'sku', 'weight_division_factor', 'outer_case_quantity', 'minimum_qty'}
+        required_headers = {'item_code', 'units', 'sku'}
+        
+        missing_headers = required_headers - set(headers)
+        if missing_headers:
+            return JsonResponse({'success': False, 'message': f"Missing columns: {', '.join(sorted(missing_headers))}"})
+        
+        # Parse all CSV rows first (fast - no DB queries)
+        csv_rows = []
+        errors = []
+        for row_num, original_row in enumerate(csv_reader, start=2):
+            row = {k.strip().lower(): v.strip() if v else '' for k, v in original_row.items()}
+            item_code = row.get('item_code', '')
+            units = row.get('units', '')
+            sku = row.get('sku', '')
             
-            csv_content, _encoding_used = decode_csv_upload(csv_file)
-            csv_reader = csv.DictReader(io.StringIO(csv_content))
+            if not item_code or not units or not sku:
+                errors.append(f"Row {row_num}: Missing item_code, units, or sku")
+                continue
             
-            if not csv_reader.fieldnames:
-                return JsonResponse({'success': False, 'message': 'CSV has no headers'})
-            
-            headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
-            
-            # STRICT HEADER VALIDATION: Only these 6 headers allowed
-            allowed_headers = {'item_code', 'units', 'sku', 'weight_division_factor', 'outer_case_quantity', 'minimum_qty'}
-            required_headers = {'item_code', 'units', 'sku'}
-            
-            # Check for missing required headers
-            missing_headers = required_headers - set(headers)
-            if missing_headers:
-                return JsonResponse({'success': False, 'message': f"Missing columns: {', '.join(sorted(missing_headers))}"})
-            
-            # Check for invalid/extra headers
-            extra_headers = set(headers) - allowed_headers
-            if extra_headers:
-                return JsonResponse({'success': False, 'message': f"Invalid columns not allowed: {', '.join(sorted(extra_headers))}. Only allowed: item_code, units, sku, weight_division_factor, outer_case_quantity, minimum_qty"})
-            
-            items_with_changes = []
-            total_rows = 0
-            errors = []
-            
-            for row_num, original_row in enumerate(csv_reader, start=2):
-                total_rows += 1
-                try:
-                    row = {k.strip().lower(): v for k, v in original_row.items()}
-                    
-                    item_code = row.get('item_code', '').strip()
-                    units = row.get('units', '').strip()
-                    sku = row.get('sku', '').strip()
-                    
-                    if not item_code or not units or not sku:
-                        errors.append(f"Row {row_num}: Missing item_code, units, or sku")
-                        continue
-                    
-                    item = Item.objects.filter(
-                        platform=platform,
-                        item_code=item_code,
-                        units=units,
-                        sku=sku
-                    ).first()
-                    
-                    if not item:
-                        continue  # Skip not found items in preview
-                    
-                    changes = {}
-                    has_changes = False
-                    
-                    # Check WDF
-                    wdf_str = row.get('weight_division_factor', '').strip()
-                    if wdf_str:
-                        try:
-                            new_wdf = Decimal(wdf_str)
-                            if new_wdf != item.weight_division_factor:
-                                changes['wdf'] = {
-                                    'old': float(item.weight_division_factor) if item.weight_division_factor else None,
-                                    'new': float(new_wdf)
-                                }
-                                has_changes = True
-                        except (InvalidOperation, ValueError):
-                            errors.append(f"Row {row_num}: Invalid WDF '{wdf_str}'")
-                            continue
-                    
-                    # Check OCQ
-                    ocq_str = row.get('outer_case_quantity', '').strip()
-                    if ocq_str:
-                        try:
-                            new_ocq = int(ocq_str)
-                            if new_ocq != item.outer_case_quantity:
-                                changes['ocq'] = {
-                                    'old': item.outer_case_quantity,
-                                    'new': new_ocq
-                                }
-                                has_changes = True
-                        except ValueError:
-                            errors.append(f"Row {row_num}: Invalid OCQ '{ocq_str}'")
-                            continue
-                    
-                    # Check MinQty
-                    minqty_str = row.get('minimum_qty', '').strip()
-                    if minqty_str:
-                        try:
-                            new_minqty = int(minqty_str)
-                            if new_minqty != item.minimum_qty:
-                                changes['minqty'] = {
-                                    'old': item.minimum_qty,
-                                    'new': new_minqty
-                                }
-                                has_changes = True
-                        except ValueError:
-                            errors.append(f"Row {row_num}: Invalid MinQty '{minqty_str}'")
-                            continue
-                    
-                    if has_changes:
-                        items_with_changes.append({
-                            'row': row_num,
-                            'item_code': item_code,
-                            'units': units,
-                            'sku': sku,
-                            'changes': changes
-                        })
-                
-                except Exception as e:
-                    errors.append(f"Row {row_num}: {str(e)}")
-            
-            return JsonResponse({
-                'success': True,
-                'platform': platform,
-                'total_rows': total_rows,
-                'items_with_changes': items_with_changes[:100],  # Limit to 100 for display
-                'total_changes': len(items_with_changes),
-                'errors': errors[:10] if errors else []
+            csv_rows.append({
+                'row_num': row_num,
+                'item_code': item_code,
+                'units': units,
+                'sku': sku,
+                'wdf': row.get('weight_division_factor', ''),
+                'ocq': row.get('outer_case_quantity', ''),
+                'minqty': row.get('minimum_qty', '')
             })
         
-        except Exception as e:
-            return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
+        total_rows = len(csv_rows)
+        if total_rows == 0:
+            return JsonResponse({'success': True, 'platform': platform, 'total_rows': 0, 'items_with_changes': [], 'total_changes': 0, 'errors': errors})
+        
+        # BULK FETCH: Single query to get all items
+        items_qs = Item.objects.filter(platform=platform).only(
+            'id', 'item_code', 'units', 'sku', 'weight_division_factor', 'outer_case_quantity', 'minimum_qty'
+        )
+        
+        # Build lookup dict (item_code, units, sku) -> item
+        items_dict = {(i.item_code, i.units, i.sku): i for i in items_qs}
+        
+        # Compare CSV vs DB (fast - in memory)
+        items_with_changes = []
+        for row_data in csv_rows:
+            key = (row_data['item_code'], row_data['units'], row_data['sku'])
+            item = items_dict.get(key)
+            
+            if not item:
+                continue  # Skip not found items in preview
+            
+            changes = {}
+            
+            # Check WDF
+            if row_data['wdf']:
+                try:
+                    new_wdf = Decimal(row_data['wdf'])
+                    if new_wdf != item.weight_division_factor:
+                        changes['wdf'] = {
+                            'old': float(item.weight_division_factor) if item.weight_division_factor else None,
+                            'new': float(new_wdf)
+                        }
+                except (InvalidOperation, ValueError):
+                    errors.append(f"Row {row_data['row_num']}: Invalid WDF")
+                    continue
+            
+            # Check OCQ
+            if row_data['ocq']:
+                try:
+                    new_ocq = int(row_data['ocq'])
+                    if new_ocq != item.outer_case_quantity:
+                        changes['ocq'] = {'old': item.outer_case_quantity, 'new': new_ocq}
+                except ValueError:
+                    errors.append(f"Row {row_data['row_num']}: Invalid OCQ")
+                    continue
+            
+            # Check MinQty
+            if row_data['minqty']:
+                try:
+                    new_minqty = int(row_data['minqty'])
+                    if new_minqty != item.minimum_qty:
+                        changes['minqty'] = {'old': item.minimum_qty, 'new': new_minqty}
+                except ValueError:
+                    errors.append(f"Row {row_data['row_num']}: Invalid MinQty")
+                    continue
+            
+            if changes:
+                items_with_changes.append({
+                    'row': row_data['row_num'],
+                    'item_code': row_data['item_code'],
+                    'units': row_data['units'],
+                    'sku': row_data['sku'],
+                    'changes': changes
+                })
+        
+        return JsonResponse({
+            'success': True,
+            'platform': platform,
+            'total_rows': total_rows,
+            'items_with_changes': items_with_changes[:100],
+            'total_changes': len(items_with_changes),
+            'errors': errors[:10] if errors else []
+        })
     
-    return JsonResponse({'success': False, 'message': 'Invalid request'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'Error: {str(e)}'})
 
 
 @login_required
 def rules_update_stock(request):
     """
-    Stock conversion rules update - updates weight_division_factor, outer_case_quantity, minimum_qty
-    for existing items on a specific platform. Rules apply to ALL outlets/branches for that platform.
+    OPTIMIZED Stock conversion rules update - updates weight_division_factor, outer_case_quantity, minimum_qty
+    Uses bulk fetch and bulk_update for fast performance. No change detection - just update values directly.
     """
     if request.method == 'POST':
         platform = request.POST.get('platform')
@@ -2810,150 +1705,110 @@ def rules_update_stock(request):
         
         if platform and csv_file:
             try:
-                from .models import Item, ItemOutlet
+                from .models import Item
                 from django.contrib import messages
                 from decimal import Decimal, InvalidOperation
                 import csv
                 import io
                 
-                # Process CSV file
                 csv_content, _encoding_used = decode_csv_upload(csv_file)
                 csv_reader = csv.DictReader(io.StringIO(csv_content))
                 
-                # Normalize headers
                 if not csv_reader.fieldnames:
                     messages.error(request, "CSV file has no headers")
                     return redirect('integration:rules_update_stock')
                 
                 headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
                 
-                # STRICT HEADER VALIDATION: Only these 6 headers allowed
+                # Header validation
                 allowed_headers = {'item_code', 'units', 'sku', 'weight_division_factor', 'outer_case_quantity', 'minimum_qty'}
                 required_headers = {'item_code', 'units', 'sku'}
                 
-                # Check for missing required headers
                 missing_headers = required_headers - set(headers)
                 if missing_headers:
                     messages.error(request, f"Missing required columns: {', '.join(sorted(missing_headers))}")
                     return redirect('integration:rules_update_stock')
                 
-                # Check for invalid/extra headers
-                extra_headers = set(headers) - allowed_headers
-                if extra_headers:
-                    messages.error(request, f"Invalid columns not allowed: {', '.join(sorted(extra_headers))}. Only allowed: item_code, units, sku, weight_division_factor, outer_case_quantity, minimum_qty")
+                # Parse all CSV rows (fast - no DB)
+                csv_rows = []
+                errors = []
+                for row_num, original_row in enumerate(csv_reader, start=2):
+                    row = {k.strip().lower(): v.strip() if v else '' for k, v in original_row.items()}
+                    item_code = row.get('item_code', '')
+                    units = row.get('units', '')
+                    sku = row.get('sku', '')
+                    
+                    if not item_code or not units or not sku:
+                        errors.append(f"Row {row_num}: Missing required fields")
+                        continue
+                    
+                    csv_rows.append({
+                        'row_num': row_num,
+                        'item_code': item_code,
+                        'units': units,
+                        'sku': sku,
+                        'wdf': row.get('weight_division_factor', ''),
+                        'ocq': row.get('outer_case_quantity', ''),
+                        'minqty': row.get('minimum_qty', '')
+                    })
+                
+                if not csv_rows:
+                    messages.warning(request, "No valid rows found in CSV")
                     return redirect('integration:rules_update_stock')
                 
-                updated_items = []
-                not_found_items = []
-                errors = []
-                
-                # Build lookup dict for fast comparison
-                rows_to_process = []
-                for row_num, original_row in enumerate(csv_reader, start=2):
-                    try:
-                        row = {k.strip().lower(): v for k, v in original_row.items()}
-                        
-                        item_code = row.get('item_code', '').strip()
-                        units = row.get('units', '').strip()
-                        sku = row.get('sku', '').strip()
-                        
-                        if not item_code or not units or not sku:
-                            errors.append(f"Row {row_num}: item_code, units, and sku are required")
-                            continue
-                        
-                        rows_to_process.append({
-                            'row_num': row_num,
-                            'item_code': item_code,
-                            'units': units,
-                            'sku': sku,
-                            'wdf': row.get('weight_division_factor', '').strip(),
-                            'ocq': row.get('outer_case_quantity', '').strip(),
-                            'minqty': row.get('minimum_qty', '').strip()
-                        })
-                    except Exception as e:
-                        errors.append(f"Row {row_num}: Error - {str(e)}")
-                
-                # Bulk fetch all items at once
-                item_keys = [(r['item_code'], r['units'], r['sku']) for r in rows_to_process]
-                items_qs = Item.objects.filter(
-                    platform=platform,
-                    item_code__in=[k[0] for k in item_keys],
-                    units__in=[k[1] for k in item_keys],
-                    sku__in=[k[2] for k in item_keys]
+                # BULK FETCH: Single query with .only() for speed
+                items_qs = Item.objects.filter(platform=platform).only(
+                    'id', 'item_code', 'units', 'sku', 'weight_division_factor', 'outer_case_quantity', 'minimum_qty'
                 )
                 
-                # Create lookup dict
-                items_dict = {}
-                for item in items_qs:
-                    key = (item.item_code, item.units, item.sku)
-                    items_dict[key] = item
+                # Build lookup dict
+                items_dict = {(i.item_code, i.units, i.sku): i for i in items_qs}
                 
-                # Process rows and detect changes
+                # Process rows - FAST: just update values, no change detection needed
                 items_to_update = []
-                for row_data in rows_to_process:
+                updated_count = 0
+                not_found_items = []
+                
+                for row_data in csv_rows:
                     key = (row_data['item_code'], row_data['units'], row_data['sku'])
                     item = items_dict.get(key)
                     
                     if not item:
-                        not_found_items.append(f"{row_data['item_code']} ({row_data['units']}, {row_data['sku']})")
+                        not_found_items.append(f"{row_data['item_code']} ({row_data['units']})")
                         continue
                     
-                    try:
-                        has_changes = False
-                        old_values = {}
-                        new_values = {}
-                        
-                        # Check WDF
-                        if row_data['wdf']:
-                            try:
-                                new_wdf = Decimal(row_data['wdf'])
-                                if new_wdf != item.weight_division_factor:
-                                    old_values['wdf'] = item.weight_division_factor
-                                    item.weight_division_factor = new_wdf
-                                    new_values['wdf'] = new_wdf
-                                    has_changes = True
-                            except (InvalidOperation, ValueError):
-                                errors.append(f"Row {row_data['row_num']}: Invalid WDF '{row_data['wdf']}'")
-                                continue
-                        
-                        # Check OCQ
-                        if row_data['ocq']:
-                            try:
-                                new_ocq = int(row_data['ocq'])
-                                if new_ocq != item.outer_case_quantity:
-                                    old_values['ocq'] = item.outer_case_quantity
-                                    item.outer_case_quantity = new_ocq
-                                    new_values['ocq'] = new_ocq
-                                    has_changes = True
-                            except ValueError:
-                                errors.append(f"Row {row_data['row_num']}: Invalid OCQ '{row_data['ocq']}'")
-                                continue
-                        
-                        # Check MinQty
-                        if row_data['minqty']:
-                            try:
-                                new_minqty = int(row_data['minqty'])
-                                if new_minqty != item.minimum_qty:
-                                    old_values['minqty'] = item.minimum_qty
-                                    item.minimum_qty = new_minqty
-                                    new_values['minqty'] = new_minqty
-                                    has_changes = True
-                            except ValueError:
-                                errors.append(f"Row {row_data['row_num']}: Invalid MinQty '{row_data['minqty']}'")
-                                continue
-                        
-                        if has_changes:
-                            items_to_update.append(item)
-                            updated_items.append({
-                                'item_code': row_data['item_code'],
-                                'units': row_data['units'],
-                                'sku': row_data['sku'],
-                                'old': old_values,
-                                'new': new_values
-                            })
+                    item_changed = False
                     
-                    except Exception as e:
-                        errors.append(f"Row {row_data['row_num']}: Error - {str(e)}")
+                    # Update WDF if provided
+                    if row_data['wdf']:
+                        try:
+                            item.weight_division_factor = Decimal(row_data['wdf'])
+                            item_changed = True
+                        except (InvalidOperation, ValueError):
+                            errors.append(f"Row {row_data['row_num']}: Invalid WDF")
+                            continue
+                    
+                    # Update OCQ if provided
+                    if row_data['ocq']:
+                        try:
+                            item.outer_case_quantity = int(row_data['ocq'])
+                            item_changed = True
+                        except ValueError:
+                            errors.append(f"Row {row_data['row_num']}: Invalid OCQ")
+                            continue
+                    
+                    # Update MinQty if provided
+                    if row_data['minqty']:
+                        try:
+                            item.minimum_qty = int(row_data['minqty'])
+                            item_changed = True
+                        except ValueError:
+                            errors.append(f"Row {row_data['row_num']}: Invalid MinQty")
+                            continue
+                    
+                    if item_changed:
+                        items_to_update.append(item)
+                        updated_count += 1
                 
                 # Bulk update all items at once
                 if items_to_update:
@@ -2963,29 +1818,26 @@ def rules_update_stock(request):
                     )
                 
                 # Display consolidated messages
-                if updated_items:
-                    success_summary = f"Successfully updated {len(updated_items)} item(s) for {platform.title()} platform"
-                    messages.success(request, success_summary)
+                if updated_count > 0:
+                    messages.success(request, f"Successfully updated {updated_count} item(s) for {platform.title()} platform")
                 
                 if not_found_items:
-                    not_found_summary = f"{len(not_found_items)} item(s) not found in {platform.title()} platform"
-                    messages.warning(request, not_found_summary)
+                    messages.warning(request, f"{len(not_found_items)} item(s) not found")
                 
                 if errors:
-                    error_summary = f"{len(errors)} error(s) occurred during processing"
-                    messages.error(request, error_summary)
+                    messages.error(request, f"{len(errors)} error(s) occurred")
                 
                 # Log upload history
                 from .models import UploadHistory
-                total_records = len(updated_items) + len(not_found_items) + len(errors)
-                upload_status = 'success' if not errors else ('partial' if updated_items else 'failed')
+                total_records = updated_count + len(not_found_items) + len(errors)
+                upload_status = 'success' if not errors else ('partial' if updated_count else 'failed')
                 UploadHistory.objects.create(
                     file_name=csv_file.name,
                     platform=platform,
                     outlet=None,  # Rules update is global
                     update_type='rules_stock',
                     records_total=total_records,
-                    records_success=len(updated_items),
+                    records_success=updated_count,
                     records_failed=len(errors),
                     records_skipped=len(not_found_items),
                     status=upload_status,
@@ -3212,22 +2064,23 @@ def search_product_api(request):
 def calculate_outlet_enabled_status(item, outlet_stock):
     """
     Calculate if an outlet should show as Enabled or Disabled
-    based on stock, outer_case_quantity, and minimum_qty.
+    based on stock and minimum_qty.
     
     Rules:
     1. stock ≤ 0 → Disabled (No stock = always disabled)
-    2. For wrap=9900: outlet_stock is already in packs (no OCQ division)
-       For wrap=10000: converted_stock = outlet_stock ÷ OCQ
-    3. If converted_stock < minimum_qty → Disabled
-    4. If converted_stock ≥ minimum_qty → Enabled
+    2. outlet_stock is ALREADY converted during stock update:
+       - wrap=9900: outlet_stock = CSV_stock × WDF (already in packs)
+       - wrap=10000: outlet_stock = CSV_stock ÷ OCQ (already in cases)
+    3. If outlet_stock > minimum_qty → Enabled
+    4. If outlet_stock ≤ minimum_qty → Disabled
     
     Examples (wrap=9900, 250gm item with WDF=4):
-    - CSV stock=3 KG → outlet_stock=12 packs, min_qty=10 → 12≥10 → Enabled
-    - CSV stock=2 KG → outlet_stock=8 packs, min_qty=10 → 8<10 → Disabled
+    - CSV stock=3 KG → outlet_stock=12 packs, min_qty=10 → 12>10 → Enabled
+    - CSV stock=2 KG → outlet_stock=8 packs, min_qty=10 → 8≤10 → Disabled
     
-    Examples (wrap=10000):
-    - stock=10, OCQ=5, min_qty=2 → converted=2 → 2≥2 → Enabled
-    - stock=4, OCQ=5, min_qty=1 → converted=0.8 → 0.8<1 → Disabled
+    Examples (wrap=10000, OCQ=100):
+    - CSV stock=1800 → outlet_stock=18 cases, min_qty=3 → 18>3 → Enabled
+    - CSV stock=200 → outlet_stock=2 cases, min_qty=3 → 2≤3 → Disabled
     
     Returns:
         bool: True = Enabled (stock_status=1), False = Disabled (stock_status=0)
@@ -3238,23 +2091,14 @@ def calculate_outlet_enabled_status(item, outlet_stock):
     if stock <= 0:
         return False
     
-    # Rule 2: Calculate converted_stock based on wrap type
-    if item.wrap == '9900':
-        # wrap=9900: outlet_stock is already in packs (stock_kg × WDF)
-        # No OCQ division needed
-        converted_stock = stock
-    else:
-        # wrap=10000: divide by OCQ to get cases
-        ocq = item.outer_case_quantity
-        if ocq and ocq > 0:
-            converted_stock = stock / ocq
-        else:
-            converted_stock = stock
+    # Rule 2: outlet_stock is ALREADY converted (no further division needed)
+    # wrap=9900: already multiplied by WDF during stock update
+    # wrap=10000: already divided by OCQ during stock update
     
-    # Rule 3: Check if converted_stock meets minimum_qty requirement
+    # Rule 3: Check if stock is GREATER THAN minimum_qty requirement
     min_qty = item.minimum_qty
     if min_qty is not None and min_qty > 0:
-        if converted_stock < min_qty:
+        if stock <= min_qty:  # Must be GREATER than (not equal)
             return False
     
     # All checks passed = Enabled
@@ -3538,32 +2382,33 @@ def outlet_lock_toggle_api(request):
         if not (item_code or item_id):
             return JsonResponse({'success': False, 'message': 'item_code or item_id is required'})
 
-        # Resolve item
+        # Resolve outlet FIRST to get platform
+        outlet = Outlet.objects.filter(store_id=store_id, is_active=True).first()
+        if outlet is None:
+            return JsonResponse({'success': False, 'message': 'Outlet not found or inactive'})
+        
+        platform = outlet.platforms
+
+        # Resolve item - FILTER BY PLATFORM to get correct item
         item = None
         if item_id:
             try:
-                item = Item.objects.filter(pk=int(item_id), is_active=True).first()
+                item = Item.objects.filter(pk=int(item_id), is_active=True, platform=platform).first()
             except ValueError:
                 item = None
         if item is None and item_code:
-            # FIXED: Filter by BOTH item_code AND units for unique identification
-            item_filter = {'item_code__iexact': item_code, 'is_active': True}
+            # FIXED: Filter by item_code, units, AND platform for unique identification
+            item_filter = {'item_code__iexact': item_code, 'is_active': True, 'platform': platform}
             if units:  # If units provided, use it for exact match
                 item_filter['units__iexact'] = units
             item = Item.objects.filter(**item_filter).first()
         if item is None:
-            return JsonResponse({'success': False, 'message': 'Item not found or inactive'})
-
-        # Resolve outlet
-        outlet = Outlet.objects.filter(store_id=store_id, is_active=True).first()
-        if outlet is None:
-            return JsonResponse({'success': False, 'message': 'Outlet not found or inactive'})
+            return JsonResponse({'success': False, 'message': f'Item not found on {platform} platform or inactive'})
 
         # Resolve relation - auto-link if item is already on this platform (via other outlets)
         io = ItemOutlet.objects.filter(item=item, outlet=outlet).first()
         if io is None:
             # Check if item is already associated with this platform via other outlets
-            platform = outlet.platforms
             existing_on_platform = ItemOutlet.objects.filter(
                 item=item,
                 outlet__platforms=platform
@@ -3663,6 +2508,8 @@ def cls_lock_toggle_api(request):
     try:
         item_code = (request.POST.get('item_code') or '').strip()
         item_id = (request.POST.get('item_id') or '').strip()
+        units = (request.POST.get('units') or '').strip()  # For unique item identification
+        platform = (request.POST.get('platform') or '').strip()  # Platform filter
         lock_type = (request.POST.get('lock_type') or 'status').strip().lower()
         value_raw = (request.POST.get('value') or '').strip().lower()
 
@@ -3670,15 +2517,23 @@ def cls_lock_toggle_api(request):
         def _parse_bool(val):
             return str(val).lower() in ('on', 'true', '1', 'yes', 'locked')
 
-        # Resolve item
+        # Resolve item - FILTER BY PLATFORM for correct item
         item = None
         if item_id:
             try:
-                item = Item.objects.filter(pk=int(item_id), is_active=True).first()
+                item_filter = {'pk': int(item_id), 'is_active': True}
+                if platform:
+                    item_filter['platform'] = platform
+                item = Item.objects.filter(**item_filter).first()
             except ValueError:
                 item = None
         if item is None and item_code:
-            item = Item.objects.filter(item_code__iexact=item_code, is_active=True).first()
+            item_filter = {'item_code__iexact': item_code, 'is_active': True}
+            if platform:
+                item_filter['platform'] = platform
+            if units:
+                item_filter['units__iexact'] = units
+            item = Item.objects.filter(**item_filter).first()
         if item is None:
             return JsonResponse({'success': False, 'message': 'Item not found or inactive'})
 
@@ -4585,30 +3440,88 @@ def export_feed_api(request):
         outlet_name_clean = outlet.name.replace(' ', '-').replace('/', '-')
         filename = f"{outlet_name_clean}-{now.strftime('%Y-%m-%d-%H%M%S')}.csv"
         
+        # Save CSV file to disk for re-download
+        import os
+        from django.conf import settings
+        
+        # Create exports directory if it doesn't exist
+        exports_dir = getattr(settings, 'EXPORT_FILES_DIR', settings.MEDIA_ROOT / 'exports')
+        os.makedirs(exports_dir, exist_ok=True)
+        
+        file_path = os.path.join(exports_dir, filename)
+        
+        # Write CSV to file - different format for Pasons vs Talabat
+        with open(file_path, 'w', newline='', encoding='utf-8') as f:
+            file_writer = csv.writer(f)  # Use comma delimiter for both platforms
+            
+            if platform == 'talabat':
+                # Talabat format: barcode, sku, reason, start_date, end_date, campaign_status, discounted_price, max_no_of_orders, price, active
+                file_writer.writerow(['barcode', 'sku', 'reason', 'start_date', 'end_date', 'campaign_status', 'discounted_price', 'max_no_of_orders', 'price', 'active'])
+                for row in export_data:
+                    file_writer.writerow([
+                        row['barcode'],           # barcode
+                        row['sku'],               # sku
+                        '',                       # reason (placeholder)
+                        '',                       # start_date (placeholder)
+                        '',                       # end_date (placeholder)
+                        '',                       # campaign_status (placeholder)
+                        '',                       # discounted_price (placeholder)
+                        '',                       # max_no_of_orders (placeholder)
+                        row['selling_price'],     # price
+                        row['stock_status']       # active (stock_status)
+                    ])
+            else:
+                # Pasons format: sku, selling_price, stock_status, availability_status
+                file_writer.writerow(['sku', 'selling_price', 'stock_status', 'availability_status'])
+                for row in export_data:
+                    file_writer.writerow([
+                        row['sku'],
+                        row['selling_price'],
+                        row['stock_status'],
+                        row['stock_status']
+                    ])
+        
         # Update ExportHistory with filename
         export_history.file_name = filename
         export_history.save(update_fields=['file_name'])
         
-        # Create CSV response
+        # Create CSV response for immediate download
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         
-        writer = csv.writer(response)
-        # Write header
-        writer.writerow(['sku', 'selling_price', 'stock_status'])
-        
-        # Write data rows
-        for row in export_data:
-            writer.writerow([
-                row['sku'],
-                row['selling_price'],
-                row['stock_status']
-            ])
+        if platform == 'talabat':
+            writer = csv.writer(response)  # Use comma delimiter for Excel compatibility
+            # Talabat format
+            writer.writerow(['barcode', 'sku', 'reason', 'start_date', 'end_date', 'campaign_status', 'discounted_price', 'max_no_of_orders', 'price', 'active'])
+            for row in export_data:
+                writer.writerow([
+                    row['barcode'],
+                    row['sku'],
+                    '',  # reason
+                    '',  # start_date
+                    '',  # end_date
+                    '',  # campaign_status
+                    '',  # discounted_price
+                    '',  # max_no_of_orders
+                    row['selling_price'],
+                    row['stock_status']
+                ])
+        else:
+            writer = csv.writer(response)
+            # Pasons format
+            writer.writerow(['sku', 'selling_price', 'stock_status', 'availability_status'])
+            for row in export_data:
+                writer.writerow([
+                    row['sku'],
+                    row['selling_price'],
+                    row['stock_status'],
+                    row['stock_status']
+                ])
         
         logger.info(
             f"Export successful: {outlet.name} ({platform}) - "
             f"{export_history.get_export_type_display()} - "
-            f"{len(export_data)} items - File: {filename}"
+            f"{len(export_data)} items - File: {filename} (saved to disk)"
         )
         
         return response
@@ -4620,3 +3533,274 @@ def export_feed_api(request):
             'message': 'An unexpected error occurred during export.',
             'error_details': str(e)
         })
+
+
+@login_required
+def download_export_file(request):
+    """
+    Download a previously exported CSV file by filename.
+    This serves the stored file instead of re-generating the export.
+    """
+    import os
+    from django.conf import settings
+    from django.http import FileResponse, Http404
+    
+    filename = request.GET.get('filename', '').strip()
+    
+    if not filename:
+        return JsonResponse({'success': False, 'message': 'Filename is required'})
+    
+    # Security: Only allow .csv files and prevent directory traversal
+    if not filename.endswith('.csv') or '/' in filename or '\\' in filename or '..' in filename:
+        return JsonResponse({'success': False, 'message': 'Invalid filename'})
+    
+    # Get exports directory
+    exports_dir = getattr(settings, 'EXPORT_FILES_DIR', settings.MEDIA_ROOT / 'exports')
+    file_path = os.path.join(exports_dir, filename)
+    
+    if not os.path.exists(file_path):
+        return JsonResponse({'success': False, 'message': 'File not found. It may have been deleted.'})
+    
+    # Serve the file
+    response = FileResponse(open(file_path, 'rb'), content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+def erp_export_api(request):
+    """
+    ERP Export API for Talabat platform.
+    
+    CSV FORMAT: Party, Item Code, Location, Unit, Price
+    - Party: Fixed value "DT0072"
+    - Item Code: item.item_code
+    - Location: Placeholder (empty)
+    - Unit: item.units
+    - Price: Converted selling price
+        - wrap=9900: selling_price * WDF (weight_division_factor)
+        - wrap=10000: selling_price (no conversion)
+    
+    Supports full and partial export with delta tracking.
+    """
+    import csv
+    import os
+    from django.conf import settings
+    from django.http import HttpResponse
+    from django.utils import timezone
+    from .models import ERPExportHistory
+    
+    try:
+        # Get parameters
+        outlet_id = request.GET.get('outlet_id', '').strip()
+        export_type = request.GET.get('export_type', 'full').strip()
+        
+        if not outlet_id:
+            return JsonResponse({'success': False, 'message': 'outlet_id is required'})
+        
+        if export_type not in ('full', 'partial'):
+            return JsonResponse({'success': False, 'message': 'export_type must be "full" or "partial"'})
+        
+        # Get outlet (must be Talabat)
+        try:
+            outlet = Outlet.objects.get(id=outlet_id, platforms='talabat', is_active=True)
+        except Outlet.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Outlet not found or not a Talabat outlet'})
+        
+        # Create export history record
+        erp_export = ERPExportHistory.objects.create(
+            outlet=outlet,
+            export_type=export_type,
+            status='success',
+            created_by=request.user if request.user.is_authenticated else None
+        )
+        
+        # Get items for this outlet
+        item_outlets = ItemOutlet.objects.filter(
+            outlet=outlet,
+            item__platform='talabat',
+            is_active_in_outlet=True
+        ).select_related('item')
+        
+        # For partial export, compare with last export
+        if export_type == 'partial':
+            last_export = ERPExportHistory.get_latest_successful_export(outlet)
+            if last_export:
+                # Compare current prices vs last exported prices
+                # For ERP, we track via erp_export_price field (need to add or use updated_at)
+                changed_items = []
+                for io in item_outlets:
+                    item = io.item
+                    # Calculate current ERP price
+                    current_price = calculate_erp_price(io, item)
+                    # Get last exported price (stored in a tracking field or compare by timestamp)
+                    last_exported_price = getattr(io, 'erp_export_price', None)
+                    
+                    if last_exported_price is None or float(current_price) != float(last_exported_price or 0):
+                        changed_items.append(io.id)
+                
+                if changed_items:
+                    item_outlets = item_outlets.filter(id__in=changed_items)
+                else:
+                    item_outlets = ItemOutlet.objects.none()
+        
+        # Build export data
+        raw_export_data = []
+        for io in item_outlets:
+            item = io.item
+            # Calculate converted price based on wrap type
+            converted_price = calculate_erp_price(io, item)
+            
+            raw_export_data.append({
+                'party': 'DT0072',
+                'item_code': item.item_code,
+                'location': '',  # Placeholder
+                'unit': item.units,
+                'price': converted_price,
+                'wrap': str(item.wrap)
+            })
+        
+        # Remove duplicates for wrap=9900: same item_code + units → keep LOWEST price
+        # wrap=10000 items: include all (no duplicates expected)
+        export_data = []
+        seen_keys = {}  # key = (item_code, unit) → lowest price row
+        
+        for row in raw_export_data:
+            if row['wrap'] == '9900':
+                # For wrap=9900, deduplicate by (item_code, unit), keep lowest price
+                key = (row['item_code'], row['unit'])
+                if key not in seen_keys or row['price'] < seen_keys[key]['price']:
+                    seen_keys[key] = row
+            else:
+                # wrap=10000 or other: include all
+                export_data.append(row)
+        
+        # Add deduplicated wrap=9900 items
+        for row in seen_keys.values():
+            export_data.append(row)
+        
+        # Remove 'wrap' key from final export (not needed in CSV)
+        for row in export_data:
+            row.pop('wrap', None)
+        
+        # Update export history
+        erp_export.item_count = len(export_data)
+        
+        if len(export_data) == 0:
+            erp_export.status = 'success'
+            erp_export.file_name = ''
+            erp_export.save()
+            return JsonResponse({
+                'success': True,
+                'message': 'No items to export (no changes detected)',
+                'item_count': 0
+            })
+        
+        # Generate filename
+        now = timezone.localtime(timezone.now())
+        outlet_name_clean = outlet.name.replace(' ', '-').replace('/', '-')
+        filename = f"ERP-{outlet_name_clean}-{now.strftime('%Y-%m-%d-%H%M%S')}.csv"
+        
+        # Save CSV file to disk
+        exports_dir = getattr(settings, 'EXPORT_FILES_DIR', settings.MEDIA_ROOT / 'exports')
+        os.makedirs(exports_dir, exist_ok=True)
+        file_path = os.path.join(exports_dir, filename)
+        
+        with open(file_path, 'w', newline='', encoding='utf-8') as f:
+            file_writer = csv.writer(f)
+            file_writer.writerow(['Party', 'Item Code', 'Location', 'Unit', 'Price'])
+            for row in export_data:
+                file_writer.writerow([
+                    row['party'],
+                    row['item_code'],
+                    row['location'],
+                    row['unit'],
+                    row['price']
+                ])
+        
+        # Update export history
+        erp_export.file_name = filename
+        erp_export.save()
+        
+        # Update tracking fields for partial export
+        item_outlets_to_update = ItemOutlet.objects.filter(
+            outlet=outlet,
+            item__platform='talabat',
+            is_active_in_outlet=True
+        )
+        for io in item_outlets_to_update:
+            io.erp_export_price = calculate_erp_price(io, io.item)
+        ItemOutlet.objects.bulk_update(
+            list(item_outlets_to_update), 
+            ['erp_export_price'],
+            batch_size=500
+        )
+        
+        logger.info(f"ERP Export successful: {outlet.name} - {len(export_data)} items - File: {filename}")
+        
+        # Return JSON success response (no download - user downloads from history)
+        return JsonResponse({
+            'success': True,
+            'message': f'Export generated successfully. {len(export_data)} items exported.',
+            'filename': filename,
+            'item_count': len(export_data)
+        })
+    
+    except Exception as e:
+        logger.exception(f"ERP Export error: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'message': 'An error occurred during ERP export.',
+            'error_details': str(e)
+        })
+
+
+def calculate_erp_price(item_outlet, item):
+    """
+    Calculate ERP price based on wrap type.
+    
+    - wrap=9900: selling_price * WDF (weight_division_factor)
+    - wrap=10000: selling_price (no conversion)
+    """
+    selling_price = item_outlet.outlet_selling_price or item.selling_price or Decimal('0')
+    
+    if str(item.wrap) == '9900':
+        # Multiply by WDF for wrap=9900
+        wdf = item.weight_division_factor or 1
+        converted_price = float(selling_price) * float(wdf)
+    else:
+        # wrap=10000 or other - no conversion
+        converted_price = float(selling_price)
+    
+    return round(converted_price, 2)
+
+
+@login_required
+def download_erp_export_file(request):
+    """
+    Download a previously exported ERP CSV file by filename.
+    """
+    import os
+    from django.conf import settings
+    from django.http import FileResponse
+    
+    filename = request.GET.get('filename', '').strip()
+    
+    if not filename:
+        return JsonResponse({'success': False, 'message': 'Filename is required'})
+    
+    # Security: Only allow .csv files and prevent directory traversal
+    if not filename.endswith('.csv') or '/' in filename or '\\' in filename or '..' in filename:
+        return JsonResponse({'success': False, 'message': 'Invalid filename'})
+    
+    # Get exports directory
+    exports_dir = getattr(settings, 'EXPORT_FILES_DIR', settings.MEDIA_ROOT / 'exports')
+    file_path = os.path.join(exports_dir, filename)
+    
+    if not os.path.exists(file_path):
+        return JsonResponse({'success': False, 'message': 'File not found. It may have been deleted.'})
+    
+    # Serve the file
+    response = FileResponse(open(file_path, 'rb'), content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response

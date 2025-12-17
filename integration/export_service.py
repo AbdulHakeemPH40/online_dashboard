@@ -257,15 +257,10 @@ class ExportProcessor:
         
         # WRAP-SPECIFIC LOGIC
         if wrap == '10000':
-            # Wrap=10000: Calculate cases from outlet_stock
-            ocq = item.outer_case_quantity if item.outer_case_quantity is not None else 1
-            if ocq and ocq > 0:
-                cases = outlet_stock / float(ocq)
-            else:
-                cases = outlet_stock
-            
+            # Wrap=10000: outlet_stock is ALREADY in cases (divided by OCQ during stock update)
+            # No further division needed - compare directly with minimum_qty
             min_qty = item.minimum_qty if item.minimum_qty is not None else 1
-            return 1 if cases >= float(min_qty) else 0
+            return 1 if outlet_stock > float(min_qty) else 0  # GREATER than (not equal)
         else:
             # Wrap=9900: Direct comparison (outlet_stock already converted)
             # VALIDATION: minimum_qty must be set for wrap=9900
@@ -285,7 +280,7 @@ class ExportProcessor:
                     f"Stock conversion may be incorrect. Recommend setting WDF during item creation."
                 )
             
-            return 1 if outlet_stock >= float(min_qty) else 0
+            return 1 if outlet_stock > float(min_qty) else 0  # GREATER than (not equal)
     
     def determine_export_type(self) -> Tuple[str, Optional[datetime]]:
         """
@@ -364,54 +359,39 @@ class ExportProcessor:
         
         if export_type == 'partial' and last_export_timestamp:
             # DELTA EXPORT: Only include items with CHANGED values (selling_price or stock_status)
-            # Get all updated items since last export
-            from django.db.models import Q
+            # Compare current values vs last exported values for ALL items (not just recently updated)
             from decimal import Decimal
-            
-            # First, filter by timestamp to get candidates
-            comparison_timestamp = last_export_timestamp
-            if timezone.is_naive(comparison_timestamp):
-                comparison_timestamp = timezone.make_aware(
-                    comparison_timestamp,
-                    timezone.utc
-                )
-                logger.warning(
-                    f"Timezone-naive export_timestamp detected. "
-                    f"Converted to UTC: {comparison_timestamp}"
-                )
-            
-            # Get all items updated since last export
-            updated_items = base_query.filter(
-                Q(updated_at__gte=comparison_timestamp) |
-                Q(updated_at__isnull=True)  # Include new items
-            ).select_related('item')
-            
-            logger.info(
-                f"Partial export filter: updated_at >= {comparison_timestamp} (UTC) "
-                f"OR updated_at IS NULL"
-            )
-            
-            # Filter to ONLY items with changed selling_price OR stock_status
-            # Calculate current stock_status for each item
             from .views import calculate_outlet_enabled_status  # Import here to avoid circular imports
             
+            logger.info(
+                f"Partial export: comparing current values vs last exported values "
+                f"(last export: {last_export_timestamp} UTC)"
+            )
+            
+            # Get ALL active items and compare current vs exported values
+            all_items = base_query.select_related('item')
+            
             changed_items = []
-            for io in updated_items:
+            for io in all_items:
                 # Calculate current stock_status
                 current_stock_status = 1 if calculate_outlet_enabled_status(io.item, io.outlet_stock) else 0
                 
                 # Compare with last exported values
-                selling_price_changed = (io.outlet_selling_price or Decimal('0')) != (io.export_selling_price or Decimal('0'))
-                stock_status_changed = current_stock_status != (io.export_stock_status or 0)
+                current_price = io.outlet_selling_price or Decimal('0')
+                exported_price = io.export_selling_price or Decimal('0')
+                exported_status = io.export_stock_status if io.export_stock_status is not None else -1  # -1 = never exported
                 
-                # Include if ANY field changed
+                selling_price_changed = current_price != exported_price
+                stock_status_changed = current_stock_status != exported_status
+                
+                # Include if ANY field changed OR never exported before
                 if selling_price_changed or stock_status_changed:
                     logger.debug(
                         f"Item {io.item.item_code} marked for export: "
-                        f"price_changed={selling_price_changed}, "
-                        f"status_changed={stock_status_changed}"
+                        f"price: {exported_price} → {current_price}, "
+                        f"status: {exported_status} → {current_stock_status}"
                     )
-                    changed_items.append(io.id)  # Store IDs for final query
+                    changed_items.append(io.id)
             
             # Return only changed items
             if changed_items:
@@ -471,6 +451,7 @@ class ExportProcessor:
             
             export_data.append({
                 'sku': str(item.sku).strip(),
+                'barcode': str(item.barcode or '').strip(),
                 'selling_price': float(selling_price),
                 'stock_status': stock_status
             })

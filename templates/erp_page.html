@@ -1,0 +1,734 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load tz %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<style>
+/* ERP Container */
+.erp-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 24px;
+}
+
+/* Platform Badge */
+.platform-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    border: 1px solid transparent;
+}
+
+.platform-indicator.talabat {
+    background: linear-gradient(135deg, #ffedd5, #fed7aa);
+    color: #c2410c;
+    border-color: rgba(194, 65, 12, 0.1);
+}
+
+/* Content Area */
+.tab-content {
+    background: linear-gradient(180deg, #ffffff, #fafbfc);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.04);
+    min-height: 380px;
+    border: 1px solid rgba(0,0,0,0.04);
+}
+
+/* Export Card */
+.export-card {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 30px;
+}
+
+.export-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.export-info i {
+    font-size: 32px;
+    color: #ea580c;
+}
+
+.export-info h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 4px;
+}
+
+.export-info p {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* Form Styles */
+.export-form {
+    display: grid;
+    gap: 20px;
+}
+
+.export-form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.form-group select,
+.form-group input {
+    padding: 10px 14px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #374151;
+    background: white;
+    transition: all 0.15s ease;
+}
+
+.form-group select:focus,
+.form-group input:focus {
+    outline: none;
+    border-color: #ea580c;
+    box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
+}
+
+/* Export Type Cards */
+.export-type-cards {
+    display: flex;
+    gap: 16px;
+}
+
+.export-type-card {
+    flex: 1;
+    padding: 16px;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.export-type-card:hover {
+    border-color: #d1d5db;
+    background: #f9fafb;
+}
+
+.export-type-card.selected {
+    border-color: #ea580c;
+    background: linear-gradient(135deg, #fff7ed, #ffedd5);
+}
+
+.export-type-card h5 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.export-type-card p {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.export-type-card .radio-dot {
+    width: 18px;
+    height: 18px;
+    border: 2px solid #d1d5db;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.export-type-card.selected .radio-dot {
+    border-color: #ea580c;
+}
+
+.export-type-card.selected .radio-dot::after {
+    content: '';
+    width: 10px;
+    height: 10px;
+    background: #ea580c;
+    border-radius: 50%;
+}
+
+/* Export Preview */
+.export-preview {
+    background: #f8fafc;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.export-preview h5 {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 12px;
+}
+
+.export-fields {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.export-field-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 12px;
+    color: #374151;
+}
+
+.export-field-tag i {
+    color: #10b981;
+}
+
+/* Actions Row */
+.export-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* Buttons */
+.export-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.export-btn.primary {
+    background: linear-gradient(135deg, #ea580c, #dc2626);
+    color: white;
+}
+
+.export-btn.primary:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+}
+
+.export-btn.secondary {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.export-btn.secondary:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+/* Table Styles */
+.assortment-section {
+    margin-top: 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.assortment-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.assortment-table thead th {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.assortment-table tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #374151;
+}
+
+.assortment-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.file-name-cell {
+    font-weight: 500;
+    color: #c2410c;
+}
+
+.file-name-cell i {
+    margin-right: 6px;
+    color: #64748b;
+}
+
+.update-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.update-type-badge.bulk_creation { background: #f0fdf4; color: #15803d; }
+.update-type-badge.stock { background: #dcfce7; color: #166534; }
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status-badge.success { background: #dcfce7; color: #166534; }
+.status-badge.failed { background: #fee2e2; color: #991b1b; }
+.status-badge.validation_failed { background: #fef3c7; color: #92400e; }
+
+.records-cell {
+    font-family: 'SF Mono', 'Monaco', monospace;
+    font-size: 12px;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #9ca3af;
+}
+
+.empty-state i {
+    font-size: 48px;
+    margin-bottom: 12px;
+    display: block;
+    color: #d1d5db;
+}
+
+/* Pagination */
+.pagination-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.pagination-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: #f3f4f6;
+    border-color: #ea580c;
+    color: #ea580c;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-numbers {
+    display: flex;
+    gap: 4px;
+}
+
+.pagination-numbers button {
+    min-width: 36px;
+    height: 36px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #374151;
+    transition: all 0.2s;
+}
+
+.pagination-numbers button.active {
+    background: #ea580c;
+    border-color: #ea580c;
+    color: #fff;
+}
+
+.pagination-info {
+    margin-left: 16px;
+    font-size: 13px;
+    color: #6b7280;
+}
+</style>
+
+<div class="erp-container">
+    <div class="tab-content">
+        <div class="platform-indicator talabat">
+            <i class="bx bx-restaurant"></i> Talabat Platform - ERP Export
+        </div>
+        
+        <!-- Export Form -->
+        <div class="export-card">
+            <div class="export-info">
+                <i class="bx bx-data"></i>
+                <div>
+                    <h4>ERP Export Data</h4>
+                    <p>Export item codes, units, and converted prices for ERP system integration.</p>
+                </div>
+            </div>
+            
+            <div class="export-form" id="erp-export-form">
+                <!-- Row 1: Outlet Selection -->
+                <div class="export-form-row">
+                    <div class="form-group">
+                        <label>Select Outlet</label>
+                        <select id="erp-export-outlet">
+                            <option value="">-- Select Outlet --</option>
+                            {% for outlet in talabat_outlets %}
+                            <option value="{{ outlet.id }}">{{ outlet.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Row 2: Export Type -->
+                <div class="form-group">
+                    <label>Export Type</label>
+                    <div class="export-type-cards">
+                        <div class="export-type-card selected" data-type="full" onclick="selectERPExportType(this)">
+                            <h5><span class="radio-dot"></span> Full Export</h5>
+                            <p>Export all items for selected outlet</p>
+                        </div>
+                        <div class="export-type-card" data-type="partial" onclick="selectERPExportType(this)">
+                            <h5><span class="radio-dot"></span> Partial Export</h5>
+                            <p>Only items updated since last export</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Export Fields Preview -->
+                <div class="export-preview">
+                    <h5>Export Fields</h5>
+                    <div class="export-fields">
+                        <span class="export-field-tag"><i class="bx bx-check"></i> Party (DT0072)</span>
+                        <span class="export-field-tag"><i class="bx bx-check"></i> Item Code</span>
+                        <span class="export-field-tag"><i class="bx bx-check"></i> Location</span>
+                        <span class="export-field-tag"><i class="bx bx-check"></i> Unit</span>
+                        <span class="export-field-tag"><i class="bx bx-check"></i> Price (Converted)</span>
+                    </div>
+                    <p style="font-size: 11px; color: #6b7280; margin-top: 12px;">
+                        <i class="bx bx-info-circle"></i> 
+                        Price conversion: Wrap=9900 → Price × WDF | Wrap=10000 → Same Price
+                    </p>
+                </div>
+                
+                <!-- Actions -->
+                <div class="export-actions-row">
+                    <button class="export-btn primary" onclick="generateERPExport(event)">
+                        <i class="bx bx-download"></i> Generate Export
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Export History Table -->
+        <div class="assortment-section">
+            <div class="section-header">
+                <h4 class="section-title"><i class="bx bx-history"></i> ERP Export History</h4>
+            </div>
+            {% if erp_exports %}
+            <table class="assortment-table">
+                <thead>
+                    <tr>
+                        <th>File Name</th>
+                        <th>Created At</th>
+                        <th>Store</th>
+                        <th>Records</th>
+                        <th>Export Type</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="erp-export-tbody">
+                    {% for export in erp_exports %}
+                    <tr>
+                        <td class="file-name-cell">
+                            <i class="bx bx-file"></i>
+                            {% if export.file_name %}{{ export.file_name }}{% else %}<span style="color: #9ca3af;">-</span>{% endif %}
+                        </td>
+                        <td>{{ export.export_timestamp|date:"M d, Y H:i" }}</td>
+                        <td>{{ export.outlet.name }}</td>
+                        <td class="records-cell">{{ export.item_count }}</td>
+                        <td>
+                            <span class="update-type-badge {% if export.export_type == 'full' %}bulk_creation{% else %}stock{% endif %}">
+                                {{ export.get_export_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="status-badge {{ export.status }}">{{ export.get_status_display }}</span>
+                        </td>
+                        <td>
+                            {% if export.file_name and export.status == 'success' %}
+                            <a href="/integration/api/download-erp-export/?filename={{ export.file_name }}" class="export-btn secondary" style="padding: 6px 12px; font-size: 12px;" title="Download {{ export.file_name }}">
+                                <i class="bx bx-download"></i>
+                            </a>
+                            {% else %}
+                            <span style="color: #d1d5db;">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <!-- Pagination -->
+            <div class="pagination-container" id="erp-export-pagination">
+                <button class="pagination-btn" onclick="changeERPPage(-1)" id="erp-export-prev">
+                    <i class="bx bx-chevron-left"></i>
+                </button>
+                <div class="pagination-numbers" id="erp-export-pages"></div>
+                <button class="pagination-btn" onclick="changeERPPage(1)" id="erp-export-next">
+                    <i class="bx bx-chevron-right"></i>
+                </button>
+                <span class="pagination-info" id="erp-export-info"></span>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="bx bx-export"></i>
+                <p>No ERP exports yet. Generate an export above.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// ERP Export Type Selection
+function selectERPExportType(card) {
+    document.querySelectorAll('.export-type-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+}
+
+// Get selected export type
+function getSelectedERPExportType() {
+    const selected = document.querySelector('.export-type-card.selected');
+    return selected ? selected.dataset.type : 'full';
+}
+
+// Generate ERP Export
+function generateERPExport(event) {
+    const outletSelect = document.getElementById('erp-export-outlet');
+    const outletId = outletSelect.value;
+    
+    if (!outletId) {
+        showModal({
+            title: 'Outlet Required',
+            message: 'Please select an outlet before generating export.',
+            type: 'warning',
+            okText: 'OK'
+        });
+        return;
+    }
+    
+    const exportType = getSelectedERPExportType();
+    const url = `/integration/api/erp-export/?outlet_id=${outletId}&export_type=${exportType}`;
+    
+    // Show loading state
+    const btn = event.target.closest('button');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Generating...';
+    btn.disabled = true;
+    
+    // Call API to generate export (saves to disk, returns JSON)
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            
+            if (data.success) {
+                showModal({
+                    title: 'Export Generated',
+                    message: data.message + ' You can download it from the Export History below.',
+                    type: 'success',
+                    okText: 'OK',
+                    onOk: () => location.reload()
+                });
+            } else {
+                showModal({
+                    title: 'Export Failed',
+                    message: data.message || 'An error occurred during export.',
+                    type: 'error',
+                    okText: 'OK'
+                });
+            }
+        })
+        .catch(error => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+            showModal({
+                title: 'Export Error',
+                message: 'Network error occurred. Please try again.',
+                type: 'error',
+                okText: 'OK'
+            });
+        });
+}
+
+// Pagination for ERP Export History
+let erpCurrentPage = 1;
+const erpRowsPerPage = 10;
+
+function initERPPagination() {
+    const tbody = document.getElementById('erp-export-tbody');
+    if (!tbody) return;
+    
+    const rows = tbody.querySelectorAll('tr');
+    const totalPages = Math.ceil(rows.length / erpRowsPerPage);
+    
+    updateERPPagination(rows.length, totalPages);
+    showERPPage(1, rows);
+}
+
+function showERPPage(page, rows) {
+    if (!rows) {
+        const tbody = document.getElementById('erp-export-tbody');
+        if (!tbody) return;
+        rows = tbody.querySelectorAll('tr');
+    }
+    
+    const start = (page - 1) * erpRowsPerPage;
+    const end = start + erpRowsPerPage;
+    
+    rows.forEach((row, index) => {
+        row.style.display = (index >= start && index < end) ? '' : 'none';
+    });
+    
+    erpCurrentPage = page;
+    updateERPPaginationInfo(rows.length);
+}
+
+function changeERPPage(delta) {
+    const tbody = document.getElementById('erp-export-tbody');
+    if (!tbody) return;
+    
+    const rows = tbody.querySelectorAll('tr');
+    const totalPages = Math.ceil(rows.length / erpRowsPerPage);
+    const newPage = erpCurrentPage + delta;
+    
+    if (newPage >= 1 && newPage <= totalPages) {
+        showERPPage(newPage, rows);
+        updateERPPagination(rows.length, totalPages);
+    }
+}
+
+function updateERPPagination(totalRows, totalPages) {
+    const pagesContainer = document.getElementById('erp-export-pages');
+    if (!pagesContainer) return;
+    
+    pagesContainer.innerHTML = '';
+    
+    for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        btn.className = i === erpCurrentPage ? 'active' : '';
+        btn.onclick = () => {
+            showERPPage(i);
+            updateERPPagination(totalRows, totalPages);
+        };
+        pagesContainer.appendChild(btn);
+    }
+    
+    // Update prev/next buttons
+    document.getElementById('erp-export-prev').disabled = erpCurrentPage === 1;
+    document.getElementById('erp-export-next').disabled = erpCurrentPage === totalPages;
+}
+
+function updateERPPaginationInfo(totalRows) {
+    const info = document.getElementById('erp-export-info');
+    if (!info) return;
+    
+    const start = (erpCurrentPage - 1) * erpRowsPerPage + 1;
+    const end = Math.min(erpCurrentPage * erpRowsPerPage, totalRows);
+    info.textContent = `Showing ${start}-${end} of ${totalRows}`;
+}
+
+// Initialize pagination on page load
+document.addEventListener('DOMContentLoaded', initERPPagination);
+</script>
+{% endblock %}

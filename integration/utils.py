@@ -694,3 +694,180 @@ def update_item_outlet_hash(item_outlet) -> None:
         item_outlet: ItemOutlet model instance (will be modified in-place)
     """
     item_outlet.data_hash = compute_hash_from_item_outlet(item_outlet)
+
+
+# =============================================================================
+# WRAP9900 PRICING & CASCADE HELPERS - HYBRID REUSABLE FUNCTIONS
+# Used by both product_update() and price_update() for consistency
+# =============================================================================
+
+def normalize_units(units_str: str) -> str:
+    """
+    Normalize units string for comparison: remove dots, lowercase, strip whitespace.
+    Examples: 'K.G.S' -> 'kgs', 'KG.S' -> 'kgs', '  Pcs  ' -> 'pcs'
+    
+    Args:
+        units_str: Raw units string from model
+        
+    Returns:
+        Normalized units string
+    """
+    return (units_str or '').replace('.', '').lower().strip()
+
+
+def is_parent_item(item) -> bool:
+    """
+    Detect if item is a PARENT for wrap=9900 cascade logic.
+    Parent detection uses WDF == 1 (NOT SKU comparison which is unreliable).
+    
+    Args:
+        item: Item model instance
+        
+    Returns:
+        True if item is parent (WDF=1), False if child (WDF>1) or not wrap item
+    """
+    if item.wrap != '9900':
+        return False
+    wdf = item.weight_division_factor or Decimal('1')
+    return wdf == Decimal('1')
+
+
+def calculate_item_selling_price(
+    item,
+    mrp: Decimal,
+    platform: str
+) -> Decimal:
+    """
+    Calculate correct selling_price for an item based on wrap type, WDF, and platform.
+    Handles both parent and child items correctly.
+    
+    For wrap=9900:
+    - Parent (WDF=1): selling_price = MRP (or with margin for Talabat)
+    - Child (WDF>1): selling_price = MRP / WDF (then margin for Talabat)
+    
+    For wrap=10000 or no wrap:
+    - selling_price = MRP (or with margin for Talabat)
+    
+    Args:
+        item: Item model instance
+        mrp: MRP value (Decimal)
+        platform: 'pasons' or 'talabat'
+        
+    Returns:
+        Decimal: selling_price to store in item.selling_price
+    """
+    from .utils import PricingCalculator
+    
+    if item.wrap == '9900':
+        # Wrap item: use WDF to determine parent vs child
+        wdf = item.weight_division_factor or Decimal('1')
+        is_parent = wdf == Decimal('1')
+        
+        if platform == 'talabat':
+            # Talabat: apply margin
+            if is_parent:
+                # Parent: MRP with margin
+                selling_price, _ = PricingCalculator.calculate_talabat_price(
+                    mrp,
+                    margin_percentage=item.effective_talabat_margin
+                )
+            else:
+                # Child: MRP/WDF first, then margin
+                base_price = (mrp / wdf).quantize(Decimal('0.01'))
+                selling_price, _ = PricingCalculator.calculate_talabat_price(
+                    base_price,
+                    margin_percentage=item.effective_talabat_margin
+                )
+        else:
+            # Pasons: no margin
+            if is_parent:
+                selling_price = mrp
+            else:
+                # Child: divide MRP by WDF
+                selling_price = (mrp / wdf).quantize(Decimal('0.01'))
+    else:
+        # Regular items (wrap=10000 or no wrap)
+        if platform == 'talabat':
+            selling_price, _ = PricingCalculator.calculate_talabat_price(
+                mrp,
+                margin_percentage=item.effective_talabat_margin
+            )
+        else:
+            # Pasons: MRP as-is
+            selling_price = mrp
+    
+    return selling_price
+
+
+def calculate_item_converted_cost(
+    item,
+    cost: Decimal
+) -> Decimal:
+    """
+    Calculate converted_cost for an item based on wrap type and WDF.
+    
+    For wrap=9900: converted_cost = cost / WDF (3 decimals)
+    For wrap=10000 or no wrap: converted_cost = cost
+    
+    Args:
+        item: Item model instance
+        cost: Raw cost value (Decimal)
+        
+    Returns:
+        Decimal: converted_cost value (3 decimal places for wrap=9900, 2 for others)
+    """
+    if item.wrap == '9900':
+        wdf = item.weight_division_factor or Decimal('1')
+        if wdf > 0:
+            return (cost / wdf).quantize(Decimal('0.001'))
+        else:
+            return cost
+    else:
+        # Regular items: converted_cost = cost (no division)
+        return cost
+
+
+def should_cascade_to_child(
+    parent_item,
+    child_item,
+    parent_item_code: str
+) -> bool:
+    """
+    Check if cascade should apply from parent to child item.
+    Validates parent-child relationship for wrap=9900 items.
+    
+    Cascade rules:
+    1. Parent must have wrap=9900
+    2. Child must have wrap=9900
+    3. Child WDF must be > 1 (not another parent)
+    4. Child SKU must start with parent item_code (e.g., 9900422 -> 9900422500)
+    5. Units must match after normalization
+    
+    Args:
+        parent_item: Parent Item model instance
+        child_item: Child Item model instance
+        parent_item_code: Parent's item_code string
+        
+    Returns:
+        bool: True if cascade should apply, False otherwise
+    """
+    if parent_item.wrap != '9900' or child_item.wrap != '9900':
+        return False
+    
+    child_wdf = child_item.weight_division_factor or Decimal('1')
+    
+    # Only cascade to children (WDF > 1), not to other parents
+    if child_wdf == Decimal('1'):
+        return False
+    
+    # SKU must start with parent item_code
+    if not str(child_item.sku).startswith(str(parent_item_code)):
+        return False
+    
+    # Units must match (after normalization)
+    parent_units = normalize_units(parent_item.units)
+    child_units = normalize_units(child_item.units)
+    if parent_units != child_units:
+        return False
+    
+    return True

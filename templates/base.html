@@ -70,7 +70,7 @@
             <a href="{% url 'dashboard' %}" class="{% if active_nav == 'dashboard' %}active{% endif %}">Pasons</a>
             <a href="{% url 'talabat_dashboard' %}"
                 class="{% if active_nav == 'talabat' %}active{% endif %}">Talabat</a>
-            <a href="#" onclick="showModal({ title: 'ERP', message: 'Integration coming soon!', type: 'info', okText: 'OK' }); return false;"
+            <a href="{% url 'integration:erp_page' %}"
                 class="{% if active_nav == 'erp' %}active{% endif %}">ERP</a>
         </nav>
     </header>

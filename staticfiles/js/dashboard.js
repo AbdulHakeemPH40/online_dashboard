@@ -327,12 +327,14 @@ function cascadeBLSStatusFromCLS(itemCode, lock) {
     });
 }
 
-function toggleClsStatusLock(itemCode, desired, checkboxEl) {
+function toggleClsStatusLock(itemCode, desired, checkboxEl, units) {
     // If no item code (not loaded yet), just update UI disable state
     if (!itemCode) { disableBLSStatusUi(!!desired); return; }
     const formData = new FormData();
     formData.append('item_code', itemCode);
     formData.append('value', desired ? 'lock' : 'unlock');
+    formData.append('platform', getPlatform());  // Add platform for correct item lookup
+    if (units) formData.append('units', units);  // Add units for unique identification
     const csrftoken = getCSRFToken();
     if (!csrftoken) {
         showModal({ title: 'Security Error', message: 'CSRF token missing. Please refresh the page.', type: 'error' });
@@ -367,7 +369,7 @@ function toggleClsStatusLock(itemCode, desired, checkboxEl) {
 }
 
 // Toggle CLS Price Lock and cascade to outlet price UI
-function toggleClsPriceLock(itemCode, desired, checkboxEl) {
+function toggleClsPriceLock(itemCode, desired, checkboxEl, units) {
     // If no item code (not loaded yet), just update UI disable state
     if (!itemCode) { disableBLSPriceUi(!!desired); return; }
 
@@ -375,6 +377,8 @@ function toggleClsPriceLock(itemCode, desired, checkboxEl) {
     formData.append('item_code', itemCode);
     formData.append('lock_type', 'price');
     formData.append('value', desired ? 'lock' : 'unlock');
+    formData.append('platform', getPlatform());  // Add platform for correct item lookup
+    if (units) formData.append('units', units);  // Add units for unique identification
     const csrftoken = getCSRFToken();
     if (!csrftoken) {
         showModal({ title: 'Security Error', message: 'CSRF token missing. Please refresh the page.', type: 'error' });
@@ -1008,8 +1012,10 @@ document.addEventListener('DOMContentLoaded', function() {
         clsStatus.addEventListener('change', () => {
             const itemCodeInput = document.querySelector('[name="item_code"]');
             const itemCode = itemCodeInput ? itemCodeInput.value.trim() : '';
+            const unitsInput = document.querySelector('[name="units"]');
+            const units = unitsInput ? unitsInput.value.trim() : '';
             // If no item code, only change UI disable state; otherwise also persist to backend
-            toggleClsStatusLock(itemCode, clsStatus.checked, clsStatus);
+            toggleClsStatusLock(itemCode, clsStatus.checked, clsStatus, units);
         });
     }
 
@@ -1019,7 +1025,9 @@ document.addEventListener('DOMContentLoaded', function() {
         clsPrice.addEventListener('change', () => {
             const itemCodeInput = document.querySelector('[name="item_code"]');
             const itemCode = itemCodeInput ? itemCodeInput.value.trim() : '';
-            toggleClsPriceLock(itemCode, clsPrice.checked, clsPrice);
+            const unitsInput = document.querySelector('[name="units"]');
+            const units = unitsInput ? unitsInput.value.trim() : '';
+            toggleClsPriceLock(itemCode, clsPrice.checked, clsPrice, units);
         });
     }
 
