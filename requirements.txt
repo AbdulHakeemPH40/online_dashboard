@@ -3,7 +3,8 @@ Django==4.2.7
 asgiref==3.9.1
 sqlparse==0.5.3
 tzdata==2025.2
-mysqlclient>=2.1.0
+# mysqlclient>=2.1.0  # Only needed for PythonAnywhere (MySQL). Skip on DigitalOcean (SQLite)
+gunicorn==21.2.0  # WSGI server for DigitalOcean
 
 # Django Extensions
 django-cors-headers==4.3.1
