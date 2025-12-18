@@ -2193,7 +2193,7 @@ def item_outlets_api(request):
                         else (float(io.outlet_cost) if io.outlet_cost is not None else 0.00)
                     ),
                     # MRP and S.Price (OUTLET-SPECIFIC, not global)
-                    'outlet_mrp': float(io.outlet_mrp) if io.outlet_mrp else 0.00,
+                    'outlet_mrp': float(io.outlet_mrp) if io.outlet_mrp is not None else 0.00,
                     'outlet_selling_price': float(price),
                     # BLS states
                     'locked': bool(getattr(io, 'price_locked', False)),
@@ -2211,11 +2211,11 @@ def item_outlets_api(request):
             'units': item.units,  # ADDED: Include units for unique identification
             'sku': item.sku,  # ADDED: SKU for unique item identification
             'wrap': item.wrap,  # ADDED: wrap type (9900 or 10000)
-            'mrp': float(item.mrp),
-            'cost': float(item.cost),
-            'converted_cost': float(item.converted_cost) if item.converted_cost else None,
-            'selling_price': float(item.selling_price),
-            'weight_division_factor': float(item.weight_division_factor) if item.weight_division_factor else None,
+            'mrp': float(item.mrp) if item.mrp is not None else 0.00,
+            'cost': float(item.cost) if item.cost is not None else 0.00,
+            'converted_cost': float(item.converted_cost) if item.converted_cost is not None else None,
+            'selling_price': float(item.selling_price) if item.selling_price is not None else 0.00,
+            'weight_division_factor': float(item.weight_division_factor) if item.weight_division_factor is not None else None,
             # Talabat margin (uses effective_talabat_margin which auto-detects if not set)
             'talabat_margin': float(item.effective_talabat_margin) if item.platform == 'talabat' else None,
             # CLS states
