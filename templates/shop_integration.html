@@ -913,6 +913,21 @@
                                 </div>
                             </div>
                             
+                            <!-- Row 3: Promotion Filter -->
+                            <div class="form-group">
+                                <label>Promotion Items</label>
+                                <div class="export-type-cards">
+                                    <div class="export-type-card selected" data-promo="include" onclick="selectPromoFilter(this, 'pasons')">
+                                        <h5><span class="radio-dot"></span> Include Promotions</h5>
+                                        <p>Export all items including promotions</p>
+                                    </div>
+                                    <div class="export-type-card" data-promo="exclude" onclick="selectPromoFilter(this, 'pasons')">
+                                        <h5><span class="radio-dot"></span> Exclude Promotions</h5>
+                                        <p>Export only non-promotion items</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <!-- Export Fields Preview -->
                             <div class="export-preview">
                                 <h5>Export Fields</h5>
@@ -1112,6 +1127,21 @@
                                     <div class="export-type-card" data-type="partial" onclick="selectExportType(this, 'talabat')">
                                         <h5><span class="radio-dot"></span> Partial Export</h5>
                                         <p>Only items updated since last export</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Row 3: Promotion Filter -->
+                            <div class="form-group">
+                                <label>Promotion Items</label>
+                                <div class="export-type-cards">
+                                    <div class="export-type-card selected talabat" data-promo="include" onclick="selectPromoFilter(this, 'talabat')">
+                                        <h5><span class="radio-dot"></span> Include Promotions</h5>
+                                        <p>Export all items including promotions</p>
+                                    </div>
+                                    <div class="export-type-card" data-promo="exclude" onclick="selectPromoFilter(this, 'talabat')">
+                                        <h5><span class="radio-dot"></span> Exclude Promotions</h5>
+                                        <p>Export only non-promotion items</p>
                                     </div>
                                 </div>
                             </div>
@@ -1473,6 +1503,21 @@ function selectExportType(card, platform) {
     }
 }
 
+// Promotion Filter Selection
+function selectPromoFilter(card, platform) {
+    const container = card.parentElement;
+    container.querySelectorAll('.export-type-card').forEach(c => {
+        c.classList.remove('selected');
+        if (platform === 'talabat') {
+            c.classList.remove('talabat');
+        }
+    });
+    card.classList.add('selected');
+    if (platform === 'talabat') {
+        card.classList.add('talabat');
+    }
+}
+
 // Generate Export
 function generateExport(platform) {
     const outletSelect = document.getElementById(`${platform}-export-outlet`);
@@ -1486,11 +1531,20 @@ function generateExport(platform) {
     
     // Get selected export type
     const formContainer = document.getElementById(`${platform}-export-form`);
-    const selectedCard = formContainer.querySelector('.export-type-card.selected');
-    const exportType = selectedCard?.dataset.type || 'full';
+    const selectedTypeCard = formContainer.querySelector('.export-type-card.selected[data-type]');
+    const exportType = selectedTypeCard?.dataset.type || 'full';
+    
+    // Get selected promotion filter
+    const selectedPromoCard = formContainer.querySelector('.export-type-card.selected[data-promo]');
+    const promoFilter = selectedPromoCard?.dataset.promo || 'include';
     
     // Build export URL
-    const url = `/integration/api/export-feed/?platform=${platform}&outlet_id=${outletId}&export_type=${exportType}`;
+    let url = `/integration/api/export-feed/?platform=${platform}&outlet_id=${outletId}&export_type=${exportType}`;
+    
+    // Add promotion filter parameter
+    if (promoFilter === 'exclude') {
+        url += '&exclude_promotions=true';
+    }
     
     // Trigger download
     window.location.href = url;

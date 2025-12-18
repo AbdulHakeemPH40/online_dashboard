@@ -3357,6 +3357,7 @@ def export_feed_api(request):
     platform = request.GET.get('platform', '').strip()
     outlet_id = request.GET.get('outlet_id', '').strip()
     export_type_param = request.GET.get('export_type', '').strip()  # Can be '', 'full', or 'partial'
+    exclude_promotions = request.GET.get('exclude_promotions', '').strip().lower() in ('true', '1', 'yes')
     
     # VALIDATION 1: Platform
     if platform not in ('pasons', 'talabat'):
@@ -3399,7 +3400,8 @@ def export_feed_api(request):
         # Execute export
         export_data, export_history = export_service.export(
             user=request.user if request.user.is_authenticated else None,
-            manual_export_type=manual_export_type
+            manual_export_type=manual_export_type,
+            exclude_promotions=exclude_promotions
         )
         
         # Check if export succeeded
@@ -3583,6 +3585,7 @@ def erp_export_api(request):
         # Get parameters
         outlet_id = request.GET.get('outlet_id', '').strip()
         export_type = request.GET.get('export_type', 'full').strip()
+        exclude_promotions = request.GET.get('exclude_promotions', '').strip().lower() in ('true', '1', 'yes')
         
         if not outlet_id:
             return JsonResponse({'success': False, 'message': 'outlet_id is required'})
@@ -3610,6 +3613,11 @@ def erp_export_api(request):
             item__platform='talabat',
             is_active_in_outlet=True
         ).select_related('item')
+        
+        # Filter out promotion items if requested
+        if exclude_promotions:
+            item_outlets = item_outlets.filter(is_on_promotion=False)
+            logger.info(f"ERP Export: Excluding promotion items")
         
         # For partial export, compare with last export
         if export_type == 'partial':

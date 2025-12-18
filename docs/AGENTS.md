@@ -554,6 +554,7 @@ python manage.py collectstatic
 - Don't delete items without checking platform
 - Don't skip CSV validation
 - Don't hardcode platform values in templates
+- **Don't add DecimalFields to existing tables without proper NULL handling in migrations**
 
 ### ✅ DO
 - Always specify platform when creating items/outlets
@@ -564,6 +565,80 @@ python manage.py collectstatic
 - Log all critical operations
 - Handle encoding issues in CSV uploads
 - Use transactions for multi-step operations
+- **When adding DecimalFields to existing tables, explicitly set `null=True, blank=True` and ensure migrations set default to NULL**
+- **Always check `is not None` before converting Decimal/float values in API responses**
+
+---
+
+## Critical Lessons Learned
+
+### Database Migration: DecimalField Corruption Issue (Dec 2024)
+
+**Problem**: After adding new DecimalField columns (`converted_promo`, `promo_price`, `original_selling_price`) to the `ItemOutlet` model via migrations, the production database had corrupted/invalid values in these fields. This caused `TypeError: argument must be int or float` when Django's SQLite backend tried to convert the values to Python Decimal objects.
+
+**Root Cause**:
+- SQLite stored invalid data in DecimalField columns during migration
+- Django's `create_decimal(value)` converter crashed when encountering non-numeric values
+- Error occurred at the database layer (before Python code execution), making it hard to debug
+- The error appeared in: `django/db/backends/sqlite3/operations.py:342`
+
+**Symptoms**:
+- API endpoints returned: `"Outlet availability error: argument must be int or float"`
+- Error occurred when iterating over `ItemOutlet.objects.all()`
+- Fixing Python code (NULL checks) didn't help because error was in database layer
+- Local environment worked fine (clean data), production failed (corrupted data)
+
+**Solution**:
+```python
+# Use raw SQL to bypass Django ORM and clean corrupted data
+from django.db import connection
+cursor = connection.cursor()
+cursor.execute("""
+    UPDATE integration_itemoutlet 
+    SET converted_promo = NULL, 
+        promo_price = NULL, 
+        original_selling_price = NULL
+""")
+connection.commit()
+```
+
+**Prevention**:
+1. **Migration Design**:
+   ```python
+   # ✅ CORRECT - Always set null=True for new DecimalFields on existing tables
+   class Migration(migrations.Migration):
+       operations = [
+           migrations.AddField(
+               model_name='itemoutlet',
+               name='converted_promo',
+               field=models.DecimalField(
+                   max_digits=10, 
+                   decimal_places=2, 
+                   null=True,  # ← CRITICAL
+                   blank=True,
+                   default=None  # ← Explicit NULL default
+               ),
+           ),
+       ]
+   ```
+
+2. **Code Safety**:
+   ```python
+   # ✅ CORRECT - Always check is not None before float() conversion
+   'mrp': float(item.mrp) if item.mrp is not None else 0.00
+   'talabat_margin': float(item.effective_talabat_margin) if item.platform == 'talabat' and item.effective_talabat_margin is not None else None
+   
+   # ❌ WRONG - Will crash if value is None
+   'mrp': float(item.mrp)
+   'talabat_margin': float(item.effective_talabat_margin) if platform == 'talabat' else None
+   ```
+
+3. **Testing**:
+   - Always test migrations on a copy of production database
+   - Check for NULL/invalid values after migration
+   - Test API endpoints after deploying migrations
+
+**Key Takeaway**: When adding DecimalFields to tables with existing data, the migration must explicitly set values to NULL. Never rely on implicit defaults or assume Django will handle it correctly, especially with SQLite.
 
 ---
 
