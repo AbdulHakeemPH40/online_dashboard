@@ -2225,6 +2225,8 @@ def item_outlets_api(request):
 
         return JsonResponse({'success': True, 'product': product, 'outlets': outlets})
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return JsonResponse({'success': False, 'message': f'Outlet availability error: {str(e)}'})
 
 
