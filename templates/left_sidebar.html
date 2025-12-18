@@ -53,20 +53,32 @@
                             <i class="bx bx-cube nav-icon">📊</i>
                             <span>Rules Update (Stock)</span>
                         </a>
+                        <a href="{% url 'integration:bulk_promotion_update' %}" class="dropdown-link">
+                            <i class="bx bx-purchase-tag nav-icon">🏷️</i>
+                            <span>Promotion Update</span>
+                        </a>
                         <a href="{% url 'integration:bulk_item_creation' %}" class="dropdown-link">
                             <i class="bx bx-plus-circle nav-icon">➕</i>
                             <span>Bulk Item Creation</span>
                         </a>
+
                         <a href="{% url 'integration:item_deletion' %}" class="dropdown-link">
                             <i class="bx bx-trash nav-icon">🗑️</i>
                             <span>Item Deletion</span>
                         </a>
+                        
                     </div>
                 </li>
                 <li class="nav-item">
                     <a href="{% url 'integration:shop_integration' %}" class="nav-link">
                         <i class="bx bx-link nav-icon">🔗</i>
                         <span class="nav-text">Shop Integration</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'integration:promotion_update' %}" class="nav-link">
+                        <i class="bx bx-purchase-tag nav-icon">🏷️</i>
+                        <span class="nav-text">Promotion Update</span>
                     </a>
                 </li>
             </ul>
