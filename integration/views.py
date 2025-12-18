@@ -306,7 +306,7 @@ def list_items_api(request):
                 'lock_status': 'N/A',
                 'cost': float(item.cost),
                 'sku': item.sku,
-                'talabat_margin': float(item.effective_talabat_margin) if platform == 'talabat' else None,
+                'talabat_margin': float(item.effective_talabat_margin) if platform == 'talabat' and item.effective_talabat_margin is not None else None,
             })
 
         return JsonResponse({
@@ -1958,7 +1958,7 @@ def search_product_api(request):
                     'weight_division_factor': item.weight_division_factor,
                     'outer_case_quantity': item.outer_case_quantity,
                     'minimum_qty': item.minimum_qty,
-                    'talabat_margin': float(item.effective_talabat_margin) if platform == 'talabat' else None,
+                    'talabat_margin': float(item.effective_talabat_margin) if platform == 'talabat' and item.effective_talabat_margin is not None else None,
                     'combination_key': combination_key
                 })
 
@@ -2026,7 +2026,7 @@ def search_product_api(request):
                     'weight_division_factor': item.weight_division_factor,
                     'outer_case_quantity': item.outer_case_quantity,
                     'minimum_qty': item.minimum_qty,
-                    'talabat_margin': float(item.effective_talabat_margin) if platform == 'talabat' else None,
+                    'talabat_margin': float(item.effective_talabat_margin) if platform == 'talabat' and item.effective_talabat_margin is not None else None,
                     'combination_key': combination_key
                 })
             
@@ -2217,7 +2217,7 @@ def item_outlets_api(request):
             'selling_price': float(item.selling_price) if item.selling_price is not None else 0.00,
             'weight_division_factor': float(item.weight_division_factor) if item.weight_division_factor is not None else None,
             # Talabat margin (uses effective_talabat_margin which auto-detects if not set)
-            'talabat_margin': float(item.effective_talabat_margin) if item.platform == 'talabat' else None,
+            'talabat_margin': float(item.effective_talabat_margin) if item.platform == 'talabat' and item.effective_talabat_margin is not None else None,
             # CLS states
             'price_locked': bool(getattr(item, 'price_locked', False)),
             'status_locked': bool(getattr(item, 'status_locked', False)),
