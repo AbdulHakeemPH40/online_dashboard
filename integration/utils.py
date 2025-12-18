@@ -448,18 +448,37 @@ def decode_csv_upload(uploaded_file):
     """
     Decode an uploaded CSV file with sensible encoding fallbacks.
     Tries 'utf-8', 'utf-8-sig', 'cp1252' (Windows), then 'latin-1'.
+    Also strips BOM and invisible characters from the beginning.
     Returns (text, encoding_used).
     """
     raw = uploaded_file.read()
     for enc in ('utf-8', 'utf-8-sig', 'cp1252', 'latin-1'):
         try:
             text = raw.decode(enc)
+            # Strip BOM and other invisible characters from the start
+            # \ufeff is the BOM character, also strip zero-width chars
+            text = text.lstrip('\ufeff\ufffe\u200b\u200c\u200d\u2060')
             return text, enc
         except UnicodeDecodeError:
             continue
     # Last resort: replace invalid bytes in utf-8
     text = raw.decode('utf-8', errors='replace')
+    text = text.lstrip('\ufeff\ufffe\u200b\u200c\u200d\u2060')
     return text, 'utf-8 (errors=replace)'
+
+
+def normalize_csv_header(header):
+    """
+    Normalize a CSV header by removing BOM, invisible characters, and whitespace.
+    """
+    if not header:
+        return ''
+    # Remove BOM and zero-width characters
+    cleaned = header.replace('\ufeff', '').replace('\ufffe', '')
+    cleaned = cleaned.replace('\u200b', '').replace('\u200c', '')
+    cleaned = cleaned.replace('\u200d', '').replace('\u2060', '')
+    # Strip whitespace and convert to lowercase
+    return cleaned.strip().lower()
 
 
 # --- Stock Validation Utilities ---

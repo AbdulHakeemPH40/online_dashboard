@@ -19,6 +19,7 @@ numpy>=1.24.0
 pandas>=2.0.0
 python-dateutil==2.9.0.post0
 pytz==2025.2
+openpyxl==3.1.5
 
 # AI / OpenAI (Optional - for AI pricing features)
 openai==2.9.0

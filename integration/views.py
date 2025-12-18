@@ -7,12 +7,14 @@ from django.core.cache import cache
 from django.views.decorators.http import require_http_methods
 from .models import Outlet, Item, ItemOutlet
 from .utils import decode_csv_upload
+from .promotion_service import PromotionService
 import logging
 from decimal import Decimal, InvalidOperation
 from django.db.models import Q, Sum
 from django.core.paginator import Paginator
 from functools import wraps
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -564,7 +566,9 @@ def bulk_item_creation(request):
                 optional_headers = {'barcode', 'mrp', 'selling_price', 'cost', 'stock', 'weight_division_factor', 'outer_case_quantity', 'minimum_qty'}
                 allowed_headers = required_headers | optional_headers
                 # Filter out empty header fields (from trailing delimiters)
-                headers = [h.strip().lower() for h in (csv_reader.fieldnames or []) if h and h.strip()]
+                # Use normalize_csv_header for proper BOM/invisible char handling
+                from .utils import normalize_csv_header
+                headers = [normalize_csv_header(h) for h in (csv_reader.fieldnames or []) if h and h.strip()]
                 if not headers:
                     messages.error(request, 'CSV file is missing a header row. Include headers exactly as specified.')
                     return redirect('integration:bulk_item_creation')
@@ -1045,7 +1049,9 @@ def product_update(request):
                 messages.error(request, "CSV file has no headers")
                 return redirect('integration:product_update')
             
-            headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
+            # Import normalize_csv_header for proper BOM/invisible char handling
+            from .utils import normalize_csv_header
+            headers = [normalize_csv_header(h) for h in csv_reader.fieldnames if h and h.strip()]
             
             # Determine allowed headers based on update_type
             base_headers = {'item_code', 'units'}
@@ -1089,7 +1095,7 @@ def product_update(request):
             # Parse all rows
             csv_rows = []
             for row_num, original_row in enumerate(csv_reader, start=2):
-                row = {k.strip().lower(): v.strip() if v else '' for k, v in original_row.items()}
+                row = {normalize_csv_header(k): v.strip() if v else '' for k, v in original_row.items()}
                 if row.get('item_code') and row.get('units'):
                     csv_rows.append((row_num, row))
             
@@ -1155,8 +1161,7 @@ def product_update(request):
                     outlets_map[io.item_id] = io
             
             # Collect updates for bulk operations - use SETS for O(1) lookups
-            items_to_update_set = set()
-            items_to_update = []
+            # NOTE: We only update ItemOutlet, not shared Item model (to prevent cross-outlet contamination)
             outlets_to_update_set = set()
             outlets_to_update = []
             outlets_to_create = []
@@ -1184,6 +1189,7 @@ def product_update(request):
                                 is_new_outlet = False
                                 
                                 if not item_outlet:
+                                    # Create new ItemOutlet with Item defaults
                                     item_outlet = ItemOutlet(
                                         item=item,
                                         outlet=outlet,
@@ -1197,7 +1203,6 @@ def product_update(request):
                                     outlets_to_create.append(item_outlet)
                                     is_new_outlet = True
                                 
-                                item_changed = False
                                 outlet_changed = False
                                 
                                 # CHECK LOCKS before processing updates
@@ -1208,7 +1213,7 @@ def product_update(request):
                                 bls_price_locked = bool(getattr(item_outlet, 'price_locked', False))
                                 bls_status_locked = bool(getattr(item_outlet, 'status_locked', False))
                                 
-                                # Process MRP - OPTIMIZED: No cascade, direct update only
+                                # Process MRP - OUTLET-SPECIFIC ONLY (do NOT update shared Item model)
                                 # SKIP if price is locked (CLS or BLS)
                                 if 'mrp' in present_value_headers:
                                     mrp_str = row.get('mrp', '').strip()
@@ -1225,18 +1230,10 @@ def product_update(request):
                                                 
                                                 mrp_rounded = new_mrp.quantize(Decimal('0.01'))
                                                 
-                                                # Update item MRP
-                                                if item.mrp != mrp_rounded:
-                                                    item.mrp = mrp_rounded
-                                                    item_changed = True
-                                                
                                                 # Calculate selling price with proper conversion
                                                 new_selling_price = calculate_item_selling_price(item, mrp_rounded, platform)
-                                                if item.selling_price != new_selling_price:
-                                                    item.selling_price = new_selling_price
-                                                    item_changed = True
                                                 
-                                                # Update outlet MRP and selling price
+                                                # ONLY update outlet MRP and selling price (NOT shared Item model)
                                                 current_outlet_mrp = item_outlet.outlet_mrp or Decimal('0')
                                                 if current_outlet_mrp != mrp_rounded:
                                                     item_outlet.outlet_mrp = mrp_rounded
@@ -1250,7 +1247,7 @@ def product_update(request):
                                             except InvalidOperation:
                                                 errors.append(f"Row {row_num}: Invalid MRP '{mrp_str}'")
                                 
-                                # Process Cost
+                                # Process Cost - OUTLET-SPECIFIC ONLY (do NOT update shared Item model)
                                 if 'cost' in present_value_headers:
                                     cost_str = row.get('cost', '').strip()
                                     if cost_str:
@@ -1259,13 +1256,7 @@ def product_update(request):
                                             if new_cost < 0:
                                                 new_cost = Decimal('0')
                                             
-                                            # Update item cost
-                                            if item.cost != new_cost:
-                                                item.cost = new_cost
-                                                item.converted_cost = calculate_item_converted_cost(item, new_cost)
-                                                item_changed = True
-                                            
-                                            # Update outlet cost
+                                            # ONLY update outlet cost (NOT shared Item model)
                                             current_outlet_cost = item_outlet.outlet_cost or Decimal('0')
                                             if current_outlet_cost != new_cost:
                                                 item_outlet.outlet_cost = new_cost
@@ -1274,7 +1265,7 @@ def product_update(request):
                                         except InvalidOperation:
                                             errors.append(f"Row {row_num}: Invalid cost '{cost_str}'")
                                 
-                                # Process Stock
+                                # Process Stock - OUTLET-SPECIFIC ONLY (do NOT update shared Item model)
                                 # NOTE: Stock quantity updates even if status_locked (stock number can change)
                                 # BUT: is_active_in_outlet stays FALSE if status_locked (item stays Disabled)
                                 if 'stock' in present_value_headers:
@@ -1300,12 +1291,7 @@ def product_update(request):
                                             else:
                                                 new_stock = csv_stock
                                             
-                                            # Update item stock (quantity always updates)
-                                            if item.stock != new_stock:
-                                                item.stock = new_stock
-                                                item_changed = True
-                                            
-                                            # Update outlet stock (quantity always updates)
+                                            # ONLY update outlet stock (NOT shared Item model)
                                             if item_outlet.outlet_stock != new_stock:
                                                 item_outlet.outlet_stock = new_stock
                                                 outlet_changed = True
@@ -1322,14 +1308,12 @@ def product_update(request):
                                             errors.append(f"Row {row_num}: Invalid stock '{stock_str}'")
                                 
                                 # Track changes - O(1) set lookup
-                                if item_changed and item.id not in items_to_update_set:
-                                    items_to_update_set.add(item.id)
-                                    items_to_update.append(item)
+                                # NOTE: We no longer update shared Item model, only ItemOutlet
                                 if outlet_changed and not is_new_outlet and id(item_outlet) not in outlets_to_update_set:
                                     outlets_to_update_set.add(id(item_outlet))
                                     outlets_to_update.append(item_outlet)
                                 
-                                if item_changed or outlet_changed:
+                                if outlet_changed:
                                     updated_count += 1
                                 else:
                                     no_change_count += 1
@@ -1340,22 +1324,12 @@ def product_update(request):
                     except Exception as e:
                         errors.append(f"Row {row_num}: {str(e)}")
                 
-                # Bulk operations - OPTIMIZED: only update fields that were changed
+                # Bulk operations - OUTLET-SPECIFIC ONLY (no Item model updates)
                 if outlets_to_create:
                     ItemOutlet.objects.bulk_create(outlets_to_create, ignore_conflicts=True)
                 
-                if items_to_update:
-                    # Only update fields based on what was in the CSV
-                    item_update_fields = []
-                    if 'mrp' in present_value_headers:
-                        item_update_fields.extend(['mrp', 'selling_price'])
-                    if 'cost' in present_value_headers:
-                        item_update_fields.extend(['cost', 'converted_cost'])
-                    if 'stock' in present_value_headers:
-                        item_update_fields.append('stock')
-                    
-                    if item_update_fields:
-                        Item.objects.bulk_update(items_to_update, item_update_fields, batch_size=2000)
+                # NOTE: We no longer update shared Item model to prevent cross-outlet contamination
+                # All updates are outlet-specific via ItemOutlet
                 
                 if outlets_to_update:
                     # Only update outlet fields based on what was in the CSV
@@ -1450,7 +1424,8 @@ def rules_update_price(request):
                     messages.error(request, "CSV file has no headers")
                     return redirect('integration:rules_update_price')
                 
-                headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
+                from .utils import normalize_csv_header
+                headers = [normalize_csv_header(h) for h in csv_reader.fieldnames if h and h.strip()]
                 required_headers = {'item_code', 'units', 'sku', 'margin'}
                 
                 missing = required_headers - set(headers)
@@ -1586,7 +1561,8 @@ def rules_update_stock_preview(request):
         if not csv_reader.fieldnames:
             return JsonResponse({'success': False, 'message': 'CSV has no headers'})
         
-        headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
+        from .utils import normalize_csv_header
+        headers = [normalize_csv_header(h) for h in csv_reader.fieldnames if h and h.strip()]
         
         # Header validation
         allowed_headers = {'item_code', 'units', 'sku', 'weight_division_factor', 'outer_case_quantity', 'minimum_qty'}
@@ -1722,7 +1698,8 @@ def rules_update_stock(request):
                     messages.error(request, "CSV file has no headers")
                     return redirect('integration:rules_update_stock')
                 
-                headers = [h.strip().lower() for h in csv_reader.fieldnames if h and h.strip()]
+                from .utils import normalize_csv_header
+                headers = [normalize_csv_header(h) for h in csv_reader.fieldnames if h and h.strip()]
                 
                 # Header validation
                 allowed_headers = {'item_code', 'units', 'sku', 'weight_division_factor', 'outer_case_quantity', 'minimum_qty'}
@@ -2182,13 +2159,10 @@ def item_outlets_api(request):
         if io_qs.exists():
             for io in io_qs:
                 # Display outlet-specific selling price
-                # If outlet has a price set (even 0.00), show it
-                # Do NOT auto-calculate from MRP - prices are outlet-specific now
+                # Always show original outlet_selling_price - promo price is separate
                 if io.outlet_selling_price is not None:
-                    # Use the outlet's specific price (could be 0.00 if not yet updated)
                     price = io.outlet_selling_price
                 else:
-                    # No price set at all, default to 0.00
                     price = 0.00
                 
                 # Calculate enabled status based on stock rules
@@ -2895,7 +2869,8 @@ def preview_csv_api(request):
             allowed_headers = required_headers | optional_headers
         
         # Filter out empty header fields (from trailing delimiters)
-        header_fields = [h.strip().lower() for h in (csv_reader.fieldnames or []) if h and h.strip()]
+        from .utils import normalize_csv_header
+        header_fields = [normalize_csv_header(h) for h in (csv_reader.fieldnames or []) if h and h.strip()]
         if not header_fields:
             return JsonResponse({'success': False, 'message': 'CSV is missing header row. Include headers exactly as specified.'})
         if 'is_active' in header_fields:

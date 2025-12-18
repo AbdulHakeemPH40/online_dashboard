@@ -9,6 +9,12 @@ from .views import (
     search_product_api, item_outlets_api, outlet_lock_toggle_api, save_product_api, outlet_price_update_api, item_deletion, delete_items_api, preview_csv_api, cls_lock_toggle_api,
     list_items_api,
 )
+from .promotion_views import (
+    promotion_update, promotion_search_api, promotion_calculate_api,
+    promotion_save_api, promotion_active_api, promotion_cancel_api, promotion_bulk_cancel_api, promotion_cancel_all_api,
+    bulk_promotion_update, bulk_promotion_preview_api, bulk_promotion_upload_api,
+    promotion_export_api, promotion_erp_export_api, talabat_promotions_xlsx_export
+)
 
 # Define app namespace
 app_name = 'integration'
@@ -52,4 +58,19 @@ urlpatterns = [
     path('api/download-export/', download_export_file, name='download_export_file'),
     path('api/erp-export/', erp_export_api, name='erp_export_api'),
     path('api/download-erp-export/', download_erp_export_file, name='download_erp_export_file'),
+    # Promotion management
+    path('promotion-update/', promotion_update, name='promotion_update'),
+    path('bulk-promotion-update/', bulk_promotion_update, name='bulk_promotion_update'),
+    path('api/promotion/search/', promotion_search_api, name='promotion_search_api'),
+    path('api/promotion/calculate/', promotion_calculate_api, name='promotion_calculate_api'),
+    path('api/promotion/save/', promotion_save_api, name='promotion_save_api'),
+    path('api/promotion/active/', promotion_active_api, name='promotion_active_api'),
+    path('api/promotion/<int:promo_id>/cancel/', promotion_cancel_api, name='promotion_cancel_api'),
+    path('api/promotion/bulk-cancel/', promotion_bulk_cancel_api, name='promotion_bulk_cancel_api'),
+    path('api/promotion/cancel-all/', promotion_cancel_all_api, name='promotion_cancel_all_api'),
+    path('api/bulk-promotion/preview/', bulk_promotion_preview_api, name='bulk_promotion_preview_api'),
+    path('api/bulk-promotion/upload/', bulk_promotion_upload_api, name='bulk_promotion_upload_api'),
+    path('api/promotion/export/', promotion_export_api, name='promotion_export_api'),
+    path('api/promotion/erp-export/', promotion_erp_export_api, name='promotion_erp_export_api'),
+    path('api/promotion/talabat-xlsx-export/', talabat_promotions_xlsx_export, name='talabat_promotions_xlsx_export'),
 ]

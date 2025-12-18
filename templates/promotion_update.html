@@ -1,0 +1,1313 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Promotion Management{% endblock %}
+
+{% block content %}
+<style>
+/* Tab Container */
+.integration-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 24px;
+}
+
+/* Tab Row - Both on same line */
+.tabs-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 40px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+/* Tab Styles */
+.tab-group {
+    margin-bottom: 0;
+}
+
+.tab-group-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #9ca3af;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+}
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    background: linear-gradient(145deg, #f3f4f6, #e5e7eb);
+    border-radius: 12px;
+    padding: 6px;
+    width: fit-content;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.tab-btn {
+    padding: 12px 28px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    border-radius: 8px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+}
+
+.tab-btn i {
+    font-size: 16px;
+}
+
+.tab-btn:hover {
+    color: #374151;
+    background: rgba(255,255,255,0.6);
+}
+
+/* Pasons blue active state */
+.tab-btn.active.pasons-style {
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    color: #1976D2;
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.25), 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Talabat orange active state */
+.tab-btn.active.talabat-style {
+    background: linear-gradient(135deg, #ffffff, #fffbf5);
+    color: #ea580c;
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25), 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Content Area */
+.tab-content {
+    background: linear-gradient(180deg, #ffffff, #fafbfc);
+    border-radius: 16px;
+    padding: 32px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.04);
+    min-height: 380px;
+    border: 1px solid rgba(0,0,0,0.04);
+}
+
+.content-section {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.content-section.active {
+    display: block;
+}
+
+/* Platform Badge */
+.platform-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    border: 1px solid transparent;
+}
+
+.platform-indicator.pasons {
+    background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+    color: #1e40af;
+    border-color: rgba(30, 64, 175, 0.1);
+}
+
+.platform-indicator.talabat {
+    background: linear-gradient(135deg, #ffedd5, #fed7aa);
+    color: #c2410c;
+    border-color: rgba(194, 65, 12, 0.1);
+}
+
+/* Export Card */
+.export-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.export-card-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.export-card-left i {
+    font-size: 24px;
+    color: #0066CC;
+}
+
+.export-card-info h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0 0 2px 0;
+}
+
+.export-card-info p {
+    font-size: 12px;
+    color: #64748b;
+    margin: 0;
+}
+
+.export-card-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.export-card-right .form-select {
+    flex: 1;
+    min-width: 250px;
+}
+
+/* Form Row */
+.form-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.form-group {
+    flex: 0 0 280px;
+    max-width: 280px;
+}
+
+.form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 8px;
+}
+
+.form-select {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #1e293b;
+    background: white;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+.form-select:focus {
+    outline: none;
+    border-color: #0066CC;
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+/* Export Button - Pasons Blue */
+.btn-export-pasons {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #1976D2, #1565C0);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-export-pasons:hover {
+    background: linear-gradient(135deg, #1565C0, #0D47A1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+}
+
+.btn-export-pasons:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Export Button - Talabat Orange */
+.btn-export-talabat {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #ea580c, #dc2626);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-export-talabat:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);
+}
+
+.btn-export-talabat:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ERP Button - Orange */
+.btn-export-erp {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #f97316, #ea580c);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-export-erp:hover {
+    background: linear-gradient(135deg, #ea580c, #c2410c);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+}
+
+.btn-export-erp:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Section Title */
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Promotions Table */
+.promo-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+}
+
+.promo-table thead th {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+}
+
+.promo-table tbody td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #374151;
+}
+
+.promo-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.promo-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Badge Styles */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.badge-active {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.badge-upcoming {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+/* Cancel Button */
+.btn-cancel {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    background: #fee2e2;
+    color: #991b1b;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+    background: #fecaca;
+}
+
+/* Small Cancel Button */
+.btn-cancel-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: #fee2e2;
+    color: #991b1b;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel-sm:hover {
+    background: #fecaca;
+}
+
+/* Promo Toolbar */
+.promo-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.promo-info .total-count {
+    font-size: 14px;
+    color: #64748b;
+}
+
+.btn-bulk-cancel {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-bulk-cancel:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.btn-bulk-cancel:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+}
+
+.btn-delete-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-delete-all:hover {
+    background: linear-gradient(135deg, #6d28d9, #5b21b6);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    margin-top: 20px;
+    padding: 12px;
+}
+
+.page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    height: 36px;
+    padding: 0 12px;
+    background: white;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+}
+
+.page-btn.active {
+    background: linear-gradient(135deg, #0066CC, #0052A3);
+    color: white;
+    border-color: transparent;
+}
+
+.page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-dots {
+    color: #94a3b8;
+    padding: 0 8px;
+}
+
+/* Table Responsive */
+.table-responsive {
+    overflow-x: auto;
+}
+
+/* Badge Inactive */
+.badge-inactive {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+/* Badge Warning */
+.badge-warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+/* Badge Danger */
+.badge-danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #9ca3af;
+}
+
+.empty-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+    color: #d1d5db;
+}
+
+.empty-state p {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* Custom Alert Modal */
+.alert-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+}
+
+.alert-overlay.show {
+    display: flex;
+    animation: fadeIn 0.2s ease;
+}
+
+.alert-box {
+    background: white;
+    border-radius: 16px;
+    padding: 0;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.alert-header {
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.alert-header.success {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white;
+}
+
+.alert-header.error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.alert-header.warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+}
+
+.alert-header.info {
+    background: linear-gradient(135deg, #0066CC, #0052A3);
+    color: white;
+}
+
+.alert-header i {
+    font-size: 24px;
+}
+
+.alert-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.alert-body {
+    padding: 24px;
+    font-size: 14px;
+    color: #374151;
+    line-height: 1.6;
+}
+
+.alert-footer {
+    padding: 16px 24px;
+    background: #f8fafc;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.alert-btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.alert-btn-primary {
+    background: linear-gradient(135deg, #0066CC, #0052A3);
+    color: white;
+}
+
+.alert-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+}
+
+.alert-btn-secondary {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.alert-btn-secondary:hover {
+    background: #cbd5e1;
+}
+
+.alert-btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.alert-btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+</style>
+
+<div class="integration-container">
+    <h1 style="color: #1e293b; margin-bottom: 24px; font-size: 24px; font-weight: 700;">
+        <i class="bx bx-purchase-tag" style="color: #0066CC;"></i> Promotion Management
+    </h1>
+
+    <!-- Platform Tabs -->
+    <div class="tabs-row">
+        <div class="tab-group">
+            <div class="tab-group-label">Platform</div>
+            <div class="tabs">
+                <button class="tab-btn active pasons-style" data-platform="pasons">
+                    <i class="bx bx-store"></i> Pasons
+                </button>
+                <button class="tab-btn talabat-style" data-platform="talabat">
+                    <i class="bx bx-food-menu"></i> Talabat
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- Pasons Content -->
+        <div id="pasons-content" class="content-section active">
+            <div class="platform-indicator pasons">
+                <i class="bx bx-store"></i> Pasons Platform
+            </div>
+
+            <!-- Export Card -->
+            <div class="export-card">
+                <div class="export-card-left">
+                    <i class="bx bx-download"></i>
+                    <div class="export-card-info">
+                        <h3>Export Promotion Items</h3>
+                        <p>Download promotion items for e-commerce sync</p>
+                    </div>
+                </div>
+                <div class="export-card-right" style="flex: 1;">
+                    <select id="pasons-outlet" class="form-select" style="flex: 1; min-width: 300px;">
+                        <option value="">-- Select Outlet --</option>
+                    </select>
+                    <button id="pasons-export-btn" disabled style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: linear-gradient(135deg, #1976D2, #1565C0); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                        <i class="bx bx-download"></i> Export Pasons Feed
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Promotions -->
+            <div class="section-title">
+                <i class="bx bx-list-ul"></i> Active Promotions (Pasons)
+            </div>
+            <div id="pasons-promotions">
+                <div class="empty-state">
+                    <i class="bx bx-loader-alt bx-spin"></i>
+                    <p>Loading promotions...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Talabat Content -->
+        <div id="talabat-content" class="content-section">
+            <div class="platform-indicator talabat">
+                <i class="bx bx-food-menu"></i> Talabat Platform
+            </div>
+
+            <!-- Export Card -->
+            <div class="export-card">
+                <div class="export-card-left">
+                    <i class="bx bx-download" style="color: #ea580c;"></i>
+                    <div class="export-card-info">
+                        <h3>Export Promotion Items</h3>
+                        <p>Download promotion items for e-commerce sync</p>
+                    </div>
+                </div>
+                <div class="export-card-right" style="flex: 1;">
+                    <select id="talabat-outlet" class="form-select" style="flex: 1; min-width: 300px;">
+                        <option value="">-- Select Outlet --</option>
+                    </select>
+                    <button id="talabat-export-btn" disabled style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: linear-gradient(135deg, #ea580c, #dc2626); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                        <i class="bx bx-download"></i> Export Talabat Feed
+                    </button>
+                    <button id="talabat-erp-export-btn" disabled style="display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: linear-gradient(135deg, #f97316, #ea580c); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                        <i class="bx bx-file-export"></i> Export ERP
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Promotions -->
+            <div class="section-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="bx bx-list-ul"></i> Active Promotions (Talabat)</span>
+                <button type="button" class="btn-export-xlsx" onclick="exportTalabatPromotionsXlsx()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+                    <i class="bx bx-download"></i> Export XLSX
+                </button>
+            </div>
+            <div id="talabat-promotions">
+                <div class="empty-state">
+                    <i class="bx bx-loader-alt bx-spin"></i>
+                    <p>Loading promotions...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Alert Modal -->
+<div id="alertOverlay" class="alert-overlay">
+    <div class="alert-box">
+        <div id="alertHeader" class="alert-header info">
+            <i id="alertIcon" class="bx bx-info-circle"></i>
+            <h3 id="alertTitle">Notification</h3>
+        </div>
+        <div class="alert-body">
+            <p id="alertMessage"></p>
+        </div>
+        <div class="alert-footer">
+            <button class="alert-btn alert-btn-primary" onclick="closeAlert()">OK</button>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Confirm Modal -->
+<div id="confirmOverlay" class="alert-overlay">
+    <div class="alert-box">
+        <div class="alert-header warning">
+            <i class="bx bx-error-circle"></i>
+            <h3>Confirm Action</h3>
+        </div>
+        <div class="alert-body">
+            <p id="confirmMessage"></p>
+        </div>
+        <div class="alert-footer" style="gap: 12px;">
+            <button class="alert-btn alert-btn-secondary" onclick="confirmCancel()">Cancel</button>
+            <button class="alert-btn alert-btn-danger" onclick="confirmOk()">Yes, Proceed</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPlatform = 'pasons';
+
+// Custom Alert Function
+function showAlert(message, type = 'info') {
+    const overlay = document.getElementById('alertOverlay');
+    const header = document.getElementById('alertHeader');
+    const icon = document.getElementById('alertIcon');
+    const title = document.getElementById('alertTitle');
+    const msg = document.getElementById('alertMessage');
+    
+    // Set message
+    msg.textContent = message;
+    
+    // Set type-specific styling
+    header.className = 'alert-header ' + type;
+    
+    switch(type) {
+        case 'success':
+            icon.className = 'bx bx-check-circle';
+            title.textContent = 'Success';
+            break;
+        case 'error':
+            icon.className = 'bx bx-x-circle';
+            title.textContent = 'Error';
+            break;
+        case 'warning':
+            icon.className = 'bx bx-error';
+            title.textContent = 'Warning';
+            break;
+        default:
+            icon.className = 'bx bx-info-circle';
+            title.textContent = 'Notification';
+    }
+    
+    overlay.classList.add('show');
+}
+
+function closeAlert() {
+    document.getElementById('alertOverlay').classList.remove('show');
+}
+
+// Custom Confirm Function
+let confirmCallback = null;
+
+function showConfirm(message, onConfirm) {
+    document.getElementById('confirmMessage').textContent = message;
+    confirmCallback = onConfirm;
+    document.getElementById('confirmOverlay').classList.add('show');
+}
+
+function confirmOk() {
+    document.getElementById('confirmOverlay').classList.remove('show');
+    if (confirmCallback) {
+        confirmCallback();
+        confirmCallback = null;
+    }
+}
+
+function confirmCancel() {
+    document.getElementById('confirmOverlay').classList.remove('show');
+    confirmCallback = null;
+}
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const platform = this.dataset.platform;
+        
+        // Update active tab
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Update content
+        document.querySelectorAll('.content-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.getElementById(`${platform}-content`).classList.add('active');
+        
+        currentPlatform = platform;
+    });
+});
+
+// Load outlets for both platforms
+function loadOutlets(platform) {
+    fetch(`/integration/api/outlets-by-platform/?platform=${platform}`)
+        .then(response => response.json())
+        .then(data => {
+            const select = document.getElementById(`${platform}-outlet`);
+            select.innerHTML = '<option value="">-- Select Outlet --</option>';
+            
+            if (data.outlets && data.outlets.length > 0) {
+                data.outlets.forEach(outlet => {
+                    select.innerHTML += `<option value="${outlet.id}">${outlet.name}</option>`;
+                });
+            }
+            
+            // Enable export buttons when outlet selected and reload promotions
+            select.addEventListener('change', function() {
+                const exportBtn = document.getElementById(`${platform}-export-btn`);
+                exportBtn.disabled = !this.value;
+                
+                if (platform === 'talabat') {
+                    document.getElementById('talabat-erp-export-btn').disabled = !this.value;
+                }
+                
+                // Reload promotions for selected outlet
+                loadActivePromotions(platform, 1);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading outlets:', error);
+        });
+}
+
+// Current page state
+let currentPage = { pasons: 1, talabat: 1 };
+let selectedPromotions = { pasons: [], talabat: [] };
+
+// Load active promotions with outlet filter and pagination
+function loadActivePromotions(platform, page = 1) {
+    const outletSelect = document.getElementById(`${platform}-outlet`);
+    const outletId = outletSelect ? outletSelect.value : '';
+    
+    // If no outlet selected, show message to select outlet
+    if (!outletId) {
+        displaySelectOutletMessage(platform);
+        return;
+    }
+    
+    currentPage[platform] = page;
+    
+    let url = `/integration/api/promotion/active/?platform=${platform}&page=${page}&page_size=20&outlet=${outletId}`;
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayActivePromotions(data, platform);
+            } else {
+                displayEmptyState(platform, 'No active promotions');
+            }
+        })
+        .catch(error => {
+            console.error('Load promotions error:', error);
+            displayEmptyState(platform, 'Error loading promotions');
+        });
+}
+
+// Display message to select outlet
+function displaySelectOutletMessage(platform) {
+    const container = document.getElementById(`${platform}-promotions`);
+    container.innerHTML = `
+        <div class="empty-state">
+            <i class="bx bx-store"></i>
+            <p>Please select an outlet to view active promotions</p>
+        </div>
+    `;
+}
+
+// Display active promotions with pagination
+function displayActivePromotions(data, platform) {
+    const container = document.getElementById(`${platform}-promotions`);
+    const promotions = data.promotions || [];
+    
+    if (!promotions || promotions.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="bx bx-package"></i>
+                <p>No active promotions for ${platform === 'pasons' ? 'Pasons' : 'Talabat'}</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Reset selected promotions
+    selectedPromotions[platform] = [];
+    
+    const outletId = document.getElementById(`${platform}-outlet`).value;
+    
+    let html = `
+        <div class="promo-toolbar">
+            <div class="promo-info">
+                <span class="total-count">Total: <strong>${data.total_count}</strong> promotions</span>
+            </div>
+            <div class="promo-actions">
+                <button class="btn-bulk-cancel" onclick="bulkCancelPromotions('${platform}')" id="${platform}-bulk-cancel-btn" disabled>
+                    <i class="bx bx-trash"></i> Remove Selected (<span id="${platform}-selected-count">0</span>)
+                </button>
+                <button class="btn-delete-all" onclick="cancelAllPromotions('${platform}', ${outletId})">
+                    <i class="bx bx-trash-alt"></i> Delete All (${data.total_count})
+                </button>
+            </div>
+        </div>
+        <div class="table-responsive">
+        <table class="promo-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="${platform}-select-all" onchange="toggleSelectAll('${platform}')"></th>
+                    <th>Item Code</th>
+                    <th>Units</th>
+                    <th>SKU</th>
+                    <th>MRP</th>
+                    <th>Selling</th>
+                    <th>Cost</th>
+                    <th>C.Cost</th>                 
+                    <th>Promo</th>
+                    <th>C.Promo</th>
+                    <th>Stock</th>
+                    <th>Status</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Days</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    promotions.forEach(promo => {
+        const statusBadge = promo.is_active ? '<span class="badge badge-active">Active</span>' : '<span class="badge badge-inactive">Disabled</span>';
+        const daysBadge = promo.days_remaining > 0 ? 'badge-active' : (promo.days_remaining === 0 ? 'badge-warning' : 'badge-danger');
+        html += `
+            <tr>
+                <td><input type="checkbox" class="promo-checkbox" data-id="${promo.id}" data-platform="${platform}" onchange="updateSelectedCount('${platform}')"></td>
+                <td><strong>${promo.item_code}</strong></td>
+                <td>${promo.units}</td>
+                <td style="font-size: 11px;">${promo.sku || '-'}</td>
+                <td>${promo.mrp || '-'}</td>
+                <td>${promo.selling_price || '-'}</td>
+                <td><strong style="color: #059669;">${promo.cost || '-'}</strong></td>
+                <td><strong style="color: #0891b2;">${promo.converted_cost || '-'}</strong></td>             
+                <td><strong style="color: #16a34a;">${promo.promo_price || '-'}</strong></td>
+                <td><strong style="color: #0066CC;">${promo.converted_promo || '-'}</strong></td>
+                <td>${promo.stock}</td>
+                <td>${statusBadge}</td>
+                <td style="font-size: 11px;">${promo.start_date || '-'}</td>
+                <td style="font-size: 11px;">${promo.end_date || '-'}</td>
+                <td><span class="badge ${daysBadge}">${promo.days_remaining}d</span></td>
+                <td>
+                    <button class="btn-cancel-sm" onclick="cancelPromotion(${promo.id}, '${platform}')">
+                        <i class="bx bx-x"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    
+    // Add pagination
+    if (data.total_pages > 1) {
+        html += `
+            <div class="pagination">
+                <button class="page-btn" ${!data.has_prev ? 'disabled' : ''} onclick="loadActivePromotions('${platform}', ${data.page - 1})">
+                    <i class="bx bx-chevron-left"></i>
+                </button>
+        `;
+        
+        // Page numbers
+        const startPage = Math.max(1, data.page - 2);
+        const endPage = Math.min(data.total_pages, data.page + 2);
+        
+        if (startPage > 1) {
+            html += `<button class="page-btn" onclick="loadActivePromotions('${platform}', 1)">1</button>`;
+            if (startPage > 2) html += `<span class="page-dots">...</span>`;
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<button class="page-btn ${i === data.page ? 'active' : ''}" onclick="loadActivePromotions('${platform}', ${i})">${i}</button>`;
+        }
+        
+        if (endPage < data.total_pages) {
+            if (endPage < data.total_pages - 1) html += `<span class="page-dots">...</span>`;
+            html += `<button class="page-btn" onclick="loadActivePromotions('${platform}', ${data.total_pages})">${data.total_pages}</button>`;
+        }
+        
+        html += `
+                <button class="page-btn" ${!data.has_next ? 'disabled' : ''} onclick="loadActivePromotions('${platform}', ${data.page + 1})">
+                    <i class="bx bx-chevron-right"></i>
+                </button>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+// Toggle select all checkboxes
+function toggleSelectAll(platform) {
+    const selectAll = document.getElementById(`${platform}-select-all`);
+    const checkboxes = document.querySelectorAll(`.promo-checkbox[data-platform="${platform}"]`);
+    
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll.checked;
+    });
+    
+    updateSelectedCount(platform);
+}
+
+// Update selected count
+function updateSelectedCount(platform) {
+    const checkboxes = document.querySelectorAll(`.promo-checkbox[data-platform="${platform}"]:checked`);
+    const count = checkboxes.length;
+    
+    document.getElementById(`${platform}-selected-count`).textContent = count;
+    document.getElementById(`${platform}-bulk-cancel-btn`).disabled = count === 0;
+    
+    selectedPromotions[platform] = Array.from(checkboxes).map(cb => parseInt(cb.dataset.id));
+}
+
+// Bulk cancel promotions
+function bulkCancelPromotions(platform) {
+    const ids = selectedPromotions[platform];
+    
+    if (ids.length === 0) {
+        showAlert('No promotions selected', 'warning');
+        return;
+    }
+    
+    showConfirm(`Are you sure you want to cancel ${ids.length} promotion(s)?`, function() {
+        fetch('/integration/api/promotion/bulk-cancel/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ ids: ids })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                loadActivePromotions(platform, currentPage[platform]);
+            } else {
+                showAlert(data.message || 'Error cancelling promotions', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Bulk cancel error:', error);
+            showAlert('Error cancelling promotions', 'error');
+        });
+    });
+}
+
+// Cancel ALL promotions for outlet
+function cancelAllPromotions(platform, outletId) {
+    showConfirm('Are you sure you want to DELETE ALL promotions for this outlet? This action cannot be undone.', function() {
+        fetch('/integration/api/promotion/cancel-all/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ platform: platform, outlet_id: outletId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                loadActivePromotions(platform, 1);
+            } else {
+                showAlert(data.message || 'Error cancelling promotions', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Cancel all error:', error);
+            showAlert('Error cancelling promotions', 'error');
+        });
+    });
+}
+
+// Display empty state
+function displayEmptyState(platform, message) {
+    const container = document.getElementById(`${platform}-promotions`);
+    container.innerHTML = `
+        <div class="empty-state">
+            <i class="bx bx-package"></i>
+            <p>${message}</p>
+        </div>
+    `;
+}
+
+// Cancel promotion
+function cancelPromotion(promoId, platform) {
+    showConfirm('Are you sure you want to cancel this promotion?', function() {
+        fetch(`/integration/api/promotion/${promoId}/cancel/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                loadActivePromotions(platform, currentPage[platform]);
+            } else {
+                showAlert(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Cancel error:', error);
+            showAlert('Error cancelling promotion', 'error');
+        });
+    });
+}
+
+// Export promotion feed
+document.getElementById('pasons-export-btn').addEventListener('click', function() {
+    const outlet = document.getElementById('pasons-outlet').value;
+    if (!outlet) {
+        showAlert('Please select an outlet', 'warning');
+        return;
+    }
+    
+    window.location.href = `/integration/api/promotion/export/?platform=pasons&outlet=${outlet}`;
+});
+
+document.getElementById('talabat-export-btn').addEventListener('click', function() {
+    const outlet = document.getElementById('talabat-outlet').value;
+    if (!outlet) {
+        showAlert('Please select an outlet', 'warning');
+        return;
+    }
+    
+    window.location.href = `/integration/api/promotion/export/?platform=talabat&outlet=${outlet}`;
+});
+
+document.getElementById('talabat-erp-export-btn').addEventListener('click', function() {
+    const outlet = document.getElementById('talabat-outlet').value;
+    if (!outlet) {
+        showAlert('Please select an outlet', 'warning');
+        return;
+    }
+    
+    window.location.href = `/integration/api/promotion/erp-export/?outlet=${outlet}`;
+});
+
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Export Talabat Promotions to XLSX
+function exportTalabatPromotionsXlsx() {
+    const outletSelect = document.getElementById('talabat-outlet');
+    const outletId = outletSelect ? outletSelect.value : '';
+    
+    if (!outletId) {
+        showAlert('Please select an outlet first', 'warning');
+        return;
+    }
+    
+    // Direct download via URL
+    window.location.href = `/integration/api/promotion/talabat-xlsx-export/?outlet=${outletId}`;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadOutlets('pasons');
+    loadOutlets('talabat');
+    loadActivePromotions('pasons');
+    loadActivePromotions('talabat');
+});
+</script>
+{% endblock %}
