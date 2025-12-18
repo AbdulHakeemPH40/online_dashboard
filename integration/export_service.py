@@ -443,8 +443,8 @@ class ExportProcessor:
         for io in item_outlets:
             item = io.item
             
-            # Get selling price (with fallback)
-            selling_price = io.outlet_selling_price or item.selling_price or Decimal('0')
+            # Get selling price (with fallback) - handle NULL values safely
+            selling_price = io.outlet_selling_price if io.outlet_selling_price is not None else (item.selling_price if item.selling_price is not None else Decimal('0'))
             
             # Calculate stock_status
             stock_status = self.calculate_stock_status(io.outlet_stock, item, io.is_active_in_outlet)
@@ -460,7 +460,7 @@ class ExportProcessor:
             export_data.append({
                 'sku': str(item.sku).strip(),
                 'barcode': str(item.barcode or '').strip(),
-                'selling_price': float(selling_price),
+                'selling_price': float(selling_price) if selling_price is not None else 0.00,
                 'stock_status': stock_status
             })
         
