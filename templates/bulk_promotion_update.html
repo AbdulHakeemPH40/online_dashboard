@@ -1,0 +1,1025 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bulk Promotion Update{% endblock %}
+
+{% block extra_head %}
+<style>
+/* DateTime Modal Input Focus Effects */
+#datetime_date:focus,
+#datetime_hour:focus,
+#datetime_minute:focus,
+#datetime_ampm:focus {
+    border-color: #0066CC !important;
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1) !important;
+    outline: none;
+}
+
+#datetime_date:hover,
+#datetime_hour:hover,
+#datetime_minute:hover,
+#datetime_ampm:hover {
+    border-color: #0052A3;
+}
+
+/* Make calendar picker larger */
+#datetime_date::-webkit-calendar-picker-indicator {
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+/* Style the date input calendar popup */
+input[type="date"]::-webkit-datetime-edit {
+    font-size: 1.25rem;
+    font-weight: 500;
+}
+
+/* Modal Backdrop Animation */
+#datetimeModal.modal {
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* Custom Alert Modal */
+.alert-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+}
+
+.alert-overlay.show {
+    display: flex;
+    animation: fadeIn 0.2s ease;
+}
+
+.alert-box {
+    background: white;
+    border-radius: 16px;
+    padding: 0;
+    max-width: 400px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.alert-header {
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.alert-header.success { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
+.alert-header.error { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+.alert-header.warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+.alert-header.info { background: linear-gradient(135deg, #0066CC, #0052A3); color: white; }
+
+.alert-header i { font-size: 24px; }
+.alert-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
+
+.alert-body { padding: 24px; font-size: 14px; color: #374151; line-height: 1.6; }
+.alert-footer { padding: 16px 24px; background: #f8fafc; display: flex; justify-content: flex-end; }
+
+.alert-btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: linear-gradient(135deg, #0066CC, #0052A3);
+    color: white;
+}
+
+.alert-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+}
+
+#csvSampleBtn {
+    background-color: #f8f9fa !important;
+    border-color: #dee2e6 !important;
+    color: #6c757d !important;
+}
+
+#csvSampleBtn:hover {
+    background-color: #e9ecef !important;
+    border-color: #adb5bd !important;
+    color: #495057 !important;
+}
+
+.bulk-btn-primary {
+    background-color: #007bff;
+    color: white;
+    border: 1px solid #007bff;
+}
+
+.bulk-btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    overflow: auto;
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 2% auto;
+    padding: 0;
+    border: none;
+    border-radius: 12px;
+    width: 95%;
+    max-width: 1200px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.close {
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s;
+}
+
+.close:hover {
+    color: #f1f1f1;
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    background-color: #f8f9fa;
+    padding: 15px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    border-top: 1px solid #dee2e6;
+}
+
+.preview-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+    min-width: 150px;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.preview-errors, .preview-warnings {
+    margin: 15px 0;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.preview-errors {
+    background-color: #f8d7da;
+    border-left: 4px solid #dc3545;
+}
+
+.preview-warnings {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+}
+
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+}
+
+.preview-table th {
+    background-color: #f8f9fa;
+    padding: 12px;
+    text-align: left;
+    border-bottom: 2px solid #dee2e6;
+    font-weight: 600;
+    color: #495057;
+}
+
+.preview-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.preview-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.badge-success {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.badge-warning {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.badge-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="bulk-operations-container">
+    <div class="bulk-row">
+        <div class="bulk-col-12">
+            <div class="bulk-card">
+                <div class="bulk-card-header">
+                    <h1 class="bulk-card-title">🏷️ Bulk Promotion Update</h1>
+                    <p class="bulk-card-subtitle">Upload CSV to update promotional prices for multiple items</p>
+                </div>
+
+                <div class="bulk-card-body">
+                    <div class="bulk-row" style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 24px;">
+                        <div class="bulk-col-6" style="flex: 0 0 calc(50% - 10px); min-width: 300px;">
+                            <!-- Platform Selection -->
+                            <div class="bulk-form-group">
+                                <label for="platform" class="bulk-form-label">
+                                    <i class="bx bx-store"></i> Select Platform
+                                </label>
+                                <select id="platform" name="platform" class="bulk-form-control" required>
+                                    <option value="">Select Platform</option>
+                                    <option value="pasons">Pasons Ecommerce</option>
+                                    <option value="talabat">Talabat Platform</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="bulk-col-6" style="flex: 0 0 calc(50% - 10px); min-width: 300px;">
+                            <!-- Outlet Selection -->
+                            <div class="bulk-form-group">
+                                <label for="outlet" class="bulk-form-label">
+                                    <i class="bx bx-building"></i> Select Outlet
+                                </label>
+                                <select id="outlet" class="bulk-form-control" required disabled>
+                                    <option value="">Select platform first</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Date Time Range -->
+                    <div class="bulk-row" style="display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 24px;">
+                        <div class="bulk-col-6" style="flex: 0 0 calc(50% - 10px); min-width: 300px;">
+                            <div class="bulk-form-group">
+                                <label for="start_datetime_display" class="bulk-form-label">
+                                    <i class="bx bx-calendar"></i> Start Date & Time
+                                </label>
+                                <input type="text" id="start_datetime_display" class="bulk-form-control" readonly placeholder="Select start date & time" required style="cursor: pointer;">
+                                <input type="hidden" id="start_datetime" required>
+                            </div>
+                        </div>
+                        <div class="bulk-col-6" style="flex: 0 0 calc(50% - 10px); min-width: 300px;">
+                            <div class="bulk-form-group">
+                                <label for="end_datetime_display" class="bulk-form-label">
+                                    <i class="bx bx-calendar"></i> End Date & Time
+                                </label>
+                                <input type="text" id="end_datetime_display" class="bulk-form-control" readonly placeholder="Select end date & time" required style="cursor: pointer;">
+                                <input type="hidden" id="end_datetime" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CSV Upload Section -->
+                    <div class="bulk-form-group">
+                        <label for="csvFile" class="bulk-form-label">
+                            <i class="bx bx-file"></i> Choose CSV File (item_code, units, promo_price)
+                        </label>
+                        <div class="file-upload-container">
+                            <div class="file-upload-area" id="fileUploadArea">
+                                <input type="file" id="csvFile" accept=".csv" class="file-input-hidden" required>
+                                <div class="upload-content">
+                                    <i class="bx bx-cloud-upload upload-icon"></i>
+                                    <div class="upload-text">Browse Files</div>
+                                    <div class="upload-subtext">or drag and drop your CSV file here</div>
+                                    <div class="upload-format">Supported format: .csv (Max size: 10MB)</div>
+                                </div>
+                            </div>
+                            <div id="selectedFile" class="selected-file-display" style="display: none;">
+                                <div class="file-preview">
+                                    <div class="file-icon">
+                                        <i class="bx bx-file-blank"></i>
+                                    </div>
+                                    <div class="file-details">
+                                        <div class="file-name" id="fileName"></div>
+                                        <div class="file-size" id="fileSize"></div>
+                                    </div>
+                                    <button type="button" class="file-remove" id="removeFile">
+                                        <i class="bx bx-x"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="bulk-form-actions" style="display: flex; justify-content: center; gap: 15px; margin-top: 30px;">
+                        <button type="button" id="csvSampleBtn" class="bulk-btn bulk-btn-outline">
+                            <i class="bx bx-download"></i> Download Sample CSV
+                        </button>
+                        <button type="button" id="previewBtn" class="bulk-btn bulk-btn-primary" disabled>
+                            <i class="bx bx-show"></i> Preview Changes
+                        </button>
+                        <button type="button" id="uploadBtn" class="bulk-btn bulk-btn-success" disabled>
+                            <i class="bx bx-check-circle"></i> Apply Promotions
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DateTime Picker Modal -->
+<div id="datetimeModal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 450px; border-radius: 16px; overflow: hidden;">
+        <div class="modal-header" style="background: linear-gradient(135deg, #0066CC 0%, #0052A3 100%); padding: 24px; border-bottom: none;">
+            <h3 style="margin: 0; font-size: 1.3rem; display: flex; align-items: center; gap: 10px; color: white;">
+                <i class="bx bx-calendar" style="font-size: 1.5rem;"></i> Select Date & Time
+            </h3>
+            <span class="close-datetime" style="color: white; font-size: 28px; cursor: pointer; line-height: 1;">&times;</span>
+        </div>
+        <div class="modal-body" style="padding: 30px; background: #f8f9fa;">
+            <div class="bulk-form-group" style="margin-bottom: 24px;">
+                <label class="bulk-form-label" style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-weight: 700; color: #333; font-size: 1.1rem;">
+                    <i class="bx bx-calendar-alt" style="font-size: 1.5rem; color: #0066CC;"></i>
+                    Date
+                </label>
+                <input type="date" id="datetime_date" class="bulk-form-control" required style="padding: 16px; font-size: 1.25rem; font-weight: 500; border: 2px solid #dee2e6; border-radius: 10px; transition: all 0.3s; width: 100%; cursor: pointer;" onclick="this.showPicker()">
+            </div>
+            <div class="bulk-form-group">
+                <label class="bulk-form-label" style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-weight: 700; color: #333; font-size: 1.1rem;">
+                    <i class="bx bx-time-five" style="font-size: 1.5rem; color: #0066CC;"></i>
+                    Time
+                </label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <select id="datetime_hour" style="padding: 14px 16px; font-size: 1.2rem; font-weight: 600; border: 2px solid #dee2e6; border-radius: 10px; background: white; cursor: pointer; min-width: 80px;">
+                        <option value="01">01</option>
+                        <option value="02">02</option>
+                        <option value="03">03</option>
+                        <option value="04">04</option>
+                        <option value="05">05</option>
+                        <option value="06">06</option>
+                        <option value="07">07</option>
+                        <option value="08">08</option>
+                        <option value="09">09</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12" selected>12</option>
+                    </select>
+                    <span style="font-size: 1.5rem; font-weight: 700; color: #333;">:</span>
+                    <select id="datetime_minute" style="padding: 14px 16px; font-size: 1.2rem; font-weight: 600; border: 2px solid #dee2e6; border-radius: 10px; background: white; cursor: pointer; min-width: 80px;">
+                        <option value="00" selected>00</option>
+                        <option value="05">05</option>
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="25">25</option>
+                        <option value="30">30</option>
+                        <option value="35">35</option>
+                        <option value="40">40</option>
+                        <option value="45">45</option>
+                        <option value="50">50</option>
+                        <option value="55">55</option>
+                    </select>
+                    <select id="datetime_ampm" style="padding: 14px 16px; font-size: 1.2rem; font-weight: 600; border: 2px solid #dee2e6; border-radius: 10px; background: white; cursor: pointer; min-width: 80px;">
+                        <option value="AM">AM</option>
+                        <option value="PM" selected>PM</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer" style="background: white; padding: 20px 30px; display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid #dee2e6;">
+            <button type="button" class="bulk-btn bulk-btn-outline" id="cancelDatetimeBtn" style="padding: 10px 24px; border-radius: 8px; font-weight: 600;">
+                <i class="bx bx-x"></i> Cancel
+            </button>
+            <button type="button" class="bulk-btn bulk-btn-primary" id="confirmDatetimeBtn" style="padding: 10px 24px; border-radius: 8px; font-weight: 600; background: linear-gradient(135deg, #0066CC 0%, #0052A3 100%); border: none;">
+                <i class="bx bx-check"></i> Confirm
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div id="previewModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="bx bx-show"></i> Preview Promotion Changes</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div id="previewContent"></div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="bulk-btn" id="closePreviewBtn" style="background: #dc2626; color: white;">
+                <i class="bx bx-x"></i> Close
+            </button>
+            <button type="button" class="bulk-btn bulk-btn-success" id="confirmUploadBtn">
+                <i class="bx bx-check-circle"></i> Confirm & Apply
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Alert Modal -->
+<div id="alertOverlay" class="alert-overlay">
+    <div class="alert-box">
+        <div id="alertHeader" class="alert-header info">
+            <i id="alertIcon" class="bx bx-info-circle"></i>
+            <h3 id="alertTitle">Notification</h3>
+        </div>
+        <div class="alert-body">
+            <p id="alertMessage"></p>
+        </div>
+        <div class="alert-footer">
+            <button class="alert-btn" onclick="closeAlert()">OK</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let previewData = null;
+let currentDatetimeField = null;
+
+// Custom Alert Function
+function showAlert(message, type = 'info') {
+    const overlay = document.getElementById('alertOverlay');
+    const header = document.getElementById('alertHeader');
+    const icon = document.getElementById('alertIcon');
+    const title = document.getElementById('alertTitle');
+    const msg = document.getElementById('alertMessage');
+    
+    msg.textContent = message;
+    header.className = 'alert-header ' + type;
+    
+    switch(type) {
+        case 'success':
+            icon.className = 'bx bx-check-circle';
+            title.textContent = 'Success';
+            break;
+        case 'error':
+            icon.className = 'bx bx-x-circle';
+            title.textContent = 'Error';
+            break;
+        case 'warning':
+            icon.className = 'bx bx-error';
+            title.textContent = 'Warning';
+            break;
+        default:
+            icon.className = 'bx bx-info-circle';
+            title.textContent = 'Notification';
+    }
+    
+    overlay.classList.add('show');
+}
+
+function closeAlert() {
+    document.getElementById('alertOverlay').classList.remove('show');
+}
+
+// Get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// DateTime Picker Dialog
+function openDatetimePicker(field) {
+    currentDatetimeField = field;
+    const modal = document.getElementById('datetimeModal');
+    
+    // Set current values if exists
+    const hiddenInput = document.getElementById(field);
+    if (hiddenInput.value) {
+        const datetime = new Date(hiddenInput.value);
+        document.getElementById('datetime_date').value = datetime.toISOString().split('T')[0];
+        
+        // Set hour, minute, AM/PM dropdowns
+        let hours = datetime.getHours();
+        const minutes = datetime.getMinutes();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // 0 should be 12
+        
+        document.getElementById('datetime_hour').value = hours.toString().padStart(2, '0');
+        document.getElementById('datetime_minute').value = (Math.floor(minutes / 5) * 5).toString().padStart(2, '0');
+        document.getElementById('datetime_ampm').value = ampm;
+    } else {
+        // Set default to current date and time
+        const now = new Date();
+        document.getElementById('datetime_date').value = now.toISOString().split('T')[0];
+        
+        let hours = now.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        
+        document.getElementById('datetime_hour').value = hours.toString().padStart(2, '0');
+        document.getElementById('datetime_minute').value = '00';
+        document.getElementById('datetime_ampm').value = ampm;
+    }
+    
+    modal.style.display = 'block';
+}
+
+// Close datetime picker
+document.querySelector('.close-datetime').addEventListener('click', function() {
+    document.getElementById('datetimeModal').style.display = 'none';
+});
+
+document.getElementById('cancelDatetimeBtn').addEventListener('click', function() {
+    document.getElementById('datetimeModal').style.display = 'none';
+});
+
+// Confirm datetime selection
+document.getElementById('confirmDatetimeBtn').addEventListener('click', function() {
+    const date = document.getElementById('datetime_date').value;
+    const hour = document.getElementById('datetime_hour').value;
+    const minute = document.getElementById('datetime_minute').value;
+    const ampm = document.getElementById('datetime_ampm').value;
+    
+    if (!date) {
+        showAlert('Please select a date', 'warning');
+        return;
+    }
+    
+    // Convert 12-hour to 24-hour format
+    let hour24 = parseInt(hour);
+    if (ampm === 'PM' && hour24 !== 12) {
+        hour24 += 12;
+    } else if (ampm === 'AM' && hour24 === 12) {
+        hour24 = 0;
+    }
+    
+    const time24 = hour24.toString().padStart(2, '0') + ':' + minute;
+    
+    // Combine date and time in format: yyyy-mm-dd hh:mm:ss
+    const datetime = `${date} ${time24}:00`;
+    
+    // Update hidden input
+    document.getElementById(currentDatetimeField).value = datetime;
+    
+    // Update display input
+    const displayField = currentDatetimeField + '_display';
+    document.getElementById(displayField).value = `${date} ${hour}:${minute} ${ampm}`;
+    
+    document.getElementById('datetimeModal').style.display = 'none';
+});
+
+// Open datetime picker when clicking display inputs
+document.getElementById('start_datetime_display').addEventListener('click', function() {
+    openDatetimePicker('start_datetime');
+});
+
+document.getElementById('end_datetime_display').addEventListener('click', function() {
+    openDatetimePicker('end_datetime');
+});
+
+// Load outlets when platform changes
+document.getElementById('platform').addEventListener('change', function() {
+    const platform = this.value;
+    const outletSelect = document.getElementById('outlet');
+    
+    if (!platform) {
+        outletSelect.disabled = true;
+        outletSelect.innerHTML = '<option value="">Select platform first</option>';
+        return;
+    }
+    
+    fetch(`/integration/api/outlets-by-platform/?platform=${platform}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.outlets && data.outlets.length > 0) {
+                outletSelect.innerHTML = '<option value="">Select Outlet</option>';
+                data.outlets.forEach(outlet => {
+                    outletSelect.innerHTML += `<option value="${outlet.id}">${outlet.name}</option>`;
+                });
+                outletSelect.disabled = false;
+            } else {
+                outletSelect.innerHTML = '<option value="">No outlets available</option>';
+                outletSelect.disabled = true;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading outlets:', error);
+            showAlert('Error loading outlets', 'error');
+        });
+});
+
+// File input handling
+const fileInput = document.getElementById('csvFile');
+const fileUploadArea = document.getElementById('fileUploadArea');
+const selectedFileDisplay = document.getElementById('selectedFile');
+const fileNameDisplay = document.getElementById('fileName');
+const fileSizeDisplay = document.getElementById('fileSize');
+const removeFileBtn = document.getElementById('removeFile');
+
+// File upload area click
+fileUploadArea.addEventListener('click', function() {
+    fileInput.click();
+});
+
+// File input change
+fileInput.addEventListener('change', function() {
+    if (this.files.length > 0) {
+        const file = this.files[0];
+        fileNameDisplay.textContent = file.name;
+        fileSizeDisplay.textContent = (file.size / 1024).toFixed(2) + ' KB';
+        fileUploadArea.style.display = 'none';
+        selectedFileDisplay.style.display = 'block';
+        document.getElementById('previewBtn').disabled = false;
+    }
+});
+
+// Remove file
+removeFileBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    fileInput.value = '';
+    fileUploadArea.style.display = 'flex';
+    selectedFileDisplay.style.display = 'none';
+    document.getElementById('previewBtn').disabled = true;
+});
+
+// Download sample CSV
+document.getElementById('csvSampleBtn').addEventListener('click', function() {
+    const csvContent = 'item_code,units,promo_price\n9900127,PCS,4.50\n9900129,PCS,3.75\n100186,PCS,2.99';
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'promotion_sample.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+});
+
+// Preview changes
+document.getElementById('previewBtn').addEventListener('click', function() {
+    const platform = document.getElementById('platform').value;
+    const outlet = document.getElementById('outlet').value;
+    const startDatetime = document.getElementById('start_datetime').value;
+    const endDatetime = document.getElementById('end_datetime').value;
+    const file = fileInput.files[0];
+    
+    if (!platform || !outlet || !startDatetime || !endDatetime || !file) {
+        showAlert('Please fill in all fields and select a CSV file', 'warning');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('platform', platform);
+    formData.append('outlet', outlet);
+    formData.append('start_date', startDatetime);
+    formData.append('end_date', endDatetime);
+    formData.append('csv_file', file);
+    
+    fetch('/integration/api/bulk-promotion/preview/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            previewData = data;
+            displayPreview(data);
+            document.getElementById('previewModal').style.display = 'block';
+            document.getElementById('uploadBtn').disabled = false;
+        } else {
+            showAlert(data.message || 'Error previewing CSV', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Preview error:', error);
+        showAlert('Error previewing CSV', 'error');
+    });
+});
+
+// Display preview
+function displayPreview(data) {
+    let html = `
+        <div class="preview-stats">
+            <div class="stat-item">
+                <span class="stat-label">Total Items</span>
+                <span class="stat-value">${data.total_items}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Valid Items</span>
+                <span class="stat-value">${data.valid_items}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Errors</span>
+                <span class="stat-value">${data.error_count}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Warnings</span>
+                <span class="stat-value">${data.warning_count}</span>
+            </div>
+        </div>
+    `;
+    
+    if (data.errors && data.errors.length > 0) {
+        html += '<div class="preview-errors"><strong>Errors:</strong><ul>';
+        data.errors.forEach(error => {
+            html += `<li>${error}</li>`;
+        });
+        html += '</ul></div>';
+    }
+    
+    if (data.warnings && data.warnings.length > 0) {
+        html += '<div class="preview-warnings"><strong>Warnings:</strong><ul>';
+        data.warnings.forEach(warning => {
+            html += `<li>${warning}</li>`;
+        });
+        html += '</ul></div>';
+    }
+    
+    if (data.preview && data.preview.length > 0) {
+        html += `
+            <table class="preview-table">
+                <thead>
+                    <tr>
+                        <th>Item Code</th>
+                        <th>Units</th>
+                        <th>Promo Price</th>
+                        <th>Converted Promo</th>
+                        <th>Selling Price</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+        
+        data.preview.forEach(item => {
+            const statusClass = item.status === 'valid' ? 'badge-success' : 'badge-warning';
+            html += `
+                <tr>
+                    <td>${item.item_code}</td>
+                    <td>${item.units}</td>
+                    <td>${item.promo_price} AED</td>
+                    <td>${item.converted_promo} AED</td>
+                    <td>${item.selling_price} AED</td>
+                    <td><span class="badge ${statusClass}">${item.status}</span></td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table>';
+    }
+    
+    document.getElementById('previewContent').innerHTML = html;
+}
+
+// Close modal
+document.querySelector('.close').addEventListener('click', function() {
+    document.getElementById('previewModal').style.display = 'none';
+});
+
+document.getElementById('closePreviewBtn').addEventListener('click', function() {
+    document.getElementById('previewModal').style.display = 'none';
+});
+
+// Apply Promotions button - directly uploads promotions
+document.getElementById('uploadBtn').addEventListener('click', function() {
+    if (!previewData) {
+        showAlert('Please preview changes first', 'warning');
+        return;
+    }
+    
+    const btn = this;
+    const originalText = btn.innerHTML;
+    const platform = document.getElementById('platform').value;
+    const outlet = document.getElementById('outlet').value;
+    
+    // Show loading state with platform-specific message
+    btn.disabled = true;
+    if (platform === 'talabat') {
+        btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Validating GP% & Variance... Please wait';
+        showAlert('Processing Talabat promotions with smart pricing validation (GP% ≥ 20%, Variance ≥ 2 AED). This may take time for large files...', 'info');
+    } else {
+        btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Processing... Please wait';
+    }
+    btn.style.opacity = '0.7';
+    btn.style.cursor = 'not-allowed';
+    const startDatetime = document.getElementById('start_datetime').value;
+    const endDatetime = document.getElementById('end_datetime').value;
+    const file = fileInput.files[0];
+    
+    const formData = new FormData();
+    formData.append('platform', platform);
+    formData.append('outlet', outlet);
+    formData.append('start_date', startDatetime);
+    formData.append('end_date', endDatetime);
+    formData.append('csv_file', file);
+    
+    fetch('/integration/api/bulk-promotion/upload/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Reset button state
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        
+        if (data.success) {
+            showAlert(data.message, 'success');
+            // Reset form
+            fileInput.value = '';
+            fileNameDisplay.textContent = 'Choose CSV file or drag here';
+            fileUploadArea.style.display = 'flex';
+            selectedFileDisplay.style.display = 'none';
+            document.getElementById('previewBtn').disabled = true;
+            document.getElementById('uploadBtn').disabled = true;
+            previewData = null;
+        } else {
+            showAlert(data.message || 'Error applying promotions', 'error');
+        }
+    })
+    .catch(error => {
+        // Reset button state on error
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        
+        console.error('Upload error:', error);
+        showAlert('Error applying promotions', 'error');
+    });
+});
+
+// Confirm upload
+document.getElementById('confirmUploadBtn').addEventListener('click', function() {
+    if (!previewData) {
+        showAlert('No preview data available', 'warning');
+        return;
+    }
+    
+    const btn = this;
+    const originalText = btn.innerHTML;
+    
+    // Show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Processing... Please wait';
+    btn.style.opacity = '0.7';
+    btn.style.cursor = 'not-allowed';
+    
+    const platform = document.getElementById('platform').value;
+    const outlet = document.getElementById('outlet').value;
+    const startDatetime = document.getElementById('start_datetime').value;
+    const endDatetime = document.getElementById('end_datetime').value;
+    const file = fileInput.files[0];
+    
+    const formData = new FormData();
+    formData.append('platform', platform);
+    formData.append('outlet', outlet);
+    formData.append('start_date', startDatetime);
+    formData.append('end_date', endDatetime);
+    formData.append('csv_file', file);
+    
+    fetch('/integration/api/bulk-promotion/upload/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        // Reset button state
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        
+        if (data.success) {
+            showAlert(data.message, 'success');
+            document.getElementById('previewModal').style.display = 'none';
+            // Reset form
+            document.getElementById('csvFile').value = '';
+            fileName.textContent = 'Choose CSV file or drag here';
+            document.getElementById('previewBtn').disabled = true;
+            document.getElementById('uploadBtn').disabled = true;
+        } else {
+            showAlert(data.message || 'Error applying promotions', 'error');
+        }
+    })
+    .catch(error => {
+        // Reset button state on error
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        
+        console.error('Upload error:', error);
+        showAlert('Error applying promotions', 'error');
+    });
+});
+
+// Initialize datetime pickers on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // No need to set min date since we're using datetime picker dialog
+});
+</script>
+{% endblock %}

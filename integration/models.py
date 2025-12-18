@@ -314,6 +314,42 @@ class ItemOutlet(models.Model):
         blank=True,
         help_text="Last exported ERP price (converted). Used for ERP delta export detection."
     )
+    # Promotion pricing fields
+    promo_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Input promotional price (base price before conversion)"
+    )
+    converted_promo = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Calculated promotional price after platform/wrap conversion"
+    )
+    original_selling_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Backup of original selling price before promotion (for restoration)"
+    )
+    promo_start_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Promotion start date and time"
+    )
+    promo_end_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Promotion end date and time"
+    )
+    is_on_promotion = models.BooleanField(
+        default=False,
+        help_text="Whether item is currently on promotion"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -463,6 +499,7 @@ class UploadHistory(models.Model):
         ('rules_price', 'Rules Update (Price/Margin)'),
         ('rules_stock', 'Rules Update (Stock)'),
         ('bulk_creation', 'Bulk Item Creation'),
+        ('promotion_update', 'Promotion Update'),
     ]
     
     STATUS_CHOICES = [
