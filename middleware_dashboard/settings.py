@@ -94,7 +94,7 @@ if ENVIRONMENT == 'pythonanywhere':
             'ENGINE': 'django.db.backends.mysql',
             'NAME': 'Abdul40$online_middleware',
             'USER': 'Abdul40',
-            'PASSWORD': 'winDOws@10',
+            'PASSWORD': '',
             'HOST': 'Abdul40.mysql.pythonanywhere-services.com',
             'PORT': '3306',
         }
