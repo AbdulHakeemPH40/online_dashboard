@@ -596,22 +596,20 @@ def bulk_item_creation(request):
                 
                 for row_num, original_row in enumerate(csv_reader, start=2):  # Start from 2 (header is row 1)
                     try:
-                        from django.utils.html import escape
-                        
                         # Normalize row keys to lowercase for consistent access
                         row = {k.lower().strip(): v for k, v in original_row.items()}
                         
-                        base_item_code = escape(row.get('item_code', '').strip())
-                        base_sku = escape(row.get('sku', '').strip())
+                        base_item_code = row.get('item_code', '').strip()
+                        base_sku = row.get('sku', '').strip()
                         
                         # Validate mandatory fields first
                         mandatory_fields = {
-                            'wrap': escape(row.get('wrap', '').strip()),
+                            'wrap': row.get('wrap', '').strip(),
                             'item_code': base_item_code,
-                            'description': escape(row.get('description', '').strip()),
-                            'units': escape(row.get('units', '').strip()),
+                            'description': row.get('description', '').strip(),
+                            'units': row.get('units', '').strip(),
                             'sku': base_sku,
-                            'pack_description': escape(row.get('pack_description', '').strip())
+                            'pack_description': row.get('pack_description', '').strip()
                         }
                         
                         missing_fields = [field for field, value in mandatory_fields.items() if not value]
@@ -627,7 +625,7 @@ def bulk_item_creation(request):
                         # No additional mandatory field validation needed
 
                         # Optional fields parsing
-                        barcode = escape(row.get('barcode', '').strip())
+                        barcode = row.get('barcode', '').strip()
                         # NOTE: mrp, selling_price, cost, stock are OUTLET-SPECIFIC
                         # They should NOT be set during item creation (always default to 0)
                         weight_division_factor_str = row.get('weight_division_factor', '').strip()
@@ -3143,6 +3141,7 @@ def delete_items_api(request):
     
     try:
         import json
+        from html import unescape as html_unescape
         from .models import Item
         from django.db import models
         
@@ -3168,6 +3167,8 @@ def delete_items_api(request):
                 if len(parts) != 3:
                     continue
                 item_code, description, sku = parts
+                # Unescape HTML entities in description (e.g., &#x27; -> ')
+                description = html_unescape(description)
                 query |= Q(
                     item_code__iexact=item_code,
                     description__iexact=description,
@@ -3188,6 +3189,8 @@ def delete_items_api(request):
                 if len(parts) != 3:
                     continue
                 item_code, description, sku = parts
+                # Unescape HTML entities in description (e.g., &#x27; -> ')
+                description = html_unescape(description)
                 query |= Q(
                     item_code__iexact=item_code,
                     description__iexact=description,

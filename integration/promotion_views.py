@@ -622,9 +622,18 @@ def promotion_export_api(request):
             is_on_promotion=True
         ).select_related('item', 'outlet')
         
+        # Get outlet name for filename
+        outlet = Outlet.objects.filter(id=outlet_id).first()
+        outlet_name = outlet.name.replace(' ', '-').replace('_', '-') if outlet else 'outlet'
+        
+        # Create filename with outlet name, date and time (using hyphens only)
+        from datetime import datetime as dt
+        timestamp = dt.now().strftime('%Y-%m-%d-%H-%M-%S')
+        filename = f"promo-export-{platform}-{outlet_name}-{timestamp}.csv"
+        
         # Create CSV response
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="promo-export-{platform}-{date.today()}.csv"'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
         
         writer = csv.writer(response)
         
@@ -669,9 +678,9 @@ def promotion_export_api(request):
                     sku = sku.strip()
                     barcode = barcodes[idx].strip() if idx < len(barcodes) else ''
                     
-                    # Format dates as yyyy-mm-dd hh:mm:ss
-                    start_date = io.promo_start_date.strftime('%Y-%m-%d %H:%M:%S') if io.promo_start_date else ''
-                    end_date = io.promo_end_date.strftime('%Y-%m-%d %H:%M:%S') if io.promo_end_date else ''
+                    # Format dates as yyyy-mm-dd hh:mm:ss (convert to local timezone)
+                    start_date = timezone.localtime(io.promo_start_date).strftime('%Y-%m-%d %H:%M:%S') if io.promo_start_date else ''
+                    end_date = timezone.localtime(io.promo_end_date).strftime('%Y-%m-%d %H:%M:%S') if io.promo_end_date else ''
                     
                     # discounted_price = converted_promo (C.Promo)
                     discounted_price = io.converted_promo or 0
@@ -730,9 +739,18 @@ def promotion_erp_export_api(request):
             is_on_promotion=True
         ).select_related('item', 'outlet')
         
+        # Get outlet name for filename
+        outlet = Outlet.objects.filter(id=outlet_id).first()
+        outlet_name = outlet.name.replace(' ', '-').replace('_', '-') if outlet else 'outlet'
+        
+        # Create filename with outlet name, date and time (using hyphens only)
+        from datetime import datetime as dt
+        timestamp = dt.now().strftime('%Y-%m-%d-%H-%M-%S')
+        filename = f"promo-erp-export-{outlet_name}-{timestamp}.csv"
+        
         # Create CSV response with proper csv.writer
         response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="promo-erp-export-{date.today()}.csv"'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
         
         writer = csv.writer(response)
         

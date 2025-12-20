@@ -698,6 +698,78 @@
             overflow-y: auto;
         }
     }
+    
+    /* Custom Alert/Confirm Modal */
+    .custom-alert-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .custom-alert-overlay.show {
+        display: flex;
+        animation: fadeIn 0.2s ease;
+    }
+    
+    .custom-alert-box {
+        background: white;
+        border-radius: 16px;
+        padding: 0;
+        max-width: 420px;
+        width: 90%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        overflow: hidden;
+        animation: slideIn 0.3s ease;
+    }
+    
+    @keyframes slideIn {
+        from { transform: translateY(-20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    
+    .custom-alert-header {
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .custom-alert-header.success { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; }
+    .custom-alert-header.error { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+    .custom-alert-header.warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+    .custom-alert-header.info { background: linear-gradient(135deg, #0066CC, #0052A3); color: white; }
+    
+    .custom-alert-header i { font-size: 24px; }
+    .custom-alert-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
+    
+    .custom-alert-body { padding: 24px; font-size: 14px; color: #374151; line-height: 1.6; }
+    .custom-alert-footer { padding: 16px 24px; background: #f8fafc; display: flex; justify-content: flex-end; gap: 12px; }
+    
+    .custom-alert-btn {
+        padding: 10px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .custom-alert-btn-primary { background: linear-gradient(135deg, #0066CC, #0052A3); color: white; }
+    .custom-alert-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3); }
+    
+    .custom-alert-btn-secondary { background: #e2e8f0; color: #475569; }
+    .custom-alert-btn-secondary:hover { background: #cbd5e1; }
+    
+    .custom-alert-btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+    .custom-alert-btn-danger:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); }
 </style>
 {% endblock %}
 
@@ -921,6 +993,39 @@
     </div>
 </div>
 
+<!-- Custom Alert Modal -->
+<div id="customAlertOverlay" class="custom-alert-overlay">
+    <div class="custom-alert-box">
+        <div id="customAlertHeader" class="custom-alert-header info">
+            <i id="customAlertIcon" class="bi bi-info-circle"></i>
+            <h3 id="customAlertTitle">Notification</h3>
+        </div>
+        <div class="custom-alert-body">
+            <p id="customAlertMessage"></p>
+        </div>
+        <div class="custom-alert-footer">
+            <button class="custom-alert-btn custom-alert-btn-primary" onclick="closeCustomAlert()">OK</button>
+        </div>
+    </div>
+</div>
+
+<!-- Custom Confirm Modal -->
+<div id="customConfirmOverlay" class="custom-alert-overlay">
+    <div class="custom-alert-box">
+        <div class="custom-alert-header warning">
+            <i class="bi bi-exclamation-triangle"></i>
+            <h3>Confirm Action</h3>
+        </div>
+        <div class="custom-alert-body">
+            <p id="customConfirmMessage"></p>
+        </div>
+        <div class="custom-alert-footer">
+            <button class="custom-alert-btn custom-alert-btn-secondary" onclick="customConfirmCancel()">Cancel</button>
+            <button class="custom-alert-btn custom-alert-btn-danger" onclick="customConfirmOk()">Yes, Proceed</button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -933,6 +1038,63 @@
     let currentPlatform = '';
     let pendingDeleteScope = 'selected';
     let pendingDeletePayload = null;
+    let customConfirmCallback = null;
+    
+    // Custom Alert Function
+    function showCustomAlert(message, type = 'info') {
+        const overlay = document.getElementById('customAlertOverlay');
+        const header = document.getElementById('customAlertHeader');
+        const icon = document.getElementById('customAlertIcon');
+        const title = document.getElementById('customAlertTitle');
+        const msg = document.getElementById('customAlertMessage');
+        
+        msg.textContent = message;
+        header.className = 'custom-alert-header ' + type;
+        
+        switch(type) {
+            case 'success':
+                icon.className = 'bi bi-check-circle';
+                title.textContent = 'Success';
+                break;
+            case 'error':
+                icon.className = 'bi bi-x-circle';
+                title.textContent = 'Error';
+                break;
+            case 'warning':
+                icon.className = 'bi bi-exclamation-triangle';
+                title.textContent = 'Warning';
+                break;
+            default:
+                icon.className = 'bi bi-info-circle';
+                title.textContent = 'Notification';
+        }
+        
+        overlay.classList.add('show');
+    }
+    
+    function closeCustomAlert() {
+        document.getElementById('customAlertOverlay').classList.remove('show');
+    }
+    
+    // Custom Confirm Function
+    function showCustomConfirm(message, onConfirm) {
+        document.getElementById('customConfirmMessage').textContent = message;
+        customConfirmCallback = onConfirm;
+        document.getElementById('customConfirmOverlay').classList.add('show');
+    }
+    
+    function customConfirmOk() {
+        document.getElementById('customConfirmOverlay').classList.remove('show');
+        if (customConfirmCallback) {
+            customConfirmCallback();
+            customConfirmCallback = null;
+        }
+    }
+    
+    function customConfirmCancel() {
+        document.getElementById('customConfirmOverlay').classList.remove('show');
+        customConfirmCallback = null;
+    }
     
     // Auto-load on page load
     document.addEventListener('DOMContentLoaded', function() {
@@ -1291,11 +1453,8 @@
                         const assoc = Number(data.associations_deleted || 0);
                         const deleted = Number(data.deleted_count || 0);
                         
-                        // Use alert as immediate feedback
-                        alert(`✅ Deletion Complete!\n\nRemoved ${assoc} association(s)\nDeleted ${deleted} item(s)`);
-                        
-                        // Also try to show modal
-                        showModal({ title: 'Deletion Complete', message: `Removed ${assoc} association(s); deleted ${deleted} item(s).`, type: 'success' });
+                        // Use custom alert as immediate feedback
+                        showCustomAlert(`Deletion Complete! Removed ${assoc} association(s), Deleted ${deleted} item(s)`, 'success');
                         
                         // Clear and reload
                         const confirmTextEl = document.getElementById('confirm-text');
@@ -1306,18 +1465,12 @@
                         clearSelection();
                     } else {
                         console.error('API returned success=false:', data.message);
-                        alert(`❌ Deletion Failed\n\n${data.message || 'An error occurred during deletion.'}`);
-                        showModal({ title: 'Deletion Failed', message: data.message || 'An error occurred during deletion.', type: 'error' });
+                        showCustomAlert(data.message || 'An error occurred during deletion.', 'error');
                     }
                 })
                 .catch(error => {
                     console.error('Error deleting items:', error);
-                    alert(`❌ Error
-
-Failed to delete items. Please try again.
-
-Details: ${error.message}`);
-                    showModal({ title: 'Error', message: 'Failed to delete items. Please try again.', type: 'error' });
+                    showCustomAlert('Failed to delete items. Please try again.', 'error');
                 });
         } else if (currentDeletionType === 'single' && itemToDelete) {
             // Handle single item deletion
@@ -1350,28 +1503,19 @@ Details: ${error.message}`);
                         const assoc = Number(data.associations_deleted || 0);
                         const deleted = Number(data.deleted_count || 0);
                         
-                        // Use alert as immediate feedback
-                        alert(`✅ Deletion Complete!\n\nRemoved ${assoc} association(s)\nDeleted ${deleted} item(s)`);
-                        
-                        // Also try to show modal
-                        showModal({ title: 'Deletion Complete', message: `Removed ${assoc} association(s); deleted ${deleted} item(s).`, type: 'success' });
+                        // Use custom alert as immediate feedback
+                        showCustomAlert(`Deletion Complete! Removed ${assoc} association(s), Deleted ${deleted} item(s)`, 'success');
                         
                         // Refresh the search results
                         searchSingleItem();
                     } else {
                         console.error('API returned success=false:', data.message);
-                        alert(`❌ Deletion Failed\n\n${data.message || 'An error occurred during deletion.'}`);
-                        showModal({ title: 'Deletion Failed', message: data.message || 'An error occurred during deletion.', type: 'error' });
+                        showCustomAlert(data.message || 'An error occurred during deletion.', 'error');
                     }
                 })
                 .catch(error => {
                     console.error('Error deleting item:', error);
-                    alert(`❌ Error
-
-Failed to delete item. Please try again.
-
-Details: ${error.message}`);
-                    showModal({ title: 'Error', message: 'Failed to delete item. Please try again.', type: 'error' });
+                    showCustomAlert('Failed to delete item. Please try again.', 'error');
                 });
         }
     }

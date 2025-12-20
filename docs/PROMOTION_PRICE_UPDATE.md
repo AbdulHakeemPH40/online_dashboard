@@ -42,7 +42,7 @@ IF converted_promo < converted_cost * 1.20:
 ELSE:
     # No change needed - margin is OK
 ```
-- **Trigger:** Only when margin < 20%
+- **Trigger:** Only when margin < 20% compared to cost price 
 - **Action:** Auto-adjust promo to `cost + 20%`
 - **If margin >= 20%:** Keep original promo price (no change)
 

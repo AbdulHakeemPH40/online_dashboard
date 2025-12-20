@@ -12,11 +12,13 @@ ENV/
 # Django
 *.log
 local_settings.py
-# middleware_dashboard/settings.py
+db.sqlite3
 data.json
 data_export.json
-docs/digita_ocean.md
-db.sqlite3
+data_export.zip
+
+# Media exports (generated files)
+media/exports/
 
 # IDE
 .vscode/

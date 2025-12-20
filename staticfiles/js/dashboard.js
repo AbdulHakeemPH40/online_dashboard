@@ -590,11 +590,14 @@ function bindPriceEditHandlers(itemCode, units) {
             input.select();
         };
 
-        const stopEditing = () => {
+        const stopEditing = (enableEdit = true) => {
             input.style.display = 'none';
             display.style.display = '';
             saveBtn.disabled = true;
-            editBtn.disabled = input.disabled; // re-enable if not locked
+            // Re-enable edit button unless price is locked (check BLS lock checkbox)
+            const priceLockCheckbox = row.querySelector('.price-lock-toggle');
+            const isPriceLocked = priceLockCheckbox ? priceLockCheckbox.checked : false;
+            editBtn.disabled = isPriceLocked || !enableEdit;
         };
 
         editBtn.addEventListener('click', startEditing);
