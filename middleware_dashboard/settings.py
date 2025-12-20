@@ -33,6 +33,8 @@ ALLOWED_HOSTS = [
     'localhost', 
     '127.0.0.1', 
     '.pythonanywhere.com',
+    '159.89.133.6',  # DigitalOcean IP
+    'erp.pasons.group',  # Production domain
 ]
 
 
