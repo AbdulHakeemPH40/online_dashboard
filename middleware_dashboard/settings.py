@@ -88,7 +88,7 @@ WSGI_APPLICATION = 'middleware_dashboard.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # Database configuration based on environment
-# local -> SQLite, pythonanywhere -> MySQL, digitalocean -> SQLite
+# local -> SQLite, pythonanywhere -> MySQL, digitalocean -> MySQL
 if ENVIRONMENT == 'pythonanywhere':
     # PythonAnywhere MySQL
     DATABASES = {
@@ -96,13 +96,28 @@ if ENVIRONMENT == 'pythonanywhere':
             'ENGINE': 'django.db.backends.mysql',
             'NAME': 'Abdul40$online_middleware',
             'USER': 'Abdul40',
-            'PASSWORD': '',
+            'PASSWORD': 'winDOws@10',
             'HOST': 'Abdul40.mysql.pythonanywhere-services.com',
             'PORT': '3306',
         }
     }
+elif ENVIRONMENT == 'digitalocean':
+    # DigitalOcean MySQL
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': 'online_middleware',
+            'USER': 'django_user',
+            'PASSWORD': 'winDOws@10',
+            'HOST': 'localhost',
+            'PORT': '3306',
+            'OPTIONS': {
+                'charset': 'utf8mb4',
+            },
+        }
+    }
 else:
-    # Local & DigitalOcean -> SQLite (faster)
+    # Local -> SQLite (faster for development)
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
