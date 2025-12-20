@@ -3804,3 +3804,437 @@ def download_erp_export_file(request):
     response = FileResponse(open(file_path, 'rb'), content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     return response
+
+
+# ============================================================================
+# REPORTS & DATA EXPORT VIEWS
+# ============================================================================
+
+@login_required
+def reports_page(request):
+    """
+    Reports page - displays export options for items data.
+    """
+    context = {
+        'page_title': 'Reports & Data Export',
+        'active_nav': 'reports',
+    }
+    return render(request, 'reports.html', context)
+
+
+@login_required
+def export_all_items(request):
+    """
+    Export ALL items from database (all platforms, linked or not linked to outlets).
+    
+    CSV Fields: item_code, units, description, pack_description, sku, barcode, wrap,
+                weight_division_factor, outer_case_quantity, minimum_qty, platform,
+                talabat_margin, is_active
+    """
+    import csv
+    from django.http import HttpResponse
+    from django.utils import timezone
+    from .models import Item
+    
+    if request.method != 'POST':
+        return redirect('integration:reports')
+    
+    # Generate filename with timestamp
+    timestamp = timezone.localtime().strftime('%Y-%m-%d-%H%M%S')
+    filename = f'all-items-export-{timestamp}.csv'
+    
+    # Create HTTP response with CSV content type
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    writer = csv.writer(response)
+    
+    # Write header row
+    writer.writerow([
+        'item_code', 'units', 'description', 'pack_description', 'sku', 'barcode',
+        'wrap', 'weight_division_factor', 'outer_case_quantity', 'minimum_qty',
+        'platform', 'talabat_margin', 'is_active'
+    ])
+    
+    # Fetch all items
+    items = Item.objects.all().order_by('platform', 'item_code')
+    
+    for item in items:
+        writer.writerow([
+            item.item_code,
+            item.units,
+            item.description,
+            item.pack_description or '',
+            item.sku,
+            item.barcode or '',
+            item.wrap or '',
+            float(item.weight_division_factor) if item.weight_division_factor else '',
+            item.outer_case_quantity or '',
+            item.minimum_qty or '',
+            item.platform,
+            float(item.effective_talabat_margin) if item.platform == 'talabat' else '',
+            'Yes' if item.is_active else 'No'
+        ])
+    
+    return response
+
+
+@login_required
+def export_platform_items(request):
+    """
+    Export items for a specific platform (all items, linked or not linked to outlets).
+    
+    CSV Fields: item_code, units, description, pack_description, sku, barcode, wrap,
+                weight_division_factor, outer_case_quantity, minimum_qty, talabat_margin, is_active
+    """
+    import csv
+    from django.http import HttpResponse
+    from django.utils import timezone
+    from django.contrib import messages
+    from .models import Item
+    
+    if request.method != 'POST':
+        return redirect('integration:reports')
+    
+    platform = request.POST.get('platform', '').strip()
+    
+    if not platform or platform not in ('pasons', 'talabat'):
+        messages.error(request, 'Please select a valid platform.')
+        return redirect('integration:reports')
+    
+    # Generate filename with timestamp
+    timestamp = timezone.localtime().strftime('%Y-%m-%d-%H%M%S')
+    platform_name = 'Pasons' if platform == 'pasons' else 'Talabat'
+    filename = f'{platform_name}-items-export-{timestamp}.csv'
+    
+    # Create HTTP response with CSV content type
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    writer = csv.writer(response)
+    
+    # Write header row
+    headers = [
+        'item_code', 'units', 'description', 'pack_description', 'sku', 'barcode',
+        'wrap', 'weight_division_factor', 'outer_case_quantity', 'minimum_qty', 'is_active'
+    ]
+    
+    # Add talabat_margin for Talabat platform
+    if platform == 'talabat':
+        headers.append('talabat_margin')
+    
+    writer.writerow(headers)
+    
+    # Fetch items for platform
+    items = Item.objects.filter(platform=platform).order_by('item_code')
+    
+    for item in items:
+        row = [
+            item.item_code,
+            item.units,
+            item.description,
+            item.pack_description or '',
+            item.sku,
+            item.barcode or '',
+            item.wrap or '',
+            float(item.weight_division_factor) if item.weight_division_factor else '',
+            item.outer_case_quantity or '',
+            item.minimum_qty or '',
+            'Yes' if item.is_active else 'No'
+        ]
+        
+        # Add talabat_margin for Talabat platform
+        if platform == 'talabat':
+            row.append(float(item.effective_talabat_margin) if item.effective_talabat_margin else '')
+        
+        writer.writerow(row)
+    
+    return response
+
+
+@login_required
+def export_outlet_items(request):
+    """
+    Export items linked to a specific outlet with outlet-specific data.
+    
+    CSV Fields: item_code, units, description, pack_description, sku, barcode, wrap,
+                weight_division_factor, outer_case_quantity, minimum_qty, platform,
+                talabat_margin, outlet_mrp, outlet_selling_price, outlet_stock, outlet_cost,
+                price_locked, status_locked, is_active_in_outlet, stock_status
+    """
+    import csv
+    from django.http import HttpResponse
+    from django.utils import timezone
+    from django.contrib import messages
+    from .models import Outlet, ItemOutlet
+    
+    if request.method != 'POST':
+        return redirect('integration:reports')
+    
+    platform = request.POST.get('platform', '').strip()
+    outlet_id = request.POST.get('outlet', '').strip()
+    
+    if not platform or platform not in ('pasons', 'talabat'):
+        messages.error(request, 'Please select a valid platform.')
+        return redirect('integration:reports')
+    
+    if not outlet_id:
+        messages.error(request, 'Please select an outlet.')
+        return redirect('integration:reports')
+    
+    try:
+        outlet = Outlet.objects.get(id=outlet_id)
+        
+        # Validate outlet matches platform
+        if outlet.platforms != platform:
+            messages.error(request, f'Outlet "{outlet.name}" does not belong to {platform.title()} platform.')
+            return redirect('integration:reports')
+        
+    except Outlet.DoesNotExist:
+        messages.error(request, 'Selected outlet not found.')
+        return redirect('integration:reports')
+    
+    # Generate filename with timestamp
+    timestamp = timezone.localtime().strftime('%Y-%m-%d-%H%M%S')
+    outlet_name_clean = outlet.name.replace(' ', '-').replace('/', '-')
+    filename = f'{outlet_name_clean}-items-export-{timestamp}.csv'
+    
+    # Create HTTP response with CSV content type
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    writer = csv.writer(response)
+    
+    # Write header row
+    headers = [
+        'item_code', 'units', 'description', 'pack_description', 'sku', 'barcode',
+        'wrap', 'weight_division_factor', 'outer_case_quantity', 'minimum_qty',
+        'platform', 'talabat_margin', 'outlet_mrp', 'outlet_selling_price',
+        'outlet_stock', 'outlet_cost', 'converted_cost', 'is_active_in_outlet'
+    ]
+    writer.writerow(headers)
+    
+    # Fetch ItemOutlet records for this outlet with related Item data
+    item_outlets = ItemOutlet.objects.filter(
+        outlet=outlet
+    ).select_related('item').order_by('item__item_code')
+    
+    for io in item_outlets:
+        item = io.item
+        
+        writer.writerow([
+            item.item_code,
+            item.units,
+            item.description,
+            item.pack_description or '',
+            item.sku,
+            item.barcode or '',
+            item.wrap or '',
+            float(item.weight_division_factor) if item.weight_division_factor else '',
+            item.outer_case_quantity or '',
+            item.minimum_qty or '',
+            item.platform,
+            float(item.effective_talabat_margin) if item.platform == 'talabat' else '',
+            float(io.outlet_mrp) if io.outlet_mrp else '',
+            float(io.outlet_selling_price) if io.outlet_selling_price else '',
+            io.outlet_stock or 0,
+            float(io.outlet_cost) if io.outlet_cost else '',
+            float(item.converted_cost) if item.converted_cost else '',
+            'Active' if io.is_active_in_outlet else 'Inactive'
+        ])
+    
+    return response
+
+
+
+@login_required
+def report_stats_api(request):
+    """
+    API endpoint to get report statistics for dashboard cards.
+    """
+    from .models import Item, Outlet, ItemOutlet
+    
+    try:
+        # Platform-specific item counts
+        pasons_items = Item.objects.filter(platform='pasons').count()
+        talabat_items = Item.objects.filter(platform='talabat').count()
+        
+        # Platform-specific outlet counts
+        pasons_outlets = Outlet.objects.filter(platforms='pasons', is_active=True).count()
+        talabat_outlets = Outlet.objects.filter(platforms='talabat', is_active=True).count()
+        
+        return JsonResponse({
+            'success': True,
+            'stats': {
+                'pasons_items': pasons_items,
+                'talabat_items': talabat_items,
+                'pasons_outlets': pasons_outlets,
+                'talabat_outlets': talabat_outlets,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e),
+            'stats': {
+                'pasons_items': 0,
+                'talabat_items': 0,
+                'pasons_outlets': 0,
+                'talabat_outlets': 0,
+            }
+        })
+
+
+@login_required
+def report_data_api(request):
+    """
+    API endpoint to get report data for DataTables.
+    
+    Query params:
+    - type: 'all', 'platform', 'outlet'
+    - platform: 'pasons', 'talabat' (optional)
+    - outlet: outlet_id (optional, for outlet type)
+    - status: 'active', 'inactive' (optional)
+    """
+    from .models import Item, Outlet, ItemOutlet
+    
+    try:
+        report_type = request.GET.get('type', 'all')
+        platform = request.GET.get('platform', '').strip()
+        outlet_id = request.GET.get('outlet', '').strip()
+        status = request.GET.get('status', '').strip()
+        
+        headers = []
+        rows = []
+        
+        if report_type == 'outlet' and outlet_id:
+            # Outlet-specific report with ItemOutlet data
+            try:
+                outlet = Outlet.objects.get(id=outlet_id)
+            except Outlet.DoesNotExist:
+                return JsonResponse({'success': False, 'message': 'Outlet not found'})
+            
+            headers = [
+                '#', 'Item Code', 'Description', 'Units', 'SKU', 'Barcode', 'Wrap',
+                'WDF', 'OCQ', 'Min Qty', 'Platform', 'Outlet MRP', 'Outlet Selling Price',
+                'Outlet Stock', 'Outlet Cost', 'Converted Cost', 'Active in Outlet'
+            ]
+            
+            # Add Talabat Margin for Talabat platform
+            if outlet.platforms == 'talabat':
+                headers.insert(11, 'Talabat Margin')
+            
+            item_outlets = ItemOutlet.objects.filter(outlet=outlet).select_related('item')
+            
+            # Apply status filter
+            if status == 'active':
+                item_outlets = item_outlets.filter(is_active_in_outlet=True)
+            elif status == 'inactive':
+                item_outlets = item_outlets.filter(is_active_in_outlet=False)
+            
+            item_outlets = item_outlets.order_by('item__item_code')
+            
+            for idx, io in enumerate(item_outlets, 1):
+                item = io.item
+                
+                row = [
+                    idx,
+                    item.item_code,
+                    item.description[:50] + '...' if len(item.description) > 50 else item.description,
+                    item.units,
+                    item.sku,
+                    item.barcode or '-',
+                    item.wrap or '-',
+                    float(item.weight_division_factor) if item.weight_division_factor else '-',
+                    item.outer_case_quantity or '-',
+                    item.minimum_qty or '-',
+                    item.platform.title(),
+                ]
+                
+                # Add Talabat Margin for Talabat platform
+                if outlet.platforms == 'talabat':
+                    row.append(f"{float(item.effective_talabat_margin)}%" if item.effective_talabat_margin else '-')
+                
+                # Add outlet-specific fields
+                row.extend([
+                    float(io.outlet_mrp) if io.outlet_mrp else '-',
+                    float(io.outlet_selling_price) if io.outlet_selling_price else '-',
+                    io.outlet_stock or 0,
+                    float(io.outlet_cost) if io.outlet_cost else '-',
+                    float(item.converted_cost) if item.converted_cost else '-',
+                    'Active' if io.is_active_in_outlet else 'Inactive'
+                ])
+                
+                rows.append(row)
+        
+        else:
+            # All items or platform-specific report
+            headers = [
+                '#', 'Item Code', 'Description', 'Units', 'SKU', 'Barcode', 'Wrap',
+                'WDF', 'OCQ', 'Min Qty', 'Platform', 'Status'
+            ]
+            
+            items = Item.objects.all()
+            
+            # Apply platform filter
+            if platform:
+                items = items.filter(platform=platform)
+                # Add Talabat Margin for Talabat platform
+                if platform == 'talabat':
+                    headers.insert(11, 'Talabat Margin')
+            
+            # Apply status filter
+            if status == 'active':
+                items = items.filter(is_active=True)
+            elif status == 'inactive':
+                items = items.filter(is_active=False)
+            
+            items = items.order_by('platform', 'item_code')
+            
+            for idx, item in enumerate(items, 1):
+                row = [
+                    idx,
+                    item.item_code,
+                    item.description[:50] + '...' if len(item.description) > 50 else item.description,
+                    item.units,
+                    item.sku,
+                    item.barcode or '-',
+                    item.wrap or '-',
+                    float(item.weight_division_factor) if item.weight_division_factor else '-',
+                    item.outer_case_quantity or '-',
+                    item.minimum_qty or '-',
+                    item.platform.title(),
+                ]
+                
+                # Add Talabat Margin for Talabat platform
+                if platform == 'talabat':
+                    row.append(f"{float(item.effective_talabat_margin)}%" if item.effective_talabat_margin else '-')
+                
+                row.append('Active' if item.is_active else 'Inactive')
+                rows.append(row)
+        
+        # Get stats
+        total_items = Item.objects.count()
+        active_items = Item.objects.filter(is_active=True).count()
+        outlets_count = Outlet.objects.filter(is_active=True).count()
+        linked_items = ItemOutlet.objects.values('item_id').distinct().count()
+        
+        return JsonResponse({
+            'success': True,
+            'headers': headers,
+            'rows': rows,
+            'total_rows': len(rows),
+            'stats': {
+                'total_items': total_items,
+                'active_items': active_items,
+                'outlets_count': outlets_count,
+                'linked_items': linked_items,
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Report data API error: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'message': f'Error loading report data: {str(e)}'
+        })

@@ -1,0 +1,482 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reports - Item Data Export{% endblock %}
+
+{% block extra_head %}
+<style>
+.reports-page {
+    padding: 24px;
+    background: #f8f9fa;
+    min-height: calc(100vh - 60px);
+}
+
+.page-header { margin-bottom: 24px; }
+.page-header h1 { font-size: 24px; font-weight: 600; color: #333; margin: 0 0 4px 0; }
+.page-header p { color: #666; margin: 0; font-size: 14px; }
+
+/* Stats Row */
+.stats-row { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.stat-card {
+    flex: 1; min-width: 180px; background: #fff; border-radius: 8px;
+    padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    display: flex; align-items: center; gap: 12px;
+}
+.stat-icon { width: 48px; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+.stat-icon.blue { background: #e3f2fd; }
+.stat-icon.green { background: #e8f5e9; }
+.stat-icon.orange { background: #fff3e0; }
+.stat-icon.purple { background: #f3e5f5; }
+.stat-content h3 { font-size: 24px; font-weight: 600; color: #333; margin: 0; }
+.stat-content p { font-size: 13px; color: #666; margin: 4px 0 0 0; }
+
+/* Filter Card */
+.filter-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 20px 24px; margin-bottom: 20px; }
+.filter-row { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+.filter-group { flex: 1; min-width: 160px; }
+.filter-group label { display: block; font-size: 13px; font-weight: 500; color: #333; margin-bottom: 6px; }
+.filter-group select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; color: #333; background: #fff; }
+.filter-group select:focus { outline: none; border-color: #28a745; box-shadow: 0 0 0 3px rgba(40,167,69,0.1); }
+.btn-view-report { padding: 10px 24px; background: #28a745; color: #fff; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+.btn-view-report:hover { background: #218838; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="reports-page">
+    <div class="page-header">
+        <h1>📊 Reports & Data Export</h1>
+        <p>View and export item data for reporting and analysis</p>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon blue">📦</div>
+            <div class="stat-content"><h3 id="pasonsItemsCount">-</h3><p>Pasons Items</p></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon green">📦</div>
+            <div class="stat-content"><h3 id="talabatItemsCount">-</h3><p>Talabat Items</p></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon orange">🏪</div>
+            <div class="stat-content"><h3 id="pasonsOutletsCount">-</h3><p>Pasons Outlets</p></div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon purple">🏪</div>
+            <div class="stat-content"><h3 id="talabatOutletsCount">-</h3><p>Talabat Outlets</p></div>
+        </div>
+    </div>
+
+    <!-- Filter Card -->
+    <div class="filter-card">
+        <div class="filter-row">
+            <div class="filter-group">
+                <label>Report Type</label>
+                <select id="reportType">
+                    <option value="all">All Items</option>
+                    <option value="platform">Platform Items</option>
+                    <option value="outlet">Outlet Items</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Platform</label>
+                <select id="platformFilter">
+                    <option value="">All Platforms</option>
+                    <option value="pasons">Pasons Ecommerce</option>
+                    <option value="talabat">Talabat Platform</option>
+                </select>
+            </div>
+            <div class="filter-group" id="outletFilterGroup">
+                <label>Outlet</label>
+                <select id="outletFilter"><option value="">All Outlets</option></select>
+            </div>
+            <div class="filter-group">
+                <label>Status</label>
+                <select id="statusFilter">
+                    <option value="">All Status</option>
+                    <option value="active">Active Only</option>
+                    <option value="inactive">Inactive Only</option>
+                </select>
+            </div>
+            <button type="button" class="btn-view-report" id="viewReportBtn">View Report</button>
+        </div>
+    </div>
+
+    <!-- Data Card -->
+    <div class="data-card">
+        <div class="data-card-header">
+            <div>
+                <h2 class="data-card-title" id="reportTitle">Item Report</h2>
+                <p class="data-card-subtitle" id="reportSubtitle">Select filters and click "View Report"</p>
+            </div>
+            <div class="export-buttons" id="exportButtons" style="display:none;">
+                <button class="export-btn" onclick="exportData('csv')">📄 CSV</button>
+                <button class="export-btn" onclick="exportData('excel')">📊 Excel</button>
+                <button class="export-btn" onclick="window.print()">🖨️ Print</button>
+            </div>
+        </div>
+        <div class="data-card-body">
+            <div class="empty-state" id="emptyState">
+                <div class="empty-state-icon">📋</div>
+                <div class="empty-state-text">No data loaded</div>
+                <div class="empty-state-subtext">Select filters and click "View Report"</div>
+            </div>
+            <div id="tableWrapper" style="display:none;">
+                <div class="table-controls">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="Search..." onkeyup="filterTable()">
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table id="reportTable">
+                        <thead><tr id="tableHeaders"></tr></thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+                <!-- Pagination -->
+                <div class="pagination-container">
+                    <div class="pagination-info" id="paginationInfo">Showing 1-20 of 0</div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn" onclick="goToPage(1)" id="firstBtn" title="First">«</button>
+                        <button class="pagination-btn" onclick="changePage(-1)" id="prevBtn" title="Previous">‹</button>
+                        <div class="pagination-numbers" id="pageNumbers"></div>
+                        <button class="pagination-btn" onclick="changePage(1)" id="nextBtn" title="Next">›</button>
+                        <button class="pagination-btn" onclick="goToPage(totalPages)" id="lastBtn" title="Last">»</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Data Card */
+.data-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden; }
+.data-card-header { padding: 16px 24px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+.data-card-title { font-size: 16px; font-weight: 600; color: #333; margin: 0; }
+.data-card-subtitle { font-size: 13px; color: #666; margin: 4px 0 0 0; }
+.data-card-body { padding: 20px 24px; }
+
+/* Export Buttons */
+.export-buttons { display: flex; gap: 8px; }
+.export-btn { padding: 8px 14px; font-size: 12px; border-radius: 6px; border: 1px solid #ddd; background: #fff; color: #333; cursor: pointer; transition: all 0.2s; }
+.export-btn:hover { background: #f5f5f5; border-color: #28a745; }
+
+/* Table Controls */
+.table-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.search-box input { padding: 8px 14px; border: 1px solid #ddd; border-radius: 6px; width: 250px; font-size: 14px; }
+.search-box input:focus { outline: none; border-color: #28a745; }
+
+/* Table */
+.table-container { overflow-x: auto; border: 1px solid #eee; border-radius: 8px; }
+#reportTable { width: 100%; border-collapse: collapse; font-size: 13px; }
+#reportTable thead th { background: #f8f9fa; color: #333; font-weight: 600; padding: 12px 10px; border-bottom: 2px solid #dee2e6; text-align: left; white-space: nowrap; position: sticky; top: 0; }
+#reportTable tbody td { padding: 10px; border-bottom: 1px solid #eee; color: #333; }
+#reportTable tbody tr:hover { background: #f8f9fa; }
+
+/* Status Badges */
+.status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+.status-active { background: #d4edda; color: #155724; }
+.status-inactive { background: #f8d7da; color: #721c24; }
+.stock-in { background: #d4edda; color: #155724; }
+.stock-out { background: #f8d7da; color: #721c24; }
+
+/* Pagination */
+.pagination-container { display: flex; justify-content: space-between; align-items: center; margin-top: 20px; padding-top: 16px; border-top: 1px solid #eee; flex-wrap: wrap; gap: 12px; }
+.pagination-info { font-size: 13px; color: #666; }
+.pagination-controls { display: flex; align-items: center; gap: 4px; }
+.pagination-numbers { display: flex; gap: 4px; }
+.pagination-btn { min-width: 36px; height: 36px; border: 1px solid #e5e7eb; background: #fff; border-radius: 6px; cursor: pointer; font-size: 14px; color: #374151; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.pagination-btn:hover:not(:disabled) { background: #f3f4f6; border-color: #28a745; }
+.pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.pagination-btn.active { background: #28a745; border-color: #28a745; color: #fff; }
+
+/* Empty State */
+.empty-state { text-align: center; padding: 60px 20px; color: #666; }
+.empty-state-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+.empty-state-text { font-size: 16px; margin-bottom: 8px; }
+.empty-state-subtext { font-size: 14px; color: #999; }
+
+@media (max-width: 768px) {
+    .filter-row, .stats-row { flex-direction: column; }
+    .reports-page { padding: 16px; }
+    .search-box input { width: 100%; }
+}
+</style>
+
+<script>
+// Pagination state
+let allRows = [];
+let filteredRows = [];
+let currentPage = 1;
+let rowsPerPage = 20;
+let totalPages = 1;
+let currentHeaders = [];
+
+// Load stats on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadAllOutlets();
+    loadStats();
+});
+
+function loadStats() {
+    fetch('/integration/api/report-stats/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('pasonsItemsCount').textContent = data.stats.pasons_items.toLocaleString();
+                document.getElementById('talabatItemsCount').textContent = data.stats.talabat_items.toLocaleString();
+                document.getElementById('pasonsOutletsCount').textContent = data.stats.pasons_outlets.toLocaleString();
+                document.getElementById('talabatOutletsCount').textContent = data.stats.talabat_outlets.toLocaleString();
+            }
+        });
+}
+
+function loadAllOutlets() {
+    const outletSelect = document.getElementById('outletFilter');
+    
+    // Load all outlets and show just names
+    Promise.all([
+        fetch('/integration/api/outlets-by-platform/?platform=pasons').then(r => r.json()),
+        fetch('/integration/api/outlets-by-platform/?platform=talabat').then(r => r.json())
+    ]).then(([pasonsData, talabatData]) => {
+        // Combine all outlets
+        const allOutlets = [];
+        if (pasonsData.outlets) {
+            pasonsData.outlets.forEach(outlet => {
+                allOutlets.push({...outlet, platform: 'pasons'});
+            });
+        }
+        if (talabatData.outlets) {
+            talabatData.outlets.forEach(outlet => {
+                allOutlets.push({...outlet, platform: 'talabat'});
+            });
+        }
+        
+        // Sort by name
+        allOutlets.sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Add to dropdown - just outlet names
+        allOutlets.forEach(outlet => {
+            const option = document.createElement('option');
+            option.value = outlet.id;
+            option.textContent = outlet.name; // Just the outlet name
+            option.dataset.platform = outlet.platform;
+            outletSelect.appendChild(option);
+        });
+    });
+}
+
+// Platform filter - filter outlets by platform
+document.getElementById('platformFilter').addEventListener('change', function() {
+    const platform = this.value;
+    const outletSelect = document.getElementById('outletFilter');
+    const options = outletSelect.querySelectorAll('option[data-platform]');
+    
+    options.forEach(option => {
+        if (!platform || option.dataset.platform === platform) {
+            option.style.display = '';
+        } else {
+            option.style.display = 'none';
+        }
+    });
+    outletSelect.value = '';
+});
+
+// View Report
+document.getElementById('viewReportBtn').addEventListener('click', loadReport);
+
+function loadReport() {
+    const reportType = document.getElementById('reportType').value;
+    const platform = document.getElementById('platformFilter').value;
+    const outlet = document.getElementById('outletFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    
+    let apiUrl = `/integration/api/report-data/?type=${reportType}`;
+    if (platform) apiUrl += `&platform=${platform}`;
+    if (outlet) apiUrl += `&outlet=${outlet}`;
+    if (status) apiUrl += `&status=${status}`;
+    
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('tableWrapper').style.display = 'block';
+    document.getElementById('exportButtons').style.display = 'flex';
+    
+    fetch(apiUrl)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                currentHeaders = data.headers;
+                allRows = data.rows;
+                filteredRows = [...allRows];
+                currentPage = 1;
+                renderTable();
+                updateTitle(reportType, platform, outlet);
+            } else {
+                showError(data.message);
+            }
+        })
+        .catch(() => showError('Error loading data'));
+}
+</script>
+
+<script>
+function renderTable() {
+    // Build headers
+    let headerHtml = '';
+    currentHeaders.forEach(h => { headerHtml += `<th>${h}</th>`; });
+    document.getElementById('tableHeaders').innerHTML = headerHtml;
+    
+    // Calculate pagination
+    totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+    if (currentPage > totalPages) currentPage = totalPages || 1;
+    
+    const startIdx = (currentPage - 1) * rowsPerPage;
+    const endIdx = Math.min(startIdx + rowsPerPage, filteredRows.length);
+    const pageRows = filteredRows.slice(startIdx, endIdx);
+    
+    // Build body
+    let bodyHtml = '';
+    pageRows.forEach(row => {
+        bodyHtml += '<tr>';
+        row.forEach((cell, idx) => {
+            const header = currentHeaders[idx];
+            if (header === 'Status' || header === 'Active') {
+                const isActive = cell === 'Yes' || cell === 'Active';
+                bodyHtml += `<td><span class="status-badge ${isActive ? 'status-active' : 'status-inactive'}">${cell}</span></td>`;
+            } else if (header === 'Stock Status') {
+                const hasStock = cell === '1' || cell === 1;
+                bodyHtml += `<td><span class="status-badge ${hasStock ? 'stock-in' : 'stock-out'}">${hasStock ? 'In Stock' : 'Out'}</span></td>`;
+            } else {
+                bodyHtml += `<td>${cell !== null && cell !== '' ? cell : '-'}</td>`;
+            }
+        });
+        bodyHtml += '</tr>';
+    });
+    document.getElementById('tableBody').innerHTML = bodyHtml;
+    
+    // Update pagination
+    updatePagination();
+}
+
+function updatePagination() {
+    const startRow = filteredRows.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0;
+    const endRow = Math.min(currentPage * rowsPerPage, filteredRows.length);
+    document.getElementById('paginationInfo').textContent = `Showing ${startRow}-${endRow} of ${filteredRows.length} entries`;
+    
+    // Update buttons
+    document.getElementById('firstBtn').disabled = currentPage === 1;
+    document.getElementById('prevBtn').disabled = currentPage === 1;
+    document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+    document.getElementById('lastBtn').disabled = currentPage >= totalPages;
+    
+    // Render page numbers
+    renderPageNumbers();
+}
+
+function renderPageNumbers() {
+    const container = document.getElementById('pageNumbers');
+    container.innerHTML = '';
+    
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + 4);
+    if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        btn.className = 'pagination-btn' + (i === currentPage ? ' active' : '');
+        btn.onclick = () => goToPage(i);
+        container.appendChild(btn);
+    }
+}
+
+function changePage(direction) {
+    currentPage += direction;
+    currentPage = Math.max(1, Math.min(currentPage, totalPages));
+    renderTable();
+}
+
+function goToPage(page) {
+    currentPage = page;
+    renderTable();
+}
+
+function filterTable() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    if (!searchTerm) {
+        filteredRows = [...allRows];
+    } else {
+        filteredRows = allRows.filter(row => 
+            row.some(cell => String(cell).toLowerCase().includes(searchTerm))
+        );
+    }
+    currentPage = 1;
+    renderTable();
+}
+
+function updateTitle(reportType, platform, outlet) {
+    let title = 'Item Report';
+    let subtitle = '';
+    if (reportType === 'all') { title = 'All Items Report'; subtitle = `${filteredRows.length} items from database`; }
+    else if (reportType === 'platform') { 
+        const pn = platform === 'pasons' ? 'Pasons' : platform === 'talabat' ? 'Talabat' : 'All';
+        title = `${pn} Items Report`; subtitle = `${filteredRows.length} items`;
+    }
+    else if (reportType === 'outlet') { title = 'Outlet Items Report'; subtitle = `${filteredRows.length} items linked to outlet`; }
+    document.getElementById('reportTitle').textContent = title;
+    document.getElementById('reportSubtitle').textContent = subtitle;
+}
+
+function showError(message) {
+    document.getElementById('tableWrapper').style.display = 'none';
+    document.getElementById('exportButtons').style.display = 'none';
+    document.getElementById('emptyState').innerHTML = `
+        <div class="empty-state-icon">⚠️</div>
+        <div class="empty-state-text">${message}</div>
+        <div class="empty-state-subtext">Please try again</div>`;
+    document.getElementById('emptyState').style.display = 'block';
+}
+
+// Export functions
+function exportData(format) {
+    const reportType = document.getElementById('reportType').value;
+    const platform = document.getElementById('platformFilter').value;
+    const outlet = document.getElementById('outletFilter').value;
+    
+    if (format === 'csv') {
+        // CSV Export via server
+        let url = '/integration/reports/export-all/';
+        if (reportType === 'platform' && platform) url = '/integration/reports/export-platform/';
+        else if (reportType === 'outlet' && outlet) url = '/integration/reports/export-outlet/';
+        
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.innerHTML = `<input type="hidden" name="csrfmiddlewaretoken" value="${document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''}">
+            <input type="hidden" name="platform" value="${platform}">
+            <input type="hidden" name="outlet" value="${outlet}">`;
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+    } else if (format === 'excel') {
+        // Excel Export - CSV format with BOM for Excel compatibility
+        let csv = '\uFEFF' + currentHeaders.join(',') + '\n'; // Add BOM for Excel
+        filteredRows.forEach(row => {
+            csv += row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',') + '\n';
+        });
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'report_export.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+}
+</script>
+
+<!-- CSRF Token for exports -->
+<form style="display:none;">{% csrf_token %}</form>
+{% endblock %}

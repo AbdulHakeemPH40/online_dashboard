@@ -8,7 +8,7 @@
 | Python | 3.12.3 |
 | Web Server | Nginx 1.24.0 |
 | WSGI | Gunicorn 21.2.0 |
-| Database | SQLite |
+| Database | SQLite (switched from MySQL for performance) |
 | Project Path | /var/www/myproject |
 
 ---
@@ -106,6 +106,11 @@ sudo systemctl daemon-reload
 sudo systemctl start gunicorn
 sudo systemctl enable gunicorn
 ```
+
+
+my sql 
+USER:django_user
+password:winDOws@10
 
 ---
 
@@ -364,6 +369,77 @@ python manage.py migrate
 python manage.py collectstatic --noinput
 sudo systemctl restart gunicorn
 ```
+
+---
+
+## 🚀 Push Changes FROM DigitalOcean TO GitHub
+
+When you make changes on the server and want to push them to GitHub:
+
+### Step 1: SSH to Server & Navigate
+```bash
+ssh root@159.89.133.6
+cd /var/www/myproject
+```
+
+### Step 2: Check Git Status
+```bash
+git status
+```
+
+### Step 3: Add Changes
+```bash
+# Add specific files
+git add docs/digita_ocean.md
+git add templates/reports.html
+git add integration/views.py
+
+# Or add all changes
+git add .
+```
+
+### Step 4: Commit Changes
+```bash
+git commit -m "Add comprehensive Reports system with export functionality"
+```
+
+### Step 5: Push to GitHub
+```bash
+git push origin main
+```
+
+### Step 6: Verify on GitHub
+Visit: https://github.com/AbdulHakeemPH40/online_dashboard
+
+---
+
+## 📊 Recent Updates (December 2025)
+
+### ✅ Reports & Data Export System
+- **Added comprehensive reports page** with DataTables-like functionality
+- **Platform-specific stats cards** (Pasons Items, Talabat Items, Outlets)
+- **Three export types**: All Items, Platform Items, Outlet Items
+- **Export formats**: CSV, Excel, Print (PDF removed)
+- **Pagination system** (20 items per page) with navigation
+- **Search functionality** across all data
+- **Clean outlet dropdown** without colored indicators
+
+### ✅ Database Migration (MySQL → SQLite)
+- **Switched from MySQL to SQLite** for all environments due to performance issues
+- **Updated settings.py** to use SQLite only (local, pythonanywhere, digitalocean)
+- **MySQL service stopped** and disabled to free up 512MB RAM
+- **Automated backup system** implemented with daily backups at 2 AM
+
+### ✅ Export Filename Improvements
+- **Updated ERP export filenames** to include outlet name and timestamp
+- **Updated Talabat Feed export filenames** similarly
+- **Fixed timezone issues** in CSV exports using `timezone.localtime()`
+- **Changed underscores to hyphens** in all export filenames
+
+### ✅ Bug Fixes
+- **Fixed pencil icon lock** after editing selling prices
+- **Fixed HTML encoding bug** in item descriptions (removed `escape()` calls)
+- **Added database safety rules** in `docs/agent_instruction.md`
 
 ---
 

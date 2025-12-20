@@ -8,6 +8,8 @@ from .views import (
     erp_export_api, download_erp_export_file,
     search_product_api, item_outlets_api, outlet_lock_toggle_api, save_product_api, outlet_price_update_api, item_deletion, delete_items_api, preview_csv_api, cls_lock_toggle_api,
     list_items_api,
+    reports_page, export_all_items, export_platform_items, export_outlet_items,
+    report_data_api, report_stats_api,
 )
 from .promotion_views import (
     promotion_update, promotion_search_api, promotion_calculate_api,
@@ -73,4 +75,11 @@ urlpatterns = [
     path('api/promotion/export/', promotion_export_api, name='promotion_export_api'),
     path('api/promotion/erp-export/', promotion_erp_export_api, name='promotion_erp_export_api'),
     path('api/promotion/talabat-xlsx-export/', talabat_promotions_xlsx_export, name='talabat_promotions_xlsx_export'),
+    # Reports
+    path('reports/', reports_page, name='reports'),
+    path('reports/export-all/', export_all_items, name='export_all_items'),
+    path('reports/export-platform/', export_platform_items, name='export_platform_items'),
+    path('reports/export-outlet/', export_outlet_items, name='export_outlet_items'),
+    path('api/report-data/', report_data_api, name='report_data_api'),
+    path('api/report-stats/', report_stats_api, name='report_stats_api'),
 ]
