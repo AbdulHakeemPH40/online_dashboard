@@ -87,46 +87,16 @@ WSGI_APPLICATION = 'middleware_dashboard.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# Database configuration based on environment
-# local -> SQLite, pythonanywhere -> MySQL, digitalocean -> MySQL
-if ENVIRONMENT == 'pythonanywhere':
-    # PythonAnywhere MySQL
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'Abdul40$online_middleware',
-            'USER': 'Abdul40',
-            'PASSWORD': 'winDOws@10',
-            'HOST': 'Abdul40.mysql.pythonanywhere-services.com',
-            'PORT': '3306',
+# SQLite for all environments (local, pythonanywhere, digitalocean)
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            'timeout': 30,
         }
     }
-elif ENVIRONMENT == 'digitalocean':
-    # DigitalOcean MySQL
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'online_middleware',
-            'USER': 'django_user',
-            'PASSWORD': 'winDOws@10',
-            'HOST': 'localhost',
-            'PORT': '3306',
-            'OPTIONS': {
-                'charset': 'utf8mb4',
-            },
-        }
-    }
-else:
-    # Local -> SQLite (faster for development)
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-            'OPTIONS': {
-                'timeout': 30,
-            }
-        }
-    }
+}
 
 
 # Password validation
@@ -172,9 +142,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Export files directory
-if ENVIRONMENT == 'pythonanywhere':
-    EXPORT_FILES_DIR = '/home/Abdul40/online_dashboard/media/exports'
-elif ENVIRONMENT == 'digitalocean':
+if ENVIRONMENT == 'digitalocean':
     EXPORT_FILES_DIR = '/var/www/myproject/media/exports'
 else:
     EXPORT_FILES_DIR = MEDIA_ROOT / 'exports'
