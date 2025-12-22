@@ -675,13 +675,35 @@ function generateERPExport(event) {
                     message += '\n\nTip: Partial export only includes items that have changed since the last export. Use "Full Export" to export all items.';
                 }
                 
-                showModal({
-                    title: 'Export Generated',
-                    message: message + (data.item_count > 0 ? ' You can download it from the Export History below.' : ''),
-                    type: data.item_count > 0 ? 'success' : 'info',
-                    okText: 'OK',
-                    onOk: () => location.reload()
-                });
+                // Automatically download the file if items were exported
+                if (data.item_count > 0 && data.filename) {
+                    // Trigger automatic download
+                    const downloadUrl = `/integration/api/download-erp-export/?filename=${encodeURIComponent(data.filename)}`;
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = downloadUrl;
+                    downloadLink.download = data.filename;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                    
+                    // Show success message with download confirmation
+                    showModal({
+                        title: 'Export Downloaded',
+                        message: `${message}\n\nThe file "${data.filename}" has been downloaded automatically.`,
+                        type: 'success',
+                        okText: 'OK',
+                        onOk: () => location.reload()
+                    });
+                } else {
+                    // No items to export - just show info message
+                    showModal({
+                        title: 'Export Generated',
+                        message: message,
+                        type: 'info',
+                        okText: 'OK',
+                        onOk: () => location.reload()
+                    });
+                }
             } else {
                 showModal({
                     title: 'Export Failed',
