@@ -1,0 +1,711 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<style>
+/* Reset any potential Tailwind conflicts */
+.locked-products-container * {
+    box-sizing: border-box;
+}
+
+/* Locked Products Report Styles */
+.locked-products-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0; /* Remove padding to avoid double padding with base template */
+}
+
+/* Platform Badge */
+.platform-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    border: 1px solid transparent;
+}
+
+.platform-indicator.pasons {
+    background: linear-gradient(135deg, #e0f2fe, #b3e5fc);
+    color: #0277bd;
+    border-color: rgba(2, 119, 189, 0.1);
+}
+
+.platform-indicator.talabat {
+    background: linear-gradient(135deg, #ffedd5, #fed7aa);
+    color: #c2410c;
+    border-color: rgba(194, 65, 12, 0.1);
+}
+
+/* Content Area */
+.tab-content {
+    background: linear-gradient(180deg, #ffffff, #fafbfc);
+    border-radius: 12px; /* Reduced from 16px to match base template */
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03); /* Reduced shadow */
+    min-height: 380px;
+    border: 1px solid rgba(0,0,0,0.04);
+    margin: 0; /* Ensure no margin conflicts */
+}
+
+/* Filter Section */
+.filter-section {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-radius: 8px; /* Reduced from 12px */
+    padding: 20px; /* Reduced from 24px */
+    border: 1px solid #e2e8f0;
+    margin-bottom: 24px; /* Reduced from 30px */
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* Increased min width */
+    gap: 16px; /* Reduced from 20px */
+    margin-bottom: 16px; /* Reduced from 20px */
+    align-items: end; /* Align items to bottom for better visual alignment */
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px; /* Reduced from 8px */
+}
+
+.filter-group label {
+    font-size: 12px; /* Reduced from 13px */
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 2px; /* Add small margin for better spacing */
+}
+
+.filter-group select {
+    padding: 10px 12px; /* Slightly reduced horizontal padding */
+    border: 1px solid #d1d5db;
+    border-radius: 6px; /* Reduced from 8px to match overall design */
+    font-size: 13px; /* Reduced from 14px */
+    color: #374151;
+    background: white;
+    transition: all 0.15s ease;
+    min-height: 40px; /* Ensure consistent height */
+    appearance: none; /* Remove default styling */
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 8px center;
+    background-repeat: no-repeat;
+    background-size: 16px 16px;
+    padding-right: 32px; /* Make room for custom arrow */
+}
+
+.filter-group select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 16px; /* Reduced from 20px */
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center; /* Center content */
+    gap: 6px; /* Reduced from 8px */
+    padding: 10px 16px; /* Slightly reduced horizontal padding */
+    border-radius: 6px; /* Reduced from 8px to match overall design */
+    font-size: 12px; /* Reduced from 13px */
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    white-space: nowrap; /* Prevent text wrapping */
+    min-height: 40px; /* Consistent height with selects */
+}
+
+.btn.primary {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.2); /* Add subtle shadow */
+}
+
+.btn.primary:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    transform: translateY(-1px); /* Subtle lift effect */
+}
+
+.btn.secondary {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* Add subtle shadow */
+}
+
+.btn.secondary:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+    transform: translateY(-1px); /* Subtle lift effect */
+}
+
+.btn.success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2); /* Add subtle shadow */
+}
+
+.btn.success:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transform: translateY(-1px); /* Subtle lift effect */
+}
+
+/* Data Table */
+.data-table-container {
+    background: white;
+    border-radius: 8px; /* Reduced from 12px to match overall design */
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* Add subtle shadow */
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12px; /* Reduced from 13px */
+}
+
+.data-table thead th {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    padding: 12px 10px; /* Slightly reduced padding */
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+    font-size: 11px; /* Smaller font for headers */
+    text-transform: uppercase; /* Make headers uppercase */
+    letter-spacing: 0.5px; /* Add letter spacing */
+}
+
+.data-table tbody td {
+    padding: 12px 10px; /* Slightly reduced padding */
+    border-bottom: 1px solid #f1f5f9;
+    color: #374151;
+    vertical-align: top;
+    font-size: 12px; /* Consistent font size */
+}
+
+.data-table tbody tr:hover {
+    background: #f8fafc;
+    transition: background-color 0.15s ease; /* Smooth hover transition */
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none; /* Remove border from last row */
+}
+
+/* Lock Type Badges */
+.lock-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.lock-badge.cls-price { background: #fef3c7; color: #92400e; }
+.lock-badge.cls-status { background: #fee2e2; color: #991b1b; }
+.lock-badge.bls-price { background: #dbeafe; color: #1e40af; }
+.lock-badge.bls-status { background: #dcfce7; color: #166534; }
+
+/* Loading State */
+.loading-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6b7280;
+}
+
+.loading-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+    color: #d1d5db;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #9ca3af;
+}
+
+.empty-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+    color: #d1d5db;
+}
+
+/* Info Box */
+.info-box {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    border: 1px solid #bfdbfe;
+    border-radius: 6px; /* Reduced from 8px to match overall design */
+    padding: 14px; /* Slightly reduced padding */
+    margin-bottom: 20px; /* Reduced from 24px */
+    border-left: 4px solid #3b82f6; /* Add colored left border */
+}
+
+.info-box h4 {
+    color: #1e40af;
+    font-size: 13px; /* Reduced from 14px */
+    font-weight: 600;
+    margin-bottom: 6px; /* Reduced from 8px */
+    display: flex;
+    align-items: center;
+    gap: 6px; /* Add gap for emoji */
+}
+
+.info-box p {
+    color: #1e40af;
+    font-size: 11px; /* Reduced from 12px */
+    margin: 0;
+    line-height: 1.5;
+}
+
+.info-box strong {
+    font-weight: 600;
+    color: #1d4ed8; /* Slightly darker for better contrast */
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .locked-products-container {
+        padding: 0; /* No padding on mobile */
+    }
+    
+    .tab-content {
+        padding: 16px; /* Reduced padding on mobile */
+        border-radius: 8px; /* Smaller border radius on mobile */
+    }
+    
+    .filter-section {
+        padding: 16px; /* Reduced padding on mobile */
+        border-radius: 6px;
+    }
+    
+    .filter-row {
+        grid-template-columns: 1fr; /* Single column on mobile */
+        gap: 12px; /* Reduced gap on mobile */
+    }
+    
+    .action-buttons {
+        flex-direction: column; /* Stack buttons vertically on mobile */
+        gap: 8px;
+    }
+    
+    .btn {
+        width: 100%; /* Full width buttons on mobile */
+        justify-content: center;
+    }
+    
+    .data-table-container {
+        overflow-x: auto;
+        border-radius: 8px; /* Consistent border radius */
+    }
+    
+    .data-table {
+        min-width: 600px; /* Ensure table doesn't get too cramped */
+    }
+    
+    .data-table thead th,
+    .data-table tbody td {
+        padding: 10px 8px; /* Reduced padding on mobile */
+        font-size: 12px; /* Smaller font on mobile */
+    }
+}
+
+/* Additional responsive breakpoint for tablets */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .filter-row {
+        grid-template-columns: repeat(2, 1fr); /* Two columns on tablets */
+    }
+    
+    .tab-content {
+        padding: 20px; /* Medium padding on tablets */
+    }
+}
+</style>
+
+<div class="locked-products-container">
+    <div class="tab-content">
+        <!-- Info Box -->
+        <div class="info-box">
+            <h4>🔒 Central & Branch Locking System (CLS/BLS)</h4>
+            <p>
+                <strong>CLS (Central Locking):</strong> Locks applied at item level affecting ALL outlets for the platform. 
+                <strong>BLS (Branch Locking):</strong> Locks applied at specific outlet level only.
+                <strong>Price Lock:</strong> Prevents price modifications. 
+                <strong>Status Lock:</strong> Prevents activation/deactivation.
+            </p>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>Platform</label>
+                    <select id="platform-filter">
+                        <option value="">-- Select Platform --</option>
+                        <option value="pasons">Pasons Ecommerce</option>
+                        <option value="talabat">Talabat Platform</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Lock Type</label>
+                    <select id="lock-type-filter">
+                        <option value="">-- Select Lock Type --</option>
+                        <option value="cls_price">CLS Price Lock (Central)</option>
+                        <option value="cls_status">CLS Status Lock (Central)</option>
+                        <option value="bls_price">BLS Price Lock (Branch)</option>
+                        <option value="bls_status">BLS Status Lock (Branch)</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group" id="outlet-filter-group" style="display: none;">
+                    <label>Outlet (for BLS)</label>
+                    <select id="outlet-filter">
+                        <option value="">-- Select Outlet --</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn primary" onclick="loadLockedProducts()">
+                    <i class="bx bx-search"></i> Load Report
+                </button>
+                <button class="btn success" onclick="exportLockedProducts('csv')" id="export-csv-btn" style="display: none;">
+                    <i class="bx bx-download"></i> Export CSV
+                </button>
+                <button class="btn success" onclick="exportLockedProducts('excel')" id="export-excel-btn" style="display: none;">
+                    <i class="bx bx-download"></i> Export Excel
+                </button>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="data-table-container">
+            <div id="loading-state" class="loading-state" style="display: none;">
+                <i class="bx bx-loader-alt"></i>
+                <p>Loading locked products data...</p>
+            </div>
+            
+            <div id="empty-state" class="empty-state">
+                <i class="bx bx-lock"></i>
+                <p>Select platform and lock type to view locked products report.</p>
+            </div>
+            
+            <table class="data-table" id="data-table" style="display: none;">
+                <thead>
+                    <tr id="table-headers">
+                        <!-- Headers will be populated dynamically -->
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Data will be populated dynamically -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let currentData = null;
+let currentFilters = {};
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Load outlets when platform changes
+    document.getElementById('platform-filter').addEventListener('change', function() {
+        const platform = this.value;
+        if (platform) {
+            loadOutlets(platform);
+        } else {
+            document.getElementById('outlet-filter-group').style.display = 'none';
+        }
+    });
+    
+    // Show/hide outlet filter based on lock type
+    document.getElementById('lock-type-filter').addEventListener('change', function() {
+        const lockType = this.value;
+        const outletGroup = document.getElementById('outlet-filter-group');
+        
+        if (lockType && lockType.startsWith('bls')) {
+            outletGroup.style.display = 'block';
+        } else {
+            outletGroup.style.display = 'none';
+        }
+    });
+});
+
+// Load outlets for selected platform
+function loadOutlets(platform) {
+    const outletSelect = document.getElementById('outlet-filter');
+    outletSelect.innerHTML = '<option value="">-- Loading outlets... --</option>';
+    
+    console.log('Loading outlets for platform:', platform); // Debug log
+    
+    fetch(`/integration/api/outlets-by-platform/?platform=${platform}`)
+        .then(response => {
+            console.log('Response status:', response.status); // Debug log
+            return response.json();
+        })
+        .then(data => {
+            console.log('Outlets data received:', data); // Debug log
+            
+            outletSelect.innerHTML = '<option value="">-- Select Outlet --</option>';
+            
+            if (data.success && data.outlets && data.outlets.length > 0) {
+                data.outlets.forEach(outlet => {
+                    const option = document.createElement('option');
+                    option.value = outlet.id;
+                    option.textContent = `${outlet.name} (${outlet.store_id})`;
+                    outletSelect.appendChild(option);
+                });
+                console.log(`Loaded ${data.outlets.length} outlets`); // Debug log
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = `-- No outlets found for ${platform.charAt(0).toUpperCase() + platform.slice(1)} --`;
+                outletSelect.appendChild(option);
+                console.log('No outlets found for platform:', platform); // Debug log
+            }
+        })
+        .catch(error => {
+            console.error('Error loading outlets:', error);
+            outletSelect.innerHTML = '<option value="">-- Error loading outlets --</option>';
+            
+            // Show user-friendly error
+            showModal({
+                title: 'Error Loading Outlets',
+                message: `Failed to load outlets for ${platform}. Please try again or contact support.`,
+                type: 'error',
+                okText: 'OK'
+            });
+        });
+}
+
+// Load locked products data
+function loadLockedProducts() {
+    const platform = document.getElementById('platform-filter').value;
+    const lockType = document.getElementById('lock-type-filter').value;
+    const outlet = document.getElementById('outlet-filter').value;
+    
+    // Validation
+    if (!platform) {
+        showModal({
+            title: 'Platform Required',
+            message: 'Please select a platform (Pasons or Talabat).',
+            type: 'warning',
+            okText: 'OK'
+        });
+        return;
+    }
+    
+    if (!lockType) {
+        showModal({
+            title: 'Lock Type Required',
+            message: 'Please select a lock type.',
+            type: 'warning',
+            okText: 'OK'
+        });
+        return;
+    }
+    
+    if (lockType.startsWith('bls') && !outlet) {
+        showModal({
+            title: 'Outlet Required',
+            message: 'Please select an outlet for Branch Locking System (BLS) reports.',
+            type: 'warning',
+            okText: 'OK'
+        });
+        return;
+    }
+    
+    // Store current filters
+    currentFilters = { platform, lockType, outlet };
+    
+    // Show loading state
+    document.getElementById('loading-state').style.display = 'block';
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('data-table').style.display = 'none';
+    document.getElementById('export-csv-btn').style.display = 'none';
+    document.getElementById('export-excel-btn').style.display = 'none';
+    
+    // Build API URL
+    let apiUrl = `/integration/api/locked-products-data/?platform=${platform}&lock_type=${lockType}`;
+    if (outlet) {
+        apiUrl += `&outlet=${outlet}`;
+    }
+    
+    // Fetch data
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loading-state').style.display = 'none';
+            
+            if (data.success) {
+                currentData = data;
+                displayData(data);
+                
+                // Show export buttons
+                document.getElementById('export-csv-btn').style.display = 'inline-flex';
+                document.getElementById('export-excel-btn').style.display = 'inline-flex';
+            } else {
+                showError(data.message || 'Failed to load data');
+            }
+        })
+        .catch(error => {
+            document.getElementById('loading-state').style.display = 'none';
+            console.error('Error loading data:', error);
+            showError('Network error occurred. Please try again.');
+        });
+}
+
+// Display data in table
+function displayData(data) {
+    const table = document.getElementById('data-table');
+    const headersRow = document.getElementById('table-headers');
+    const tbody = document.getElementById('table-body');
+    
+    // Clear existing content
+    headersRow.innerHTML = '';
+    tbody.innerHTML = '';
+    
+    if (!data.rows || data.rows.length === 0) {
+        document.getElementById('empty-state').style.display = 'block';
+        document.getElementById('empty-state').innerHTML = `
+            <i class="bx bx-info-circle"></i>
+            <p>No locked products found for the selected criteria.</p>
+        `;
+        return;
+    }
+    
+    // Create headers
+    data.headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headersRow.appendChild(th);
+    });
+    
+    // Create rows
+    data.rows.forEach(row => {
+        const tr = document.createElement('tr');
+        
+        row.forEach((cell, index) => {
+            const td = document.createElement('td');
+            
+            // Special formatting for lock type column
+            if (data.headers[index] === 'Lock Type') {
+                const lockClass = data.lock_type.replace('_', '-');
+                td.innerHTML = `<span class="lock-badge ${lockClass}">${cell}</span>`;
+            } else {
+                td.textContent = cell;
+            }
+            
+            tr.appendChild(td);
+        });
+        
+        tbody.appendChild(tr);
+    });
+    
+    // Show table
+    table.style.display = 'table';
+    document.getElementById('empty-state').style.display = 'none';
+}
+
+// Export locked products
+function exportLockedProducts(format) {
+    if (!currentFilters.platform || !currentFilters.lockType) {
+        showModal({
+            title: 'No Data to Export',
+            message: 'Please load the report data first.',
+            type: 'warning',
+            okText: 'OK'
+        });
+        return;
+    }
+    
+    // Create form and submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/integration/api/export-locked-products/';
+    form.style.display = 'none';
+    
+    // Add CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+    
+    // Add parameters
+    const params = {
+        platform: currentFilters.platform,
+        lock_type: currentFilters.lockType,
+        format: format
+    };
+    
+    if (currentFilters.outlet) {
+        params.outlet = currentFilters.outlet;
+    }
+    
+    Object.keys(params).forEach(key => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = key;
+        input.value = params[key];
+        form.appendChild(input);
+    });
+    
+    // Submit form
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+// Show error message
+function showError(message) {
+    document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('empty-state').innerHTML = `
+        <i class="bx bx-error"></i>
+        <p style="color: #dc2626;">${message}</p>
+    `;
+}
+</script>
+{% endblock %}

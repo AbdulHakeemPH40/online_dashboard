@@ -4,7 +4,7 @@ function toggleDropdown(event, dropdownId) {
     event.stopPropagation();
 
     // Close all other dropdowns first
-    var allDropdowns = document.querySelectorAll('.dropdown-content');
+    var allDropdowns = document.querySelectorAll('.dropdown-menu');
     allDropdowns.forEach(function (dropdown) {
         if (dropdown.id !== dropdownId) {
             dropdown.style.display = 'none';
@@ -158,12 +158,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Close dropdowns when clicking outside
     document.addEventListener('click', function (event) {
-        var dropdowns = document.querySelectorAll('.dropdown-content');
+        var dropdowns = document.querySelectorAll('.dropdown-menu');
         var clickedInsideDropdown = false;
 
         // Check if click was inside any dropdown or dropdown trigger
         dropdowns.forEach(function (dropdown) {
-            var dropdownParent = dropdown.closest('.list');
+            var dropdownParent = dropdown.closest('.has-dropdown');
             if (dropdownParent && dropdownParent.contains(event.target)) {
                 clickedInsideDropdown = true;
             }
@@ -174,14 +174,22 @@ document.addEventListener('DOMContentLoaded', function () {
             dropdowns.forEach(function (dropdown) {
                 dropdown.style.display = 'none';
             });
+            // Reset all arrows
+            document.querySelectorAll('.dropdown-arrow').forEach(arrow => {
+                arrow.style.transform = 'rotate(0deg)';
+            });
         }
     });
 
     // Close dropdowns on window resize
     window.addEventListener('resize', function () {
-        var dropdowns = document.querySelectorAll('.dropdown-content');
+        var dropdowns = document.querySelectorAll('.dropdown-menu');
         dropdowns.forEach(function (dropdown) {
             dropdown.style.display = 'none';
+        });
+        // Reset all arrows
+        document.querySelectorAll('.dropdown-arrow').forEach(arrow => {
+            arrow.style.transform = 'rotate(0deg)';
         });
 
         // Close sidebar on larger screens

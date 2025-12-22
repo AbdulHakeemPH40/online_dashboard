@@ -595,6 +595,16 @@ body {
     backdrop-filter: blur(10px);
     position: relative;
     left: 0;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+.dropdown-menu[style*="block"] {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
 }
 
 .dropdown-link {

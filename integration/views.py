@@ -936,7 +936,7 @@ def get_outlets_by_platform(request):
     platform = request.GET.get('platform')
     
     if not platform:
-        return JsonResponse({'outlets': []})
+        return JsonResponse({'success': True, 'outlets': []})
     
     from .models import Outlet
     from django.db import models
@@ -953,7 +953,7 @@ def get_outlets_by_platform(request):
         ).order_by('name')
     else:
         # Return empty list for invalid platforms
-        return JsonResponse({'outlets': []})
+        return JsonResponse({'success': True, 'outlets': []})
     
     outlets_data = []
     for outlet in outlets:
@@ -965,7 +965,7 @@ def get_outlets_by_platform(request):
             'platforms': outlet.platforms
         })
     
-    return JsonResponse({'outlets': outlets_data})
+    return JsonResponse({'success': True, 'outlets': outlets_data})
 
 
 @login_required
@@ -4298,3 +4298,347 @@ def report_data_api(request):
             'success': False,
             'message': f'Error loading report data: {str(e)}'
         })
+
+
+@login_required
+def locked_products_report(request):
+    """
+    Locked Products Report page - displays CLS and BLS locked items.
+    """
+    context = {
+        'page_title': 'Locked Products Report',
+        'active_nav': 'locked_products_report',
+    }
+    return render(request, 'locked_products_report.html', context)
+
+
+@login_required
+def locked_products_data_api(request):
+    """
+    API endpoint to get locked products data for DataTables.
+    
+    Query params:
+    - platform: 'pasons', 'talabat' (required)
+    - lock_type: 'cls_price', 'cls_status', 'bls_price', 'bls_status'
+    - outlet: outlet_id (optional, for BLS reports)
+    """
+    from .models import Item, Outlet, ItemOutlet
+    
+    try:
+        platform = request.GET.get('platform', '').strip()
+        lock_type = request.GET.get('lock_type', '').strip()
+        outlet_id = request.GET.get('outlet', '').strip()
+        
+        # Validate platform
+        if not platform or platform not in ('pasons', 'talabat'):
+            return JsonResponse({
+                'success': False, 
+                'message': 'Platform filter is required. Please select Pasons or Talabat platform.'
+            })
+        
+        # Validate lock type
+        if not lock_type or lock_type not in ('cls_price', 'cls_status', 'bls_price', 'bls_status'):
+            return JsonResponse({
+                'success': False, 
+                'message': 'Lock type is required. Please select a valid lock type.'
+            })
+        
+        headers = ['#', 'Item Code', 'Units', 'Description', 'Selling Price', 'Pack Description', 'Lock Type', 'Lock Level']
+        rows = []
+        
+        if lock_type.startswith('cls'):
+            # Central Locking System (CLS) - affects all outlets for the platform
+            if lock_type == 'cls_price':
+                items = Item.objects.filter(
+                    platform=platform,
+                    price_locked=True,
+                    is_active=True
+                ).order_by('item_code')
+                lock_display = 'CLS Price Lock'
+            else:  # cls_status
+                items = Item.objects.filter(
+                    platform=platform,
+                    status_locked=True,
+                    is_active=True
+                ).order_by('item_code')
+                lock_display = 'CLS Status Lock'
+            
+            for idx, item in enumerate(items, 1):
+                rows.append([
+                    idx,
+                    item.item_code,
+                    item.units,
+                    item.description[:50] + '...' if len(item.description) > 50 else item.description,
+                    float(item.selling_price) if item.selling_price else '-',
+                    item.pack_description[:30] + '...' if item.pack_description and len(item.pack_description) > 30 else (item.pack_description or '-'),
+                    lock_display,
+                    'Central (All Outlets)'
+                ])
+        
+        else:
+            # Branch Locking System (BLS) - outlet-specific locks
+            if not outlet_id:
+                return JsonResponse({
+                    'success': False, 
+                    'message': 'Outlet selection is required for BLS reports.'
+                })
+            
+            try:
+                outlet = Outlet.objects.get(id=outlet_id, platforms=platform, is_active=True)
+            except Outlet.DoesNotExist:
+                return JsonResponse({
+                    'success': False, 
+                    'message': 'Selected outlet not found or does not belong to the selected platform.'
+                })
+            
+            # Add outlet name to headers
+            headers.append('Outlet')
+            
+            if lock_type == 'bls_price':
+                item_outlets = ItemOutlet.objects.filter(
+                    outlet=outlet,
+                    item__platform=platform,
+                    price_locked=True,
+                    is_active_in_outlet=True
+                ).select_related('item').order_by('item__item_code')
+                lock_display = 'BLS Price Lock'
+            else:  # bls_status
+                item_outlets = ItemOutlet.objects.filter(
+                    outlet=outlet,
+                    item__platform=platform,
+                    status_locked=True,
+                    is_active_in_outlet=True
+                ).select_related('item').order_by('item__item_code')
+                lock_display = 'BLS Status Lock'
+            
+            for idx, io in enumerate(item_outlets, 1):
+                item = io.item
+                selling_price = io.outlet_selling_price or item.selling_price
+                
+                rows.append([
+                    idx,
+                    item.item_code,
+                    item.units,
+                    item.description[:50] + '...' if len(item.description) > 50 else item.description,
+                    float(selling_price) if selling_price else '-',
+                    item.pack_description[:30] + '...' if item.pack_description and len(item.pack_description) > 30 else (item.pack_description or '-'),
+                    lock_display,
+                    f'Branch ({outlet.name})',
+                    outlet.name
+                ])
+        
+        return JsonResponse({
+            'success': True,
+            'headers': headers,
+            'rows': rows,
+            'total_rows': len(rows),
+            'lock_type': lock_type,
+            'platform': platform,
+            'outlet_name': outlet.name if outlet_id and 'outlet' in locals() else None
+        })
+        
+    except Exception as e:
+        logger.error(f"Locked products data API error: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'message': f'Error loading locked products data: {str(e)}'
+        })
+
+
+@login_required
+def export_locked_products_api(request):
+    """
+    Export locked products data to CSV/Excel.
+    
+    POST params:
+    - platform: 'pasons', 'talabat' (required)
+    - lock_type: 'cls_price', 'cls_status', 'bls_price', 'bls_status'
+    - outlet: outlet_id (optional, for BLS reports)
+    - format: 'csv', 'excel'
+    """
+    import csv
+    from django.http import HttpResponse
+    from django.utils import timezone
+    from .models import Item, Outlet, ItemOutlet
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'POST method required'})
+    
+    try:
+        platform = request.POST.get('platform', '').strip()
+        lock_type = request.POST.get('lock_type', '').strip()
+        outlet_id = request.POST.get('outlet', '').strip()
+        export_format = request.POST.get('format', 'csv').strip()
+        
+        # Validate platform
+        if not platform or platform not in ('pasons', 'talabat'):
+            return JsonResponse({'success': False, 'message': 'Valid platform is required'})
+        
+        # Validate lock type
+        if not lock_type or lock_type not in ('cls_price', 'cls_status', 'bls_price', 'bls_status'):
+            return JsonResponse({'success': False, 'message': 'Valid lock type is required'})
+        
+        # Generate filename
+        timestamp = timezone.localtime().strftime('%Y-%m-%d-%H%M%S')
+        lock_type_name = {
+            'cls_price': 'CLS-Price-Locked',
+            'cls_status': 'CLS-Status-Locked',
+            'bls_price': 'BLS-Price-Locked',
+            'bls_status': 'BLS-Status-Locked'
+        }[lock_type]
+        
+        platform_name = platform.title()
+        filename = f'{platform_name}-{lock_type_name}-Products-{timestamp}'
+        
+        if export_format == 'excel':
+            # Excel export
+            import openpyxl
+            from openpyxl.utils import get_column_letter
+            
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = 'Locked Products'
+            
+            # Headers
+            headers = ['Item Code', 'Units', 'Description', 'Selling Price', 'Pack Description', 'Lock Type', 'Lock Level']
+            if lock_type.startswith('bls') and outlet_id:
+                headers.append('Outlet')
+            
+            for col, header in enumerate(headers, 1):
+                ws.cell(row=1, column=col, value=header)
+            
+            # Data
+            row_num = 2
+            if lock_type.startswith('cls'):
+                # CLS data
+                if lock_type == 'cls_price':
+                    items = Item.objects.filter(platform=platform, price_locked=True, is_active=True).order_by('item_code')
+                    lock_display = 'CLS Price Lock'
+                else:
+                    items = Item.objects.filter(platform=platform, status_locked=True, is_active=True).order_by('item_code')
+                    lock_display = 'CLS Status Lock'
+                
+                for item in items:
+                    ws.cell(row=row_num, column=1, value=item.item_code)
+                    ws.cell(row=row_num, column=2, value=item.units)
+                    ws.cell(row=row_num, column=3, value=item.description)
+                    ws.cell(row=row_num, column=4, value=float(item.selling_price) if item.selling_price else 0)
+                    ws.cell(row=row_num, column=5, value=item.pack_description or '')
+                    ws.cell(row=row_num, column=6, value=lock_display)
+                    ws.cell(row=row_num, column=7, value='Central (All Outlets)')
+                    row_num += 1
+            else:
+                # BLS data
+                if not outlet_id:
+                    return JsonResponse({'success': False, 'message': 'Outlet is required for BLS reports'})
+                
+                outlet = Outlet.objects.get(id=outlet_id, platforms=platform, is_active=True)
+                
+                if lock_type == 'bls_price':
+                    item_outlets = ItemOutlet.objects.filter(
+                        outlet=outlet, item__platform=platform, price_locked=True, is_active_in_outlet=True
+                    ).select_related('item').order_by('item__item_code')
+                    lock_display = 'BLS Price Lock'
+                else:
+                    item_outlets = ItemOutlet.objects.filter(
+                        outlet=outlet, item__platform=platform, status_locked=True, is_active_in_outlet=True
+                    ).select_related('item').order_by('item__item_code')
+                    lock_display = 'BLS Status Lock'
+                
+                for io in item_outlets:
+                    item = io.item
+                    selling_price = io.outlet_selling_price or item.selling_price
+                    
+                    ws.cell(row=row_num, column=1, value=item.item_code)
+                    ws.cell(row=row_num, column=2, value=item.units)
+                    ws.cell(row=row_num, column=3, value=item.description)
+                    ws.cell(row=row_num, column=4, value=float(selling_price) if selling_price else 0)
+                    ws.cell(row=row_num, column=5, value=item.pack_description or '')
+                    ws.cell(row=row_num, column=6, value=lock_display)
+                    ws.cell(row=row_num, column=7, value=f'Branch ({outlet.name})')
+                    ws.cell(row=row_num, column=8, value=outlet.name)
+                    row_num += 1
+            
+            # Auto-adjust column widths
+            for col in range(1, len(headers) + 1):
+                ws.column_dimensions[get_column_letter(col)].width = 20
+            
+            # Create response
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+            wb.save(response)
+            return response
+        
+        else:
+            # CSV export
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+            
+            writer = csv.writer(response)
+            
+            # Headers
+            headers = ['Item Code', 'Units', 'Description', 'Selling Price', 'Pack Description', 'Lock Type', 'Lock Level']
+            if lock_type.startswith('bls') and outlet_id:
+                headers.append('Outlet')
+            writer.writerow(headers)
+            
+            # Data
+            if lock_type.startswith('cls'):
+                # CLS data
+                if lock_type == 'cls_price':
+                    items = Item.objects.filter(platform=platform, price_locked=True, is_active=True).order_by('item_code')
+                    lock_display = 'CLS Price Lock'
+                else:
+                    items = Item.objects.filter(platform=platform, status_locked=True, is_active=True).order_by('item_code')
+                    lock_display = 'CLS Status Lock'
+                
+                for item in items:
+                    writer.writerow([
+                        item.item_code,
+                        item.units,
+                        item.description,
+                        float(item.selling_price) if item.selling_price else '',
+                        item.pack_description or '',
+                        lock_display,
+                        'Central (All Outlets)'
+                    ])
+            else:
+                # BLS data
+                if not outlet_id:
+                    return JsonResponse({'success': False, 'message': 'Outlet is required for BLS reports'})
+                
+                outlet = Outlet.objects.get(id=outlet_id, platforms=platform, is_active=True)
+                
+                if lock_type == 'bls_price':
+                    item_outlets = ItemOutlet.objects.filter(
+                        outlet=outlet, item__platform=platform, price_locked=True, is_active_in_outlet=True
+                    ).select_related('item').order_by('item__item_code')
+                    lock_display = 'BLS Price Lock'
+                else:
+                    item_outlets = ItemOutlet.objects.filter(
+                        outlet=outlet, item__platform=platform, status_locked=True, is_active_in_outlet=True
+                    ).select_related('item').order_by('item__item_code')
+                    lock_display = 'BLS Status Lock'
+                
+                for io in item_outlets:
+                    item = io.item
+                    selling_price = io.outlet_selling_price or item.selling_price
+                    
+                    writer.writerow([
+                        item.item_code,
+                        item.units,
+                        item.description,
+                        float(selling_price) if selling_price else '',
+                        item.pack_description or '',
+                        lock_display,
+                        f'Branch ({outlet.name})',
+                        outlet.name
+                    ])
+            
+            return response
+        
+    except Exception as e:
+        logger.error(f"Export locked products error: {str(e)}", exc_info=True)
+        return JsonResponse({'success': False, 'message': f'Export failed: {str(e)}'})

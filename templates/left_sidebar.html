@@ -81,11 +81,22 @@
                         <span class="nav-text">Promotion Update</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a href="{% url 'integration:reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
-                        <i class="bx bx-file nav-icon">📋</i>
-                        <span class="nav-text">Reports</span>
+                <li class="nav-item has-dropdown">
+                    <a href="#" class="nav-link">
+                        <i class="bx bx-chart-line nav-icon">📊</i>
+                        <span class="nav-text">Reports & Analytics</span>
+                        <i class="bx bx-chevron-down dropdown-arrow"></i>
                     </a>
+                    <div id="reportsDropdown" class="dropdown-menu" style="display: none;">
+                        <a href="{% url 'integration:reports' %}" class="dropdown-link">
+                            <i class="bx bx-file nav-icon">📈</i>
+                            <span>Data Export Reports</span>
+                        </a>
+                        <a href="{% url 'integration:locked_products_report' %}" class="dropdown-link">
+                            <i class="bx bx-lock nav-icon">🔒</i>
+                            <span>Locked Products Report</span>
+                        </a>
+                    </div>
                 </li>
             </ul>
         </nav>
