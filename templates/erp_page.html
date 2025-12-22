@@ -473,13 +473,17 @@
                     <div class="export-type-cards">
                         <div class="export-type-card selected" data-type="full" onclick="selectERPExportType(this)">
                             <h5><span class="radio-dot"></span> Full Export</h5>
-                            <p>Export all items for selected outlet</p>
+                            <p>Export all active items for selected outlet</p>
                         </div>
                         <div class="export-type-card" data-type="partial" onclick="selectERPExportType(this)">
                             <h5><span class="radio-dot"></span> Partial Export</h5>
-                            <p>Only items updated since last export</p>
+                            <p>Only items updated since last successful export</p>
                         </div>
                     </div>
+                    <p style="font-size: 11px; color: #6b7280; margin-top: 8px;">
+                        <i class="bx bx-info-circle"></i> 
+                        <strong>Partial Export:</strong> Only exports items that have changed since the last successful export. If no previous export exists, it will perform a full export.
+                    </p>
                 </div>
                 
                 <!-- Row 3: Promotion Filter -->
@@ -647,7 +651,13 @@ function generateERPExport(event) {
     // Show loading state
     const btn = event.target.closest('button');
     const originalText = btn.innerHTML;
-    btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Generating...';
+    
+    // Different loading messages for different export types
+    if (exportType === 'partial') {
+        btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Checking for changes...';
+    } else {
+        btn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Generating export...';
+    }
     btn.disabled = true;
     
     // Call API to generate export (saves to disk, returns JSON)
@@ -658,10 +668,17 @@ function generateERPExport(event) {
             btn.disabled = false;
             
             if (data.success) {
+                let message = data.message;
+                
+                // Add helpful context for partial exports
+                if (exportType === 'partial' && data.item_count === 0) {
+                    message += '\n\nTip: Partial export only includes items that have changed since the last export. Use "Full Export" to export all items.';
+                }
+                
                 showModal({
                     title: 'Export Generated',
-                    message: data.message + ' You can download it from the Export History below.',
-                    type: 'success',
+                    message: message + (data.item_count > 0 ? ' You can download it from the Export History below.' : ''),
+                    type: data.item_count > 0 ? 'success' : 'info',
                     okText: 'OK',
                     onOk: () => location.reload()
                 });

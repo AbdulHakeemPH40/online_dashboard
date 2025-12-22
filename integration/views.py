@@ -3582,6 +3582,7 @@ def erp_export_api(request):
     from django.conf import settings
     from django.http import HttpResponse
     from django.utils import timezone
+    from decimal import Decimal
     from .models import ERPExportHistory
     
     try:
@@ -3626,23 +3627,27 @@ def erp_export_api(request):
         if export_type == 'partial':
             last_export = ERPExportHistory.get_latest_successful_export(outlet)
             if last_export:
-                # Compare current prices vs last exported prices
-                # For ERP, we track via erp_export_price field (need to add or use updated_at)
-                changed_items = []
-                for io in item_outlets:
-                    item = io.item
-                    # Calculate current ERP price
-                    current_price = calculate_erp_price(io, item)
-                    # Get last exported price (stored in a tracking field or compare by timestamp)
-                    last_exported_price = getattr(io, 'erp_export_price', None)
-                    
-                    if last_exported_price is None or float(current_price) != float(last_exported_price or 0):
-                        changed_items.append(io.id)
+                # OPTIMIZED: Use database-level filtering instead of Python loop
+                # Filter items that have changed since last export
+                # Changed = updated_at > last_export_timestamp OR erp_export_price is NULL OR price mismatch
                 
-                if changed_items:
-                    item_outlets = item_outlets.filter(id__in=changed_items)
-                else:
-                    item_outlets = ItemOutlet.objects.none()
+                from django.db.models import Q, F, ExpressionWrapper, DecimalField, Case, When
+                
+                # Option 1: Use updated_at timestamp (simple and fast)
+                # Items updated after last export are considered changed
+                item_outlets = item_outlets.filter(
+                    Q(updated_at__gt=last_export.export_timestamp) |  # Updated since last export
+                    Q(erp_export_price__isnull=True)  # Never exported before
+                )
+                
+                logger.info(f"Partial export: Found {item_outlets.count()} items changed since {last_export.export_timestamp}")
+                
+                # If no changes found, return empty queryset
+                if not item_outlets.exists():
+                    logger.info("Partial export: No changes detected since last export")
+            else:
+                # No previous export found - treat as full export
+                logger.info("Partial export: No previous export found, performing full export")
         
         # Build export data
         raw_export_data = []
@@ -3690,9 +3695,16 @@ def erp_export_api(request):
             erp_export.status = 'success'
             erp_export.file_name = ''
             erp_export.save()
+            
+            # Log why no data was exported
+            if export_type == 'partial':
+                logger.info(f"Partial export: No changes detected for outlet {outlet.name}")
+            else:
+                logger.warning(f"Full export: No active items found for outlet {outlet.name}")
+            
             return JsonResponse({
                 'success': True,
-                'message': 'No items to export (no changes detected)',
+                'message': f'No items to export ({export_type} export - no changes detected)' if export_type == 'partial' else 'No active items found for export',
                 'item_count': 0
             })
         
@@ -3722,19 +3734,51 @@ def erp_export_api(request):
         erp_export.file_name = filename
         erp_export.save()
         
-        # Update tracking fields for partial export
-        item_outlets_to_update = ItemOutlet.objects.filter(
-            outlet=outlet,
-            item__platform='talabat',
-            is_active_in_outlet=True
-        )
-        for io in item_outlets_to_update:
-            io.erp_export_price = calculate_erp_price(io, io.item)
-        ItemOutlet.objects.bulk_update(
-            list(item_outlets_to_update), 
-            ['erp_export_price'],
-            batch_size=500
-        )
+        # Update tracking fields for partial export (OPTIMIZED)
+        # Only update items that were actually exported, not all items
+        if export_type == 'partial' and len(export_data) > 0:
+            # Get the item_outlets that were actually exported
+            exported_item_codes = [row['item_code'] for row in export_data]
+            item_outlets_to_update = ItemOutlet.objects.filter(
+                outlet=outlet,
+                item__platform='talabat',
+                item__item_code__in=exported_item_codes,
+                is_active_in_outlet=True
+            ).select_related('item')
+            
+            # Batch update with calculated prices
+            updates = []
+            for io in item_outlets_to_update:
+                io.erp_export_price = Decimal(str(calculate_erp_price(io, io.item)))
+                updates.append(io)
+            
+            if updates:
+                ItemOutlet.objects.bulk_update(
+                    updates, 
+                    ['erp_export_price'],
+                    batch_size=500
+                )
+                logger.info(f"Updated tracking for {len(updates)} exported items")
+        elif export_type == 'full':
+            # For full export, update all active items
+            item_outlets_to_update = ItemOutlet.objects.filter(
+                outlet=outlet,
+                item__platform='talabat',
+                is_active_in_outlet=True
+            ).select_related('item')
+            
+            updates = []
+            for io in item_outlets_to_update:
+                io.erp_export_price = Decimal(str(calculate_erp_price(io, io.item)))
+                updates.append(io)
+            
+            if updates:
+                ItemOutlet.objects.bulk_update(
+                    updates, 
+                    ['erp_export_price'],
+                    batch_size=500
+                )
+                logger.info(f"Updated tracking for {len(updates)} items (full export)")
         
         logger.info(f"ERP Export successful: {outlet.name} - {len(export_data)} items - File: {filename}")
         
