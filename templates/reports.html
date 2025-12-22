@@ -294,8 +294,13 @@ function loadReport() {
     const outlet = document.getElementById('outletFilter').value;
     const status = document.getElementById('statusFilter').value;
     
-    let apiUrl = `/integration/api/report-data/?type=${reportType}`;
-    if (platform) apiUrl += `&platform=${platform}`;
+    // PLATFORM ISOLATION: Always require platform selection
+    if (!platform) {
+        showError('Please select a platform (Pasons or Talabat) to view reports.');
+        return;
+    }
+    
+    let apiUrl = `/integration/api/report-data/?type=${reportType}&platform=${platform}`;
     if (outlet) apiUrl += `&outlet=${outlet}`;
     if (status) apiUrl += `&status=${status}`;
     

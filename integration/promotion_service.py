@@ -200,6 +200,20 @@ class PromotionService:
             Dict with success status and message
         """
         try:
+            # CRITICAL: Validate outlet belongs to platform
+            try:
+                outlet = Outlet.objects.get(id=outlet_id)
+                if outlet.platforms != platform:
+                    return {
+                        'success': False,
+                        'message': f'Outlet "{outlet.name}" belongs to {outlet.platforms.title()} platform, not {platform.title()} platform.'
+                    }
+            except Outlet.DoesNotExist:
+                return {
+                    'success': False,
+                    'message': 'Outlet not found'
+                }
+            
             # Find ALL items matching (item_code, units, platform) - there can be multiple with different SKUs
             # e.g., 9900127 KGS has SKU 9900127250 AND SKU 9900127100
             items = Item.objects.filter(
@@ -301,19 +315,29 @@ class PromotionService:
             }
     
     @staticmethod
-    def expire_ended_promotions():
+    def expire_ended_promotions(platform: str = None) -> int:
         """
         Auto-expire promotions whose end date has passed.
         Restores original selling price and clears promotion fields.
+        
+        Args:
+            platform: Optional platform filter ('pasons' or 'talabat')
         
         Returns:
             int: Number of promotions expired
         """
         now = timezone.now()
-        expired_promos = ItemOutlet.objects.filter(
-            is_on_promotion=True,
-            promo_end_date__lt=now
-        )
+        
+        # PLATFORM ISOLATED: Filter by platform if specified
+        query_filter = {
+            'is_on_promotion': True,
+            'promo_end_date__lt': now
+        }
+        
+        if platform:
+            query_filter['item__platform'] = platform
+        
+        expired_promos = ItemOutlet.objects.filter(**query_filter)
         
         count = 0
         for io in expired_promos:

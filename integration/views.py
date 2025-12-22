@@ -2983,11 +2983,11 @@ def preview_csv_api(request):
                         row_errors.append("Invalid numeric values")
                         row_status = 'error'
                     
-                    # Check if item exists for product update
+                    # Check if item exists for product update - PLATFORM ISOLATED
                     from .models import Item
                     if item_code and units:
-                        if not Item.objects.filter(item_code=item_code, units=units).exists():
-                            row_errors.append(f"Item '{item_code}' ({units}) not found")
+                        if not Item.objects.filter(item_code=item_code, units=units, platform=platform).exists():
+                            row_errors.append(f"Item '{item_code}' ({units}) not found in {platform.title()} platform")
                             row_status = 'error'
                     
                     preview_data.append({
@@ -4108,11 +4108,18 @@ def report_data_api(request):
         rows = []
         
         if report_type == 'outlet' and outlet_id:
-            # Outlet-specific report with ItemOutlet data
+            # Outlet-specific report with ItemOutlet data - PLATFORM VALIDATION
             try:
                 outlet = Outlet.objects.get(id=outlet_id)
             except Outlet.DoesNotExist:
                 return JsonResponse({'success': False, 'message': 'Outlet not found'})
+            
+            # CRITICAL: Validate outlet platform matches requested platform
+            if platform and outlet.platforms != platform:
+                return JsonResponse({
+                    'success': False, 
+                    'message': f'Outlet "{outlet.name}" belongs to {outlet.platforms.title()} platform, not {platform.title()} platform.'
+                })
             
             headers = [
                 '#', 'Item Code', 'Description', 'Units', 'SKU', 'Barcode', 'Wrap',
@@ -4124,7 +4131,11 @@ def report_data_api(request):
             if outlet.platforms == 'talabat':
                 headers.insert(11, 'Talabat Margin')
             
-            item_outlets = ItemOutlet.objects.filter(outlet=outlet).select_related('item')
+            # PLATFORM ISOLATED: Only get ItemOutlets for items from the outlet's platform
+            item_outlets = ItemOutlet.objects.filter(
+                outlet=outlet,
+                item__platform=outlet.platforms  # Ensure items match outlet platform
+            ).select_related('item')
             
             # Apply status filter
             if status == 'active':
@@ -4168,20 +4179,25 @@ def report_data_api(request):
                 rows.append(row)
         
         else:
-            # All items or platform-specific report
+            # All items or platform-specific report - PLATFORM ISOLATION REQUIRED
+            # CRITICAL: Always require platform filter to prevent data leakage
+            if not platform or platform not in ('pasons', 'talabat'):
+                return JsonResponse({
+                    'success': False, 
+                    'message': 'Platform filter is required. Please select Pasons or Talabat platform.'
+                })
+            
             headers = [
                 '#', 'Item Code', 'Description', 'Units', 'SKU', 'Barcode', 'Wrap',
                 'WDF', 'OCQ', 'Min Qty', 'Platform', 'Status'
             ]
             
-            items = Item.objects.all()
+            # PLATFORM ISOLATED: Only get items from selected platform
+            items = Item.objects.filter(platform=platform)
             
-            # Apply platform filter
-            if platform:
-                items = items.filter(platform=platform)
-                # Add Talabat Margin for Talabat platform
-                if platform == 'talabat':
-                    headers.insert(11, 'Talabat Margin')
+            # Add Talabat Margin for Talabat platform
+            if platform == 'talabat':
+                headers.insert(11, 'Talabat Margin')
             
             # Apply status filter
             if status == 'active':
