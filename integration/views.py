@@ -4357,7 +4357,7 @@ def locked_products_data_api(request):
                 'message': 'Lock type is required. Please select a valid lock type.'
             })
         
-        headers = ['#', 'Item Code', 'Units', 'Description', 'Selling Price', 'Pack Description', 'Lock Type', 'Lock Level']
+        headers = ['#', 'Item Code', 'Units', 'Description', 'Selling Price', 'Pack Description', 'Lock Type', 'Lock Level', 'Status']
         rows = []
         
         if lock_type.startswith('cls'):
@@ -4386,7 +4386,8 @@ def locked_products_data_api(request):
                     float(item.selling_price) if item.selling_price else '-',
                     item.pack_description[:30] + '...' if item.pack_description and len(item.pack_description) > 30 else (item.pack_description or '-'),
                     lock_display,
-                    'Central (All Outlets)'
+                    'Central (All Outlets)',
+                    'Active' if item.is_active else 'Inactive'
                 ])
         
         else:
@@ -4397,49 +4398,107 @@ def locked_products_data_api(request):
                     'message': 'Outlet selection is required for BLS reports.'
                 })
             
-            try:
-                outlet = Outlet.objects.get(id=outlet_id, platforms=platform, is_active=True)
-            except Outlet.DoesNotExist:
-                return JsonResponse({
-                    'success': False, 
-                    'message': 'Selected outlet not found or does not belong to the selected platform.'
-                })
-            
-            # Add outlet name to headers
-            headers.append('Outlet')
-            
-            if lock_type == 'bls_price':
-                item_outlets = ItemOutlet.objects.filter(
-                    outlet=outlet,
-                    item__platform=platform,
-                    price_locked=True,
-                    is_active_in_outlet=True
-                ).select_related('item').order_by('item__item_code')
-                lock_display = 'BLS Price Lock'
-            else:  # bls_status
-                item_outlets = ItemOutlet.objects.filter(
-                    outlet=outlet,
-                    item__platform=platform,
-                    status_locked=True,
-                    is_active_in_outlet=True
-                ).select_related('item').order_by('item__item_code')
-                lock_display = 'BLS Status Lock'
-            
-            for idx, io in enumerate(item_outlets, 1):
-                item = io.item
-                selling_price = io.outlet_selling_price or item.selling_price
+            # Handle "all" outlets option
+            if outlet_id == 'all':
+                # Get all outlets for this platform
+                outlets = Outlet.objects.filter(platforms=platform, is_active=True).order_by('name')
+                if not outlets.exists():
+                    return JsonResponse({
+                        'success': False, 
+                        'message': f'No active outlets found for {platform} platform.'
+                    })
                 
-                rows.append([
-                    idx,
-                    item.item_code,
-                    item.units,
-                    item.description[:50] + '...' if len(item.description) > 50 else item.description,
-                    float(selling_price) if selling_price else '-',
-                    item.pack_description[:30] + '...' if item.pack_description and len(item.pack_description) > 30 else (item.pack_description or '-'),
-                    lock_display,
-                    f'Branch ({outlet.name})',
-                    outlet.name
-                ])
+                # Debug logging
+                logger.info(f"BLS All Outlets Debug - Platform: {platform}, Outlets found: {outlets.count()}")
+                
+                # Add outlet name to headers
+                headers.append('Outlet')
+                
+                if lock_type == 'bls_price':
+                    item_outlets = ItemOutlet.objects.filter(
+                        outlet__in=outlets,
+                        item__platform=platform,
+                        price_locked=True
+                        # Removed is_active_in_outlet=True - we want to see ALL locked items
+                    ).select_related('item', 'outlet').order_by('item__item_code', 'outlet__name')
+                    lock_display = 'BLS Price Lock'
+                    logger.info(f"BLS Price Locks found: {item_outlets.count()}")
+                else:  # bls_status
+                    item_outlets = ItemOutlet.objects.filter(
+                        outlet__in=outlets,
+                        item__platform=platform,
+                        status_locked=True
+                        # Removed is_active_in_outlet=True - we want to see ALL locked items
+                    ).select_related('item', 'outlet').order_by('item__item_code', 'outlet__name')
+                    lock_display = 'BLS Status Lock'
+                    logger.info(f"BLS Status Locks found: {item_outlets.count()}")
+                
+                for idx, io in enumerate(item_outlets, 1):
+                    item = io.item
+                    selling_price = io.outlet_selling_price or item.selling_price
+                    
+                    rows.append([
+                        idx,
+                        item.item_code,
+                        item.units,
+                        item.description[:50] + '...' if len(item.description) > 50 else item.description,
+                        float(selling_price) if selling_price else '-',
+                        item.pack_description[:30] + '...' if item.pack_description and len(item.pack_description) > 30 else (item.pack_description or '-'),
+                        lock_display,
+                        f'Branch ({io.outlet.name})',
+                        io.outlet.name,
+                        'Active' if io.is_active_in_outlet else 'Disabled'
+                    ])
+                
+                outlet_name = f'All {platform.title()} Outlets'
+            else:
+                # Single outlet BLS report
+                try:
+                    outlet = Outlet.objects.get(id=outlet_id, platforms=platform, is_active=True)
+                except Outlet.DoesNotExist:
+                    return JsonResponse({
+                        'success': False, 
+                        'message': 'Selected outlet not found or does not belong to the selected platform.'
+                    })
+                
+                # Add outlet name to headers
+                headers.append('Outlet')
+                
+                if lock_type == 'bls_price':
+                    item_outlets = ItemOutlet.objects.filter(
+                        outlet=outlet,
+                        item__platform=platform,
+                        price_locked=True
+                        # Removed is_active_in_outlet=True - we want to see ALL locked items
+                    ).select_related('item').order_by('item__item_code')
+                    lock_display = 'BLS Price Lock'
+                else:  # bls_status
+                    item_outlets = ItemOutlet.objects.filter(
+                        outlet=outlet,
+                        item__platform=platform,
+                        status_locked=True
+                        # Removed is_active_in_outlet=True - we want to see ALL locked items
+                    ).select_related('item').order_by('item__item_code')
+                    lock_display = 'BLS Status Lock'
+                
+                for idx, io in enumerate(item_outlets, 1):
+                    item = io.item
+                    selling_price = io.outlet_selling_price or item.selling_price
+                    
+                    rows.append([
+                        idx,
+                        item.item_code,
+                        item.units,
+                        item.description[:50] + '...' if len(item.description) > 50 else item.description,
+                        float(selling_price) if selling_price else '-',
+                        item.pack_description[:30] + '...' if item.pack_description and len(item.pack_description) > 30 else (item.pack_description or '-'),
+                        lock_display,
+                        f'Branch ({outlet.name})',
+                        outlet.name,
+                        'Active' if io.is_active_in_outlet else 'Disabled'
+                    ])
+                
+                outlet_name = outlet.name
         
         return JsonResponse({
             'success': True,
@@ -4448,7 +4507,7 @@ def locked_products_data_api(request):
             'total_rows': len(rows),
             'lock_type': lock_type,
             'platform': platform,
-            'outlet_name': outlet.name if outlet_id and 'outlet' in locals() else None
+            'outlet_name': outlet_name if 'outlet_name' in locals() else None
         })
         
     except Exception as e:

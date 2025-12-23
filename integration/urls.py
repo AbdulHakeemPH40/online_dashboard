@@ -61,7 +61,7 @@ urlpatterns = [
     path('api/erp-export/', erp_export_api, name='erp_export_api'),
     path('api/download-erp-export/', download_erp_export_file, name='download_erp_export_file'),
     # Promotion management
-    path('promotion-update/', promotion_update, name='promotion_update'),
+    path('promotion-integration/', promotion_update, name='promotion_update'),
     path('bulk-promotion-update/', bulk_promotion_update, name='bulk_promotion_update'),
     path('api/promotion/search/', promotion_search_api, name='promotion_search_api'),
     path('api/promotion/calculate/', promotion_calculate_api, name='promotion_calculate_api'),

@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 @login_required
 def promotion_update(request):
     """
-    Promotion price update page view
+    Promotion integration page view
     """
     return render(request, 'promotion_update.html', {
-        'page_title': 'Promotion Price Update',
+        'page_title': 'Promotion Integration',
         'platforms': ['pasons', 'talabat']
     })
 

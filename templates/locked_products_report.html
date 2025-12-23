@@ -399,6 +399,7 @@
                     <label>Outlet (for BLS)</label>
                     <select id="outlet-filter">
                         <option value="">-- Select Outlet --</option>
+                        <option value="all">All Outlets</option>
                     </select>
                 </div>
             </div>
@@ -488,6 +489,7 @@ function loadOutlets(platform) {
             console.log('Outlets data received:', data); // Debug log
             
             outletSelect.innerHTML = '<option value="">-- Select Outlet --</option>';
+            outletSelect.innerHTML += '<option value="all">All Outlets</option>';
             
             if (data.success && data.outlets && data.outlets.length > 0) {
                 data.outlets.forEach(outlet => {
@@ -508,6 +510,7 @@ function loadOutlets(platform) {
         .catch(error => {
             console.error('Error loading outlets:', error);
             outletSelect.innerHTML = '<option value="">-- Error loading outlets --</option>';
+            outletSelect.innerHTML += '<option value="all">All Outlets</option>';
             
             // Show user-friendly error
             showModal({
@@ -549,7 +552,7 @@ function loadLockedProducts() {
     if (lockType.startsWith('bls') && !outlet) {
         showModal({
             title: 'Outlet Required',
-            message: 'Please select an outlet for Branch Locking System (BLS) reports.',
+            message: 'Please select an outlet for Branch Locking System (BLS) reports, or choose "All Outlets" to see all BLS locks.',
             type: 'warning',
             okText: 'OK'
         });
@@ -568,9 +571,13 @@ function loadLockedProducts() {
     
     // Build API URL
     let apiUrl = `/integration/api/locked-products-data/?platform=${platform}&lock_type=${lockType}`;
-    if (outlet) {
+    if (outlet && outlet !== 'all') {
         apiUrl += `&outlet=${outlet}`;
+    } else if (outlet === 'all') {
+        apiUrl += `&outlet=all`;
     }
+    
+    console.log('API URL:', apiUrl); // Debug log
     
     // Fetch data
     fetch(apiUrl)
