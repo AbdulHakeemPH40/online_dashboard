@@ -16,7 +16,7 @@ import io
 
 from .promotion_service import PromotionService
 from .models import Item, ItemOutlet, Outlet
-from .utils import decode_csv_upload
+from .utils import decode_csv_upload, validate_wdf_for_division, validate_ocq_for_division
 
 logger = logging.getLogger(__name__)
 
@@ -770,8 +770,14 @@ def promotion_erp_export_api(request):
             # Price calculation based on wrap type
             # wrap=9900: C.Promo * WDF (convert back to base price)
             # wrap=10000: C.Promo (use as is)
-            if io.item.wrap == '9900' and io.converted_promo and io.item.weight_division_factor and io.item.weight_division_factor > 0:
-                price = io.converted_promo * io.item.weight_division_factor
+            if io.item.wrap == '9900' and io.converted_promo and io.item.weight_division_factor:
+                # Validate WDF before multiplication (FIXED: no more division by zero)
+                wdf = validate_wdf_for_division(
+                    io.item.weight_division_factor, 
+                    str(io.item.item_code), 
+                    'promotion ERP export price calculation'
+                )
+                price = io.converted_promo * wdf
             else:
                 price = io.converted_promo or 0
             
@@ -861,8 +867,14 @@ def talabat_promotions_xlsx_export(request):
             is_wrap_9900 = item.wrap == '9900'
             outlet_cost = io.outlet_cost
             
-            if is_wrap_9900 and outlet_cost and item.weight_division_factor and item.weight_division_factor > 0:
-                converted_cost = float((outlet_cost / item.weight_division_factor).quantize(Decimal('0.01')))
+            if is_wrap_9900 and outlet_cost and item.weight_division_factor:
+                # Validate WDF before division (FIXED: no more division by zero)
+                wdf = validate_wdf_for_division(
+                    item.weight_division_factor, 
+                    str(item.item_code), 
+                    'promotion cost conversion'
+                )
+                converted_cost = float((outlet_cost / wdf).quantize(Decimal('0.01')))
             else:
                 converted_cost = float(outlet_cost) if outlet_cost else 0
             

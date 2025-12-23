@@ -67,7 +67,14 @@
 <!-- Form Section -->
 <div class="p-6 mb-8 rounded-lg border" style="background-color: #E8EEF4; border: 1px solid #C5C5C5; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
     <!-- Item Master Header -->
-    <div class="section-title section-title--line"><span>Item Master</span></div>
+    <div class="flex justify-between items-center mb-6">
+        <div class="section-title section-title--line"><span>Item Master</span></div>
+        <!-- Edit Button - Top Right Corner -->
+        <button type="button" id="edit-btn" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors">
+            <i class="bi bi-pencil-square mr-2"></i>
+            Edit Item
+        </button>
+    </div>
 
 
     <!-- Two Column Form -->
@@ -104,13 +111,13 @@
         <!-- Line 1: Item Code + Description (Item Name) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8">
             <div>
-                <label class="block text-sm font-medium text-black mb-1" style="font-family: 'Poppins', sans-serif; letter-spacing: 0.3px; font-weight: 600;">📋 Item Code</label>
+                <label class="block text-sm font-medium text-black mb-1" style="font-family: 'Poppins', sans-serif; letter-spacing: 0.3px; font-weight: 600;">📋 Item Code <span style="color: #d32f2f; margin-left: 2px;">*</span></label>
                 <input type="text" name="item_code" placeholder="Item code"
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
             </div>
             <div>
-                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Description (Item Name)</label>
-                <input type="text" name="name" placeholder="Description / Item Name"
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Description (Item Name) <span style="color: #d32f2f; margin-left: 2px;">*</span></label>
+                <input type="text" name="description" placeholder="Description / Item Name"
                        style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
             </div>
         </div>
@@ -118,7 +125,7 @@
         <!-- Line 2: SKU + Barcode -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mt-4">
             <div>
-                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">SKU</label>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">SKU <span style="color: #d32f2f; margin-left: 2px;">*</span></label>
                 <input type="text" name="sku" placeholder="SKU"
                        style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
             </div>
@@ -137,7 +144,7 @@
                        style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
             </div>
             <div>
-                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Units</label>
+                <label class="block mb-1" style="font-size: 14px; font-weight: 600; color: #333333; font-family: Arial, sans-serif;">Units <span style="color: #d32f2f; margin-left: 2px;">*</span></label>
                 <input type="text" name="units" placeholder="e.g., pcs, kg, ltr"
                        style="width: 100%; padding: 8px 12px; border: 1px solid #C5C5C5; border-radius: 4px; font-family: Arial, sans-serif; font-size: 14px; color: #333333;"/>
             </div>
@@ -216,6 +223,21 @@
             </div>
         </div>
         
+        <!-- Save/Cancel Buttons -->
+        <div class="mt-6 flex flex-wrap items-center gap-4 justify-center">
+            <button type="button" id="save-btn" class="inline-flex items-center px-6 py-3 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors" style="display: none;">
+                <i class="bi bi-check-circle mr-2"></i>
+                Save Changes
+            </button>
+            <button type="button" id="cancel-btn" class="inline-flex items-center px-6 py-3 bg-gray-500 text-white font-medium rounded-lg hover:bg-gray-600 transition-colors" style="display: none;">
+                <i class="bi bi-x-circle mr-2"></i>
+                Cancel
+            </button>
+        </div>
+        
+        <!-- Hidden field to store current item ID -->
+        <input type="hidden" id="current-item-id" value="">
+        
         <!-- Central Locking System (CLS) -->
         <div class="mt-6 pt-6" style="border-top: 1px solid #E5E5E5;">
             <div class="section-title section-title--line"><span>Central Locking System (CLS)</span></div>
@@ -282,7 +304,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Define validation rules
     const validationRules = {
         'item_code': { required: true, minLength: 1, pattern: null, message: 'Item Code is required' },
-        'name': { required: true, minLength: 1, pattern: null, message: 'Description is required' },
+        'description': { required: true, minLength: 1, pattern: null, message: 'Description is required' },  // Fixed: Use 'description' instead of 'name'
         'sku': { required: true, minLength: 1, pattern: null, message: 'SKU is required' },
         'units': { required: true, minLength: 1, pattern: null, message: 'Units is required' },
         'selling_price': { required: false, minValue: 0, pattern: /^\d+(\.\d{1,2})?$/, message: 'Please enter a valid price (e.g., 10.50)' },
@@ -291,17 +313,12 @@ document.addEventListener('DOMContentLoaded', function() {
         'stock_quantity': { required: false, minValue: 0, pattern: /^\d+$/, message: 'Please enter a valid quantity' }
     };
     
-    // Add required attribute and placeholder indicator to required fields
+    // Add required attribute to required fields (asterisks already in HTML)
     Object.keys(validationRules).forEach(fieldName => {
         const field = form.querySelector(`[name="${fieldName}"]`);
         if (field && validationRules[fieldName].required) {
             field.setAttribute('required', 'required');
             field.setAttribute('data-required', 'true');
-            // Add visual indicator (red asterisk)
-            const label = field.closest('div')?.querySelector('label');
-            if (label && !label.textContent.includes('*')) {
-                label.innerHTML += ' <span style="color: #d32f2f; margin-left: 2px;">*</span>';
-            }
         }
     });
     
@@ -386,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (originalSaveProduct) {
         window.saveProduct = function(itemCodeParam) {
             // Validate critical fields
-            const criticalFields = ['item_code', 'name', 'sku', 'units'];
+            const criticalFields = ['item_code', 'description', 'sku', 'units'];  // Fixed: Use 'description' instead of 'name'
             let allValid = true;
             
             criticalFields.forEach(fieldName => {
@@ -426,6 +443,557 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     `;
     document.head.appendChild(styleEl);
+    
+    // ===== INLINE EDITING FUNCTIONALITY =====
+    
+    let isEditMode = false;
+    let originalValues = {};
+    
+    const editBtn = document.getElementById('edit-btn');
+    const saveBtn = document.getElementById('save-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const currentItemIdField = document.getElementById('current-item-id');
+    
+    // Editable fields configuration - RESTRICTED: Only allow editing of basic item info and configuration
+    const editableFields = [
+        'sku', 'barcode', 'description', 'pack_description', 'units',  // Basic item information
+        'weight_division_factor', 'outer_case_quantity', 'minimum_qty', 'wrap',  // Item configuration
+        'talabat_margin'  // Margin (Talabat only)
+        // EXCLUDED: stock_quantity, cost_price, mrp, selling_price, converted_cost (read-only)
+    ];
+    
+    // Enable edit mode
+    function enableEditMode() {
+        if (!currentItemIdField.value) {
+            showModal('Please search and select an item first', 'warning');
+            return;
+        }
+        
+        isEditMode = true;
+        
+        // Store original values
+        originalValues = {};
+        editableFields.forEach(fieldName => {
+            const field = form.querySelector(`[name="${fieldName}"]`);
+            if (field) {
+                originalValues[fieldName] = field.value;
+                field.style.backgroundColor = '#fff3cd'; // Light yellow background
+                field.style.borderColor = '#ffc107'; // Yellow border
+                field.removeAttribute('readonly');
+                field.removeAttribute('disabled');
+            }
+        });
+        
+        // Update button visibility
+        editBtn.style.display = 'none';
+        saveBtn.style.display = 'inline-flex';
+        cancelBtn.style.display = 'inline-flex';
+        
+        // Disable search while editing
+        document.getElementById('search-input').disabled = true;
+        document.getElementById('search-btn').disabled = true;
+    }
+    
+    // Disable edit mode
+    function disableEditMode() {
+        isEditMode = false;
+        
+        // Reset field styles
+        editableFields.forEach(fieldName => {
+            const field = form.querySelector(`[name="${fieldName}"]`);
+            if (field) {
+                field.style.backgroundColor = '';
+                field.style.borderColor = '#C5C5C5';
+            }
+        });
+        
+        // Update button visibility
+        editBtn.style.display = 'inline-flex';
+        saveBtn.style.display = 'none';
+        cancelBtn.style.display = 'none';
+        
+        // Re-enable search
+        document.getElementById('search-input').disabled = false;
+        document.getElementById('search-btn').disabled = false;
+    }
+    
+    // Cancel editing
+    function cancelEdit() {
+        // Restore original values
+        editableFields.forEach(fieldName => {
+            const field = form.querySelector(`[name="${fieldName}"]`);
+            if (field && originalValues[fieldName] !== undefined) {
+                field.value = originalValues[fieldName];
+            }
+        });
+        
+        disableEditMode();
+    }
+    
+    // Save changes
+    async function saveChanges() {
+        const itemId = currentItemIdField.value;
+        if (!itemId) {
+            showModal('No item selected', 'warning');
+            return;
+        }
+        
+        // Collect changes
+        const updates = {};
+        let hasChanges = false;
+        
+        editableFields.forEach(fieldName => {
+            const field = form.querySelector(`[name="${fieldName}"]`);
+            if (field && field.value !== originalValues[fieldName]) {
+                updates[fieldName] = field.value;
+                hasChanges = true;
+                
+                // Debug logging for margin field
+                if (fieldName === 'talabat_margin') {
+                    console.log(`Margin change detected: "${originalValues[fieldName]}" → "${field.value}"`);
+                }
+            }
+        });
+        
+        // Debug logging
+        console.log('Updates to send:', updates);
+        console.log('Original values:', originalValues);
+        
+        if (!hasChanges) {
+            showModal('No changes to save', 'info');
+            disableEditMode();
+            return;
+        }
+        
+        // Show loading
+        saveBtn.innerHTML = '<i class="bi bi-hourglass-split mr-2"></i>Saving...';
+        saveBtn.disabled = true;
+        
+        try {
+            const response = await fetch('/integration/api/item/inline-edit/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    item_id: itemId,
+                    updates: updates
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                let message = `Successfully updated: ${data.updated_fields.join(', ')}`;
+                
+                // Add special message if prices were recalculated
+                if (data.recalculated_outlets && data.recalculated_outlets.length > 0) {
+                    message += `\n\n🔄 Automatically recalculated prices for ${data.recalculated_outlets.length} outlet(s): ${data.recalculated_outlets.join(', ')}`;
+                }
+                
+                showModal(message, 'success');
+                disableEditMode();
+                
+                // Refresh the item data
+                const searchInput = document.getElementById('search-input');
+                if (searchInput.value) {
+                    searchItem(); // Refresh current item
+                }
+            } else {
+                showModal(`Error: ${data.message}`, 'error');
+                if (data.errors) {
+                    console.error('Validation errors:', data.errors);
+                }
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            showModal('Error saving changes. Please try again.', 'error');
+        } finally {
+            // Reset button
+            saveBtn.innerHTML = '<i class="bi bi-check-circle mr-2"></i>Save Changes';
+            saveBtn.disabled = false;
+        }
+    }
+    
+    // Enhanced search function
+    async function searchItem() {
+        const searchTerm = document.getElementById('search-input').value.trim();
+        if (!searchTerm) {
+            showModal('Please enter a search term', 'warning');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/integration/api/item/search/?q=${encodeURIComponent(searchTerm)}&platform=talabat`);
+            const data = await response.json();
+            
+            if (data.success && data.items.length > 0) {
+                const item = data.items[0]; // Take first result
+                
+                // Populate form with item data
+                currentItemIdField.value = item.id;
+                
+                const fieldMapping = {
+                    'item_code': item.item_code,
+                    'sku': item.sku,
+                    'barcode': item.barcode,
+                    'description': item.name,  // Fixed: Map to 'description' field
+                    'pack_description': item.pack_description,
+                    'units': item.units,
+                    'stock_quantity': item.stock,
+                    'weight_division_factor': item.weight_division_factor,
+                    'outer_case_quantity': item.outer_case_quantity,
+                    'minimum_qty': item.minimum_qty,
+                    'wrap': item.wrap,
+                    'cost_price': item.cost,
+                    'mrp': item.mrp,
+                    'selling_price': item.selling_price,
+                    'talabat_margin': item.talabat_margin  // Added: Include margin field
+                };
+                
+                Object.entries(fieldMapping).forEach(([fieldName, value]) => {
+                    const field = form.querySelector(`[name="${fieldName}"]`);
+                    if (field) {
+                        // Handle zero values properly - don't convert 0 to empty string
+                        if (value === null || value === undefined) {
+                            field.value = '';
+                        } else {
+                            field.value = value;
+                        }
+                    }
+                });
+                
+                // Show success message
+                const searchBtn = document.getElementById('search-btn');
+                const originalText = searchBtn.innerHTML;
+                searchBtn.innerHTML = '<i class="bi bi-check mr-1"></i>Found!';
+                searchBtn.style.backgroundColor = '#28a745';
+                setTimeout(() => {
+                    searchBtn.innerHTML = originalText;
+                    searchBtn.style.backgroundColor = '#0066CC';
+                }, 2000);
+                
+            } else {
+                showModal('No items found matching your search', 'info');
+                currentItemIdField.value = '';
+            }
+        } catch (error) {
+            console.error('Search error:', error);
+            showModal('Error searching for item. Please try again.', 'error');
+        }
+    }
+    
+    // Event listeners
+    if (editBtn) editBtn.addEventListener('click', enableEditMode);
+    if (saveBtn) saveBtn.addEventListener('click', saveChanges);
+    if (cancelBtn) cancelBtn.addEventListener('click', cancelEdit);
+    
+    // Enhanced search button
+    const searchBtn = document.getElementById('search-btn');
+    if (searchBtn) {
+        searchBtn.addEventListener('click', searchItem);
+    }
+    
+    // Search on Enter key
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchItem();
+            }
+        });
+    }
+});
+</script>
+
+<!-- Beautiful Modal Alert System -->
+<div id="customModal" class="modal-overlay">
+    <div class="modal-container">
+        <div class="modal-header">
+            <div class="modal-icon" id="modalIcon">
+                <i class="bi bi-info-circle"></i>
+            </div>
+            <h3 class="modal-title" id="modalTitle">Notification</h3>
+            <button class="modal-close" onclick="closeModal()">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p class="modal-message" id="modalMessage">Message content</p>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn-primary" onclick="closeModal()">OK</button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Modern Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 400px;
+    width: 90%;
+    max-height: 90vh;
+    overflow: hidden;
+    transform: scale(0.7) translateY(-50px);
+    transition: all 0.3s ease;
+}
+
+.modal-overlay.show .modal-container {
+    transform: scale(1) translateY(0);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    position: relative;
+}
+
+.modal-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    font-size: 18px;
+}
+
+.modal-icon.success {
+    background: #dcfce7;
+    color: #16a34a;
+}
+
+.modal-icon.error {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.modal-icon.warning {
+    background: #fefce8;
+    color: #ca8a04;
+}
+
+.modal-icon.info {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.modal-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+    flex: 1;
+}
+
+.modal-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: #f3f4f6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #6b7280;
+    transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.modal-body {
+    padding: 16px 24px 24px;
+}
+
+.modal-message {
+    font-size: 14px;
+    line-height: 1.5;
+    color: #4b5563;
+    margin: 0;
+}
+
+.modal-footer {
+    padding: 16px 24px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.modal-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.modal-btn-primary {
+    background: #2563eb;
+    color: white;
+    border-color: #2563eb;
+}
+
+.modal-btn-primary:hover {
+    background: #1d4ed8;
+    border-color: #1d4ed8;
+}
+
+.modal-btn-secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+.modal-btn-secondary:hover {
+    background: #e5e7eb;
+}
+
+/* Success variant */
+.modal-container.success .modal-header {
+    border-bottom-color: #dcfce7;
+}
+
+.modal-container.success .modal-btn-primary {
+    background: #16a34a;
+    border-color: #16a34a;
+}
+
+.modal-container.success .modal-btn-primary:hover {
+    background: #15803d;
+    border-color: #15803d;
+}
+
+/* Error variant */
+.modal-container.error .modal-header {
+    border-bottom-color: #fef2f2;
+}
+
+.modal-container.error .modal-btn-primary {
+    background: #dc2626;
+    border-color: #dc2626;
+}
+
+.modal-container.error .modal-btn-primary:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+/* Warning variant */
+.modal-container.warning .modal-header {
+    border-bottom-color: #fefce8;
+}
+
+.modal-container.warning .modal-btn-primary {
+    background: #ca8a04;
+    border-color: #ca8a04;
+}
+
+.modal-container.warning .modal-btn-primary:hover {
+    background: #a16207;
+    border-color: #a16207;
+}
+</style>
+
+<script>
+// Beautiful Modal Functions
+function showModal(message, type = 'info', title = null) {
+    const modal = document.getElementById('customModal');
+    const container = modal.querySelector('.modal-container');
+    const icon = document.getElementById('modalIcon');
+    const titleEl = document.getElementById('modalTitle');
+    const messageEl = document.getElementById('modalMessage');
+    
+    // Set type-specific styling
+    container.className = `modal-container ${type}`;
+    icon.className = `modal-icon ${type}`;
+    
+    // Set icon based on type
+    const icons = {
+        success: 'bi-check-circle',
+        error: 'bi-x-circle',
+        warning: 'bi-exclamation-triangle',
+        info: 'bi-info-circle'
+    };
+    
+    const titles = {
+        success: 'Success',
+        error: 'Error',
+        warning: 'Warning',
+        info: 'Information'
+    };
+    
+    icon.innerHTML = `<i class="bi ${icons[type] || icons.info}"></i>`;
+    titleEl.textContent = title || titles[type] || titles.info;
+    messageEl.textContent = message;
+    
+    // Show modal
+    modal.classList.add('show');
+    
+    // Auto-close success messages after 3 seconds
+    if (type === 'success') {
+        setTimeout(() => {
+            closeModal();
+        }, 3000);
+    }
+}
+
+function closeModal() {
+    const modal = document.getElementById('customModal');
+    modal.classList.remove('show');
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(e) {
+    const modal = document.getElementById('customModal');
+    if (e.target === modal) {
+        closeModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeModal();
+    }
 });
 </script>
 {% endblock %}

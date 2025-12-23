@@ -10,6 +10,7 @@ from .views import (
     list_items_api,
     reports_page, locked_products_report, export_all_items, export_platform_items, export_outlet_items,
     report_data_api, report_stats_api, locked_products_data_api, export_locked_products_api,
+    item_search_api, item_inline_edit_api,
 )
 from .promotion_views import (
     promotion_update, promotion_search_api, promotion_calculate_api,
@@ -75,6 +76,9 @@ urlpatterns = [
     path('api/promotion/export/', promotion_export_api, name='promotion_export_api'),
     path('api/promotion/erp-export/', promotion_erp_export_api, name='promotion_erp_export_api'),
     path('api/promotion/talabat-xlsx-export/', talabat_promotions_xlsx_export, name='talabat_promotions_xlsx_export'),
+    # Dashboard inline editing
+    path('api/item/search/', item_search_api, name='item_search_api'),
+    path('api/item/inline-edit/', item_inline_edit_api, name='item_inline_edit_api'),
     # Reports
     path('reports/', reports_page, name='reports'),
     path('locked-products-report/', locked_products_report, name='locked_products_report'),

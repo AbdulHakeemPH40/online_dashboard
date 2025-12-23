@@ -25,87 +25,6 @@ logger = logging.getLogger(__name__)
 SMART_ROUNDING_TARGETS = [Decimal('0.00'), Decimal('0.25'), Decimal('0.49'), Decimal('0.75'), Decimal('0.99')]
 
 
-# =============================================================================
-# VALIDATION UTILITIES - DIVISION BY ZERO PROTECTION
-# Centralized validation for WDF and OCQ operations
-# =============================================================================
-
-def validate_wdf_for_division(wdf: Optional[Decimal], item_code: str, operation: str) -> Decimal:
-    """
-    Validate Weight Division Factor before division operations.
-    
-    Prevents division by zero crashes and ensures business rule compliance.
-    All wrap=9900 items must have valid WDF > 0 for price calculations.
-    
-    Args:
-        wdf: Weight Division Factor value (can be None or Decimal)
-        item_code: Item code for error context
-        operation: Description of operation for error context
-        
-    Returns:
-        Decimal: Validated WDF value
-        
-    Raises:
-        ValueError: If WDF is None, zero, or negative
-        
-    Examples:
-        >>> validate_wdf_for_division(Decimal('2.5'), '9900123', 'price calculation')
-        Decimal('2.5')
-        
-        >>> validate_wdf_for_division(None, '9900123', 'price calculation')
-        ValueError: Invalid weight_division_factor for price calculation on item 9900123: None. weight_division_factor must be greater than zero.
-    """
-    if wdf is None:
-        error_msg = f"Invalid weight_division_factor for {operation} on item {item_code}: None. weight_division_factor must be greater than zero."
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-    
-    if wdf <= 0:
-        error_msg = f"Invalid weight_division_factor for {operation} on item {item_code}: {wdf}. weight_division_factor must be greater than zero."
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-    
-    return wdf
-
-
-def validate_ocq_for_division(ocq: Optional[int], item_code: str, operation: str) -> int:
-    """
-    Validate Outer Case Quantity before division operations.
-    
-    Prevents division by zero crashes and ensures business rule compliance.
-    All wrap=10000 items must have valid OCQ > 0 for stock calculations.
-    
-    Args:
-        ocq: Outer Case Quantity value (can be None or int)
-        item_code: Item code for error context
-        operation: Description of operation for error context
-        
-    Returns:
-        int: Validated OCQ value
-        
-    Raises:
-        ValueError: If OCQ is None, zero, or negative
-        
-    Examples:
-        >>> validate_ocq_for_division(6, '100456', 'stock calculation')
-        6
-        
-        >>> validate_ocq_for_division(0, '100456', 'stock calculation')
-        ValueError: Invalid outer_case_quantity for stock calculation on item 100456: 0. outer_case_quantity must be greater than zero.
-    """
-    if ocq is None:
-        error_msg = f"Invalid outer_case_quantity for {operation} on item {item_code}: None. outer_case_quantity must be greater than zero."
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-    
-    if ocq <= 0:
-        error_msg = f"Invalid outer_case_quantity for {operation} on item {item_code}: {ocq}. outer_case_quantity must be greater than zero."
-        logger.error(error_msg)
-        raise ValueError(error_msg)
-    
-    return ocq
-
-
 class PricingCalculator:
     """
     Advanced pricing calculator for Pasons & Talabat platforms
@@ -851,19 +770,10 @@ def is_parent_item(item) -> bool:
         
     Returns:
         True if item is parent (WDF=1), False if child (WDF>1) or not wrap item
-        
-    Raises:
-        ValueError: If wrap=9900 item has invalid WDF value
     """
     if item.wrap != '9900':
         return False
-    
-    # Validate WDF before comparison (no more hardcoded fallback)
-    wdf = validate_wdf_for_division(
-        item.weight_division_factor, 
-        str(item.item_code), 
-        'parent item detection'
-    )
+    wdf = item.weight_division_factor or Decimal('1')
     return wdf == Decimal('1')
 
 
@@ -890,19 +800,12 @@ def calculate_item_selling_price(
         
     Returns:
         Decimal: selling_price to store in item.selling_price
-        
-    Raises:
-        ValueError: If wrap=9900 item has invalid WDF value
     """
     from .utils import PricingCalculator
     
     if item.wrap == '9900':
-        # Wrap item: validate WDF before any calculations
-        wdf = validate_wdf_for_division(
-            item.weight_division_factor, 
-            str(item.item_code), 
-            'selling price calculation'
-        )
+        # Wrap item: use WDF to determine parent vs child
+        wdf = item.weight_division_factor or Decimal('1')
         is_parent = wdf == Decimal('1')
         
         if platform == 'talabat':
@@ -914,7 +817,7 @@ def calculate_item_selling_price(
                     margin_percentage=item.effective_talabat_margin
                 )
             else:
-                # Child: MRP/WDF first, then margin (FIXED: no more division by zero)
+                # Child: MRP/WDF first, then margin
                 base_price = (mrp / wdf).quantize(Decimal('0.01'))
                 selling_price, _ = PricingCalculator.calculate_talabat_price(
                     base_price,
@@ -925,7 +828,7 @@ def calculate_item_selling_price(
             if is_parent:
                 selling_price = mrp
             else:
-                # Child: divide MRP by WDF (FIXED: no more division by zero)
+                # Child: divide MRP by WDF
                 selling_price = (mrp / wdf).quantize(Decimal('0.01'))
     else:
         # Regular items (wrap=10000 or no wrap)
@@ -957,18 +860,13 @@ def calculate_item_converted_cost(
         
     Returns:
         Decimal: converted_cost value (3 decimal places for wrap=9900, 2 for others)
-        
-    Raises:
-        ValueError: If wrap=9900 item has invalid WDF value
     """
     if item.wrap == '9900':
-        # Validate WDF before division (no more hardcoded fallback)
-        wdf = validate_wdf_for_division(
-            item.weight_division_factor, 
-            str(item.item_code), 
-            'converted cost calculation'
-        )
-        return (cost / wdf).quantize(Decimal('0.001'))
+        wdf = item.weight_division_factor or Decimal('1')
+        if wdf > 0:
+            return (cost / wdf).quantize(Decimal('0.001'))
+        else:
+            return cost
     else:
         # Regular items: converted_cost = cost (no division)
         return cost

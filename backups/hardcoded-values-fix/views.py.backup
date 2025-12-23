@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.core.cache import cache
 from django.views.decorators.http import require_http_methods
 from .models import Outlet, Item, ItemOutlet
-from .utils import decode_csv_upload, validate_wdf_for_division, validate_ocq_for_division
+from .utils import decode_csv_upload
 from .promotion_service import PromotionService
 import logging
 from decimal import Decimal, InvalidOperation
@@ -1296,20 +1296,15 @@ def product_update(request):
                                             # Apply stock conversion based on wrap type
                                             if item.wrap == '9900':
                                                 # wrap=9900: stock × WDF (e.g., 10 KG × 4 = 40 packs of 250g)
-                                                wdf = validate_wdf_for_division(
-                                                    item.weight_division_factor, 
-                                                    str(item.item_code), 
-                                                    'stock conversion calculation'
-                                                )
+                                                wdf = item.weight_division_factor or Decimal('1')
                                                 new_stock = int(csv_stock * float(wdf))
                                             elif item.wrap == '10000':
                                                 # wrap=10000: stock ÷ OCQ (e.g., 50 ÷ 4 = 12.5 cases)
-                                                ocq = validate_ocq_for_division(
-                                                    item.outer_case_quantity, 
-                                                    str(item.item_code), 
-                                                    'stock conversion calculation'
-                                                )
-                                                new_stock = int(csv_stock / ocq)
+                                                ocq = item.outer_case_quantity or 1
+                                                if ocq > 0:
+                                                    new_stock = int(csv_stock / ocq)
+                                                else:
+                                                    new_stock = csv_stock
                                             else:
                                                 new_stock = csv_stock
                                             
@@ -2263,11 +2258,7 @@ def item_outlets_api(request):
                     # wrap=10000: converted_cost = outlet_cost (no conversion)
                     'outlet_cost': float(io.outlet_cost) if io.outlet_cost is not None else 0.00,
                     'outlet_converted_cost': (
-                        float((io.outlet_cost / validate_wdf_for_division(
-                            item.weight_division_factor, 
-                            str(item.item_code), 
-                            'converted cost calculation'
-                        )).quantize(Decimal('0.001')))
+                        float((io.outlet_cost / item.weight_division_factor).quantize(Decimal('0.001')))
                         if io.outlet_cost is not None and item.wrap == '9900' and item.weight_division_factor
                         else (float(io.outlet_cost) if io.outlet_cost is not None else 0.00)
                     ),
@@ -3900,19 +3891,12 @@ def calculate_erp_price(item_outlet, item):
     
     - wrap=9900: selling_price * WDF (weight_division_factor)
     - wrap=10000: selling_price (no conversion)
-    
-    Raises:
-        ValueError: If wrap=9900 item has invalid WDF value
     """
     selling_price = item_outlet.outlet_selling_price or item.selling_price or Decimal('0')
     
     if str(item.wrap) == '9900':
-        # Validate WDF before multiplication (FIXED: no more hardcoded fallback)
-        wdf = validate_wdf_for_division(
-            item.weight_division_factor, 
-            str(item.item_code), 
-            'ERP price calculation'
-        )
+        # Multiply by WDF for wrap=9900
+        wdf = item.weight_division_factor or 1
         converted_price = float(selling_price) * float(wdf)
     else:
         # wrap=10000 or other - no conversion
