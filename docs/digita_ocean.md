@@ -69,7 +69,7 @@ Test Django (optional):
 ```bash
 python manage.py runserver 0.0.0.0:8000
 ```
-Open: http://159.89.133.6:8000
+Open:
 Stop: `CTRL + C`
 
 ---
