@@ -280,28 +280,36 @@ class PricingCalculator:
         return result
     
     @staticmethod
-    def calculate_base_price(item_code: str, erp_price: Decimal, weight_division_factor: Decimal = None) -> Decimal:
+    def calculate_base_price(item_code: str, erp_price: Decimal, weight_division_factor: Decimal = None, wrap: str = None) -> Decimal:
         """
         Calculate base price from ERP price
-        Wrap items (9900xxx): MRP ÷ WDF
-        Regular items (10000xxx): MRP as-is
+        Wrap items (wrap=9900): MRP ÷ WDF
+        Regular items (wrap=10000): MRP as-is
         
         Args:
             item_code: Item code
             erp_price: Price from ERP (MRP)
             weight_division_factor: WDF for wrap items
+            wrap: Wrap type ('9900' or '10000') - if provided, uses this instead of item_code detection
             
         Returns:
             Base price for calculations
         """
-        if PricingCalculator.is_wrap_item(item_code):
-            # Wrap items: MRP ÷ WDF (correct business logic)
+        # Determine if this is a wrap item
+        # Priority: Use wrap parameter if provided, otherwise detect from item_code
+        if wrap is not None:
+            is_wrap = (wrap == '9900')
+        else:
+            is_wrap = PricingCalculator.is_wrap_item(item_code)
+        
+        if is_wrap:
+            # Wrap items (wrap=9900): MRP ÷ WDF
             if weight_division_factor and weight_division_factor > 0:
                 base = erp_price / weight_division_factor
             else:
                 raise ValueError(f"Invalid WDF for wrap item {item_code}: {weight_division_factor}")
         else:
-            # Regular items: MRP as-is
+            # Regular items (wrap=10000): MRP as-is
             base = erp_price
         
         # Round to 2 decimal places

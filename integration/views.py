@@ -1552,11 +1552,12 @@ def rules_update_price(request):
                     outlets_to_update = []
                     for item_outlet in item_outlets:
                         if item_outlet.outlet_mrp and item_outlet.outlet_mrp > 0:
-                            # Calculate base price first
+                            # Calculate base price - pass wrap type to avoid item_code ambiguity
                             base_price = PricingCalculator.calculate_base_price(
                                 item_outlet.item.item_code, 
                                 item_outlet.outlet_mrp,
-                                item_outlet.item.weight_division_factor
+                                item_outlet.item.weight_division_factor,
+                                item_outlet.item.wrap  # ← Pass actual wrap type
                             )
                             # Calculate new selling price with updated margin
                             new_selling_price, _ = PricingCalculator.calculate_talabat_price(
@@ -2249,6 +2250,21 @@ def item_outlets_api(request):
                 # If stock rules fail, show disabled regardless of manual flag
                 effective_active = io.is_active_in_outlet and calculated_enabled
                 
+                # Calculate converted cost based on wrap type
+                # wrap=9900: Use WDF for conversion
+                # wrap=10000: No conversion needed
+                if io.outlet_cost is not None and item.wrap == '9900':
+                    # Only validate WDF for wrap=9900 items
+                    wdf = validate_wdf_for_division(
+                        item.weight_division_factor,
+                        str(item.item_code),
+                        'converted cost calculation'
+                    )
+                    outlet_converted_cost = float((io.outlet_cost / wdf).quantize(Decimal('0.001')))
+                else:
+                    # wrap=10000 or no cost: use cost as-is
+                    outlet_converted_cost = float(io.outlet_cost) if io.outlet_cost is not None else 0.00
+                
                 outlets.append({
                     'outlet_name': io.outlet.name,
                     'store_id': io.outlet.store_id,
@@ -2259,18 +2275,8 @@ def item_outlets_api(request):
                     'active': effective_active,  # Now auto-calculated!
                     'stock_status_reason': 'ok' if calculated_enabled else 'insufficient_stock',
                     # Cost fields (OUTLET-LEVEL)
-                    # wrap=9900: converted_cost = outlet_cost / WDF
-                    # wrap=10000: converted_cost = outlet_cost (no conversion)
                     'outlet_cost': float(io.outlet_cost) if io.outlet_cost is not None else 0.00,
-                    'outlet_converted_cost': (
-                        float((io.outlet_cost / validate_wdf_for_division(
-                            item.weight_division_factor, 
-                            str(item.item_code), 
-                            'converted cost calculation'
-                        )).quantize(Decimal('0.001')))
-                        if io.outlet_cost is not None and item.wrap == '9900' and item.weight_division_factor
-                        else (float(io.outlet_cost) if io.outlet_cost is not None else 0.00)
-                    ),
+                    'outlet_converted_cost': outlet_converted_cost,
                     # MRP and S.Price (OUTLET-SPECIFIC, not global)
                     'outlet_mrp': float(io.outlet_mrp) if io.outlet_mrp is not None else 0.00,
                     'outlet_selling_price': float(price),
