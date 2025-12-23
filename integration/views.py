@@ -3627,20 +3627,34 @@ def erp_export_api(request):
         if export_type == 'partial':
             last_export = ERPExportHistory.get_latest_successful_export(outlet)
             if last_export:
-                # OPTIMIZED: Use database-level filtering instead of Python loop
-                # Filter items that have changed since last export
-                # Changed = updated_at > last_export_timestamp OR erp_export_price is NULL OR price mismatch
+                # FIXED: Use value-based comparison like shop integration
+                # Compare current values vs last exported values for ALL items (not just recently updated)
+                logger.info(f"Partial export: comparing current values vs last exported values (last export: {last_export.export_timestamp})")
                 
-                from django.db.models import Q, F, ExpressionWrapper, DecimalField, Case, When
+                # Get ALL active items and compare current vs exported values
+                all_items = item_outlets.select_related('item')
                 
-                # Option 1: Use updated_at timestamp (simple and fast)
-                # Items updated after last export are considered changed
-                item_outlets = item_outlets.filter(
-                    Q(updated_at__gt=last_export.export_timestamp) |  # Updated since last export
-                    Q(erp_export_price__isnull=True)  # Never exported before
-                )
+                changed_items = []
+                for io in all_items:
+                    # Calculate current ERP price
+                    current_erp_price = Decimal(str(calculate_erp_price(io, io.item)))
+                    
+                    # Compare with last exported price
+                    exported_price = io.erp_export_price or Decimal('0')
+                    
+                    # Include if price changed OR never exported before
+                    if current_erp_price != exported_price:
+                        logger.debug(f"Item {io.item.item_code} marked for export: price: {exported_price} → {current_erp_price}")
+                        changed_items.append(io.id)
                 
-                logger.info(f"Partial export: Found {item_outlets.count()} items changed since {last_export.export_timestamp}")
+                # Filter to only changed items
+                if changed_items:
+                    item_outlets = item_outlets.filter(id__in=changed_items)
+                    logger.info(f"Partial export: {len(changed_items)} items have price changes")
+                else:
+                    # No changes found, return empty
+                    logger.info("Partial export: No items with price changes found")
+                    item_outlets = item_outlets.none()
                 
                 # If no changes found, return empty queryset
                 if not item_outlets.exists():
