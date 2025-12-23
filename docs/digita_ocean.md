@@ -3,7 +3,7 @@
 ## Server Information
 | Item | Value |
 |------|-------|
-| Server IP | 159.89.133.6 |
+| Server IP ||
 | OS | Ubuntu 24.04 LTS |
 | Python | 3.12.3 |
 | Web Server | Nginx 1.24.0 |
