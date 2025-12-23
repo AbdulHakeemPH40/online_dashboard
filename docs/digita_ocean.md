@@ -195,7 +195,7 @@ sudo apt install certbot python3-certbot-nginx
 ### Get SSL Certificate
 **Important:** Before running this, make sure your domain DNS A record points to your server IP:
 - Domain: `erp.pasons.group`
-- Points to: `159.89.133.6`
+- Points to: 
 
 ```bash
 sudo certbot --nginx -d erp.pasons.group
