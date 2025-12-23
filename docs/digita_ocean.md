@@ -15,7 +15,6 @@
 
 ## STEP 1: SSH to Server
 ```bash
-ssh root@159.89.133.6
 ```
 
 ---
@@ -110,7 +109,6 @@ sudo systemctl enable gunicorn
 
 my sql 
 USER:django_user
-password:winDOws@10
 
 ---
 
@@ -125,7 +123,7 @@ Paste this content:
 ```nginx
 server {
     listen 80;
-    server_name 159.89.133.6 erp.pasons.group;
+    server_name xxxxccc erp.pasons.group;
 
     client_max_body_size 20M;  # Allow large CSV uploads
 
@@ -220,7 +218,7 @@ Certbot will automatically:
 **Your site will be accessible at:**
 - `https://erp.pasons.group` (Secure)
 - `http://erp.pasons.group` (Redirects to HTTPS)
-- `http://159.89.133.6` (Still works)
+-  (Still works)
 
 ### Verify Auto-Renewal
 ```bash
@@ -315,7 +313,6 @@ When you make changes locally and push to GitHub, follow these steps on DigitalO
 
 ### Step 1: SSH to Server
 ```bash
-ssh root@159.89.133.6
 ```
 
 ### Step 2: Go to Project & Activate Venv
@@ -352,7 +349,7 @@ sudo systemctl restart gunicorn
 ```
 
 ### Step 8: Verify
-Open http://159.89.133.6 in browser to check changes.
+in browser to check changes.
 
 ---
 
@@ -378,7 +375,6 @@ When you make changes on the server and want to push them to GitHub:
 
 ### Step 1: SSH to Server & Navigate
 ```bash
-ssh root@159.89.133.6
 cd /var/www/myproject
 ```
 
