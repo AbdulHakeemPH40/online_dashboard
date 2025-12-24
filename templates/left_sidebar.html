@@ -23,19 +23,20 @@
             <ul class="nav-list">
                 <li class="nav-item">
                     <a href="{% url 'dashboard' %}"
-                        class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                        class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+                        data-tooltip="Dashboard">
                         <i class="nav-icon">📊</i>
                         <span class="nav-text">Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="{% url 'integration:store_list' %}" class="nav-link">
+                    <a href="{% url 'integration:store_list' %}" class="nav-link" data-tooltip="Manage Stores">
                         <i class="nav-icon">🏪</i>
                         <span class="nav-text">Manage Stores</span>
                     </a>
                 </li>
                 <li class="nav-item has-dropdown">
-                    <a href="#" class="nav-link">
+                    <a href="#" class="nav-link" data-tooltip="Bulk Operations">
                         <i class="nav-icon">📦</i>
                         <span class="nav-text">Bulk Operations</span>
                         <i class="bx bx-chevron-down dropdown-arrow"></i>
@@ -70,26 +71,27 @@
                     </div>
                 </li>
                 <li class="nav-item">
-                    <a href="{% url 'integration:shop_integration' %}" class="nav-link">
+                    <a href="{% url 'integration:shop_integration' %}" class="nav-link" data-tooltip="Shop Integration">
                         <i class="nav-icon">🔗</i>
                         <span class="nav-text">Shop Integration</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="{% url 'integration:promotion_update' %}" class="nav-link">
+                    <a href="{% url 'integration:promotion_update' %}" class="nav-link" data-tooltip="Promotion Integration">
                         <i class="nav-icon">🏷️</i>
                         <span class="nav-text">Promotion Integration</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="{% url 'integration:outlet_reset' %}" 
-                        class="nav-link {% if request.resolver_match.url_name == 'outlet_reset' %}active{% endif %}">
+                        class="nav-link {% if request.resolver_match.url_name == 'outlet_reset' %}active{% endif %}"
+                        data-tooltip="Reset Outlet">
                         <i class="nav-icon">🔄</i>
                         <span class="nav-text">Reset Outlet</span>
                     </a>
                 </li>
                 <li class="nav-item has-dropdown">
-                    <a href="#" class="nav-link">
+                    <a href="#" class="nav-link" data-tooltip="Reports & Analytics">
                         <i class="nav-icon">📊</i>
                         <span class="nav-text">Reports & Analytics</span>
                         <i class="bx bx-chevron-down dropdown-arrow"></i>
@@ -103,6 +105,10 @@
                             <i class="nav-icon">🔒</i>
                             <span>Locked Products Report</span>
                         </a>
+                        <a href="{% url 'integration:cost_finder_report' %}" class="dropdown-link">
+                            <i class="nav-icon">🔧</i>
+                            <span>Price Validation Report</span>
+                        </a>
                     </div>
                 </li>
             </ul>
@@ -113,7 +119,7 @@
                 <li class="nav-item">
                     <form method="post" action="{% url 'logout' %}">
                         {% csrf_token %}
-                        <button type="submit" class="nav-link logout">
+                        <button type="submit" class="nav-link logout" data-tooltip="Logout">
                             <i class="nav-icon">➡️</i>
                             <span class="nav-text">Logout</span>
                         </button>

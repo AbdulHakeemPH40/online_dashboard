@@ -1,0 +1,985 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<style>
+/* Reset any potential Tailwind conflicts */
+.cost-finder-container * {
+    box-sizing: border-box;
+}
+
+/* Cost Finder Report Styles */
+.cost-finder-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+/* Platform Badge */
+.platform-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 50px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    border: 1px solid transparent;
+}
+
+.platform-indicator.pasons {
+    background: linear-gradient(135deg, #e0f2fe, #b3e5fc);
+    color: #0277bd;
+    border-color: rgba(2, 119, 189, 0.1);
+}
+
+.platform-indicator.talabat {
+    background: linear-gradient(135deg, #ffedd5, #fed7aa);
+    color: #c2410c;
+    border-color: rgba(194, 65, 12, 0.1);
+}
+
+/* Content Area */
+.tab-content {
+    background: linear-gradient(180deg, #ffffff, #fafbfc);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03);
+    min-height: 380px;
+    border: 1px solid rgba(0,0,0,0.04);
+    margin: 0;
+}
+
+/* Filter Section */
+.filter-section {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 24px;
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+    align-items: end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filter-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 2px;
+}
+
+.filter-group select,
+.filter-group input {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #374151;
+    background: white;
+    transition: all 0.15s ease;
+    min-height: 40px;
+}
+
+.filter-group select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 8px center;
+    background-repeat: no-repeat;
+    background-size: 16px 16px;
+    padding-right: 32px;
+}
+
+.filter-group select:focus,
+.filter-group input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    white-space: nowrap;
+    min-height: 40px;
+}
+
+.btn.primary {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.2);
+}
+
+.btn.primary:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn.secondary {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn.secondary:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+    transform: translateY(-1px);
+}
+
+.btn.success {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    box-shadow: 0 1px 3px rgba(16, 185, 129, 0.2);
+}
+
+.btn.success:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    transform: translateY(-1px);
+}
+
+/* Summary Cards */
+.summary-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.summary-card {
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.summary-card h4 {
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    margin: 0 0 8px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.summary-card .value {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+}
+
+.summary-card.danger .value {
+    color: #dc2626;
+}
+
+.summary-card.warning .value {
+    color: #d97706;
+}
+
+.summary-card.info .value {
+    color: #2563eb;
+}
+
+/* Data Table */
+.data-table-container {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.table-header {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.table-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+}
+
+.search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.search-box input {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    width: 250px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12px;
+}
+
+.data-table thead th {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    padding: 12px 10px;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 2px solid #e2e8f0;
+    white-space: nowrap;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.data-table tbody td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #f1f5f9;
+    color: #374151;
+    vertical-align: top;
+    font-size: 12px;
+}
+
+.data-table tbody tr:hover {
+    background: #f8fafc;
+    transition: background-color 0.15s ease;
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.status-badge.below-cost { 
+    background: #fee2e2; 
+    color: #991b1b; 
+}
+
+.status-badge.low-gp { 
+    background: #fef3c7; 
+    color: #92400e; 
+}
+
+.status-badge.acceptable { 
+    background: #dcfce7; 
+    color: #166534; 
+}
+
+/* Pagination */
+.pagination-container {
+    background: #f8fafc;
+    padding: 16px 20px;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.pagination-info {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.pagination-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.pagination-btn {
+    min-width: 36px;
+    height: 36px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: #f3f4f6;
+    border-color: #3b82f6;
+}
+
+.pagination-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.pagination-btn.active {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: white;
+}
+
+/* Loading and Empty States */
+.loading-state, .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #6b7280;
+}
+
+.loading-state i, .empty-state i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+    color: #d1d5db;
+}
+
+.loading-state i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Info Box */
+.info-box {
+    background: linear-gradient(135deg, #eff6ff, #dbeafe);
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    padding: 14px;
+    margin-bottom: 20px;
+    border-left: 4px solid #3b82f6;
+}
+
+.info-box h4 {
+    color: #1e40af;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.info-box p {
+    color: #1e40af;
+    font-size: 11px;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.info-box strong {
+    font-weight: 600;
+    color: #1d4ed8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .cost-finder-container {
+        padding: 0;
+    }
+    
+    .tab-content {
+        padding: 16px;
+        border-radius: 8px;
+    }
+    
+    .filter-section {
+        padding: 16px;
+        border-radius: 6px;
+    }
+    
+    .filter-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .summary-section {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .data-table-container {
+        overflow-x: auto;
+        border-radius: 8px;
+    }
+    
+    .data-table {
+        min-width: 800px;
+    }
+    
+    .search-box input {
+        width: 100%;
+    }
+    
+    .table-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .pagination-container {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+}
+
+@media (max-width: 1024px) and (min-width: 769px) {
+    .filter-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .tab-content {
+        padding: 20px;
+    }
+}
+</style>
+
+<div class="cost-finder-container">
+    <div class="tab-content">
+        <!-- Info Box -->
+        <div class="info-box">
+            <h4>🔧 Price Validation Report - Middleware ERP</h4>
+            <p>
+                <strong>Middleware Purpose:</strong> Identifies products selling below cost for price correction in e-commerce platforms. 
+                <strong>GP% Calculation:</strong> (Selling Price - Converted Cost) × 100 ÷ Selling Price. 
+                <strong>Platform Isolation:</strong> Results are filtered by selected platform and outlet for accurate price validation.
+                <strong>Price Management:</strong> Helps maintain proper pricing across Pasons and Talabat platforms.
+            </p>
+        </div>
+
+        <!-- Filter Section -->
+        <div class="filter-section">
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label>Platform *</label>
+                    <select id="platform-filter">
+                        <option value="">-- Select Platform --</option>
+                        <option value="pasons">Pasons Ecommerce</option>
+                        <option value="talabat">Talabat Platform</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group" id="outlet-filter-group" style="display: none;">
+                    <label>Outlet *</label>
+                    <select id="outlet-filter">
+                        <option value="">-- Select Outlet --</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>GP% Threshold (%)</label>
+                    <input type="number" id="gp-threshold" placeholder="0" step="0.1" min="-100" max="100" value="0">
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn primary" onclick="loadCostFinderData()">
+                    <i class="bx bx-search"></i> Find Products
+                </button>
+                <button class="btn success" onclick="exportCostFinderData('csv')" id="export-csv-btn" style="display: none;">
+                    <i class="bx bx-download"></i> Export CSV
+                </button>
+                <button class="btn success" onclick="exportCostFinderData('excel')" id="export-excel-btn" style="display: none;">
+                    <i class="bx bx-download"></i> Export Excel
+                </button>
+            </div>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="summary-section" id="summary-section" style="display: none;">
+            <div class="summary-card info">
+                <h4>Total Items Found</h4>
+                <p class="value" id="summary-total-items">0</p>
+            </div>
+            <div class="summary-card info">
+                <h4>GP% Threshold</h4>
+                <p class="value" id="summary-threshold">0%</p>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="data-table-container">
+            <div class="table-header">
+                <h3 class="table-title" id="table-title">Price Validation Analysis</h3>
+                <div class="search-box">
+                    <input type="text" id="table-search" placeholder="Search in results..." onkeyup="filterTableResults()">
+                </div>
+            </div>
+            
+            <div id="loading-state" class="loading-state" style="display: none;">
+                <i class="bx bx-loader-alt"></i>
+                <p>Loading cost finder data...</p>
+            </div>
+            
+            <div id="empty-state" class="empty-state">
+                <i class="bx bx-search"></i>
+                <p>Select platform and outlet to find products selling below cost or with low margins.</p>
+            </div>
+            
+            <table class="data-table" id="data-table" style="display: none;">
+                <thead>
+                    <tr id="table-headers">
+                        <!-- Headers will be populated dynamically -->
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    <!-- Data will be populated dynamically -->
+                </tbody>
+            </table>
+            
+            <!-- Pagination -->
+            <div class="pagination-container" id="pagination-container" style="display: none;">
+                <div class="pagination-info" id="pagination-info">Showing 1-50 of 0</div>
+                <div class="pagination-controls">
+                    <button class="pagination-btn" onclick="goToPage(1)" id="first-btn" title="First">«</button>
+                    <button class="pagination-btn" onclick="changePage(-1)" id="prev-btn" title="Previous">‹</button>
+                    <div class="pagination-numbers" id="page-numbers"></div>
+                    <button class="pagination-btn" onclick="changePage(1)" id="next-btn" title="Next">›</button>
+                    <button class="pagination-btn" onclick="goToPage(totalPages)" id="last-btn" title="Last">»</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Global variables
+let currentData = null;
+let currentFilters = {};
+let currentPage = 1;
+let totalPages = 1;
+let allTableRows = [];
+let filteredTableRows = [];
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Load outlets when platform changes
+    document.getElementById('platform-filter').addEventListener('change', function() {
+        const platform = this.value;
+        if (platform) {
+            loadOutlets(platform);
+            document.getElementById('outlet-filter-group').style.display = 'block';
+        } else {
+            document.getElementById('outlet-filter-group').style.display = 'none';
+        }
+    });
+    
+    // Auto-search on Enter key for GP threshold
+    document.getElementById('gp-threshold').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            loadCostFinderData();
+        }
+    });
+});
+
+// Load outlets for selected platform
+function loadOutlets(platform) {
+    const outletSelect = document.getElementById('outlet-filter');
+    outletSelect.innerHTML = '<option value="">-- Loading outlets... --</option>';
+    
+    console.log('Loading outlets for platform:', platform);
+    
+    fetch(`/integration/api/outlets-by-platform/?platform=${platform}`)
+        .then(response => response.json())
+        .then(data => {
+            console.log('Outlets data received:', data);
+            
+            outletSelect.innerHTML = '<option value="">-- Select Outlet --</option>';
+            
+            if (data.success && data.outlets && data.outlets.length > 0) {
+                data.outlets.forEach(outlet => {
+                    const option = document.createElement('option');
+                    option.value = outlet.id;
+                    option.textContent = `${outlet.name} (${outlet.store_id})`;
+                    outletSelect.appendChild(option);
+                });
+                console.log(`Loaded ${data.outlets.length} outlets`);
+            } else {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = `-- No outlets found for ${platform.charAt(0).toUpperCase() + platform.slice(1)} --`;
+                outletSelect.appendChild(option);
+                console.log('No outlets found for platform:', platform);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading outlets:', error);
+            outletSelect.innerHTML = '<option value="">-- Error loading outlets --</option>';
+            
+            showModal({
+                title: 'Error Loading Outlets',
+                message: `Failed to load outlets for ${platform}. Please try again or contact support.`,
+                type: 'error',
+                okText: 'OK'
+            });
+        });
+}
+
+// Load cost finder data
+function loadCostFinderData(page = 1) {
+    const platform = document.getElementById('platform-filter').value;
+    const outlet = document.getElementById('outlet-filter').value;
+    const gpThreshold = document.getElementById('gp-threshold').value || '0';
+    
+    // Validation
+    if (!platform) {
+        showModal({
+            title: 'Platform Required',
+            message: 'Please select a platform (Pasons or Talabat).',
+            type: 'warning',
+            okText: 'OK'
+        });
+        return;
+    }
+    
+    if (!outlet) {
+        showModal({
+            title: 'Outlet Required',
+            message: 'Please select an outlet for platform-isolated cost analysis.',
+            type: 'warning',
+            okText: 'OK'
+        });
+        return;
+    }
+    
+    // Store current filters
+    currentFilters = { platform, outlet, gpThreshold };
+    currentPage = page;
+    
+    // Show loading state
+    document.getElementById('loading-state').style.display = 'block';
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('data-table').style.display = 'none';
+    document.getElementById('pagination-container').style.display = 'none';
+    document.getElementById('summary-section').style.display = 'none';
+    document.getElementById('export-csv-btn').style.display = 'none';
+    document.getElementById('export-excel-btn').style.display = 'none';
+    
+    // Build API URL
+    let apiUrl = `/integration/api/cost-finder-data/?platform=${platform}&outlet=${outlet}&gp_threshold=${gpThreshold}&page=${page}`;
+    
+    console.log('API URL:', apiUrl);
+    
+    // Fetch data
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loading-state').style.display = 'none';
+            
+            if (data.success) {
+                currentData = data;
+                displayData(data);
+                displaySummary(data.summary);
+                updatePagination(data.pagination);
+                
+                // Show export buttons and summary
+                document.getElementById('export-csv-btn').style.display = 'inline-flex';
+                document.getElementById('export-excel-btn').style.display = 'inline-flex';
+                document.getElementById('summary-section').style.display = 'grid';
+            } else {
+                showError(data.message || 'Failed to load data');
+            }
+        })
+        .catch(error => {
+            document.getElementById('loading-state').style.display = 'none';
+            console.error('Error loading data:', error);
+            showError('Network error occurred. Please try again.');
+        });
+}
+
+// Display data in table
+function displayData(data) {
+    const table = document.getElementById('data-table');
+    const headersRow = document.getElementById('table-headers');
+    const tbody = document.getElementById('table-body');
+    
+    // Clear existing content
+    headersRow.innerHTML = '';
+    tbody.innerHTML = '';
+    
+    if (!data.rows || data.rows.length === 0) {
+        document.getElementById('empty-state').style.display = 'block';
+        document.getElementById('empty-state').innerHTML = `
+            <i class="bx bx-info-circle"></i>
+            <p>No products found below the specified GP% threshold.</p>
+        `;
+        return;
+    }
+    
+    // Create headers
+    data.headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headersRow.appendChild(th);
+    });
+    
+    // Store all rows for table search
+    allTableRows = data.rows;
+    filteredTableRows = [...allTableRows];
+    
+    // Create rows
+    data.rows.forEach(row => {
+        const tr = document.createElement('tr');
+        
+        row.forEach((cell, index) => {
+            const td = document.createElement('td');
+            
+            // Special formatting for specific columns
+            const header = data.headers[index];
+            if (header === 'GP %') {
+                // Color code GP% values
+                const gpValue = parseFloat(cell.replace('%', ''));
+                if (gpValue < 0) {
+                    td.innerHTML = `<span style="color: #dc2626; font-weight: 600;">${cell}</span>`;
+                } else if (gpValue < 10) {
+                    td.innerHTML = `<span style="color: #d97706; font-weight: 600;">${cell}</span>`;
+                } else {
+                    td.innerHTML = `<span style="color: #059669; font-weight: 600;">${cell}</span>`;
+                }
+            } else if (header.includes('Price') || header.includes('Cost') || header.includes('MRP')) {
+                // Format currency values
+                if (typeof cell === 'string' && cell.includes('.')) {
+                    td.textContent = cell;
+                } else {
+                    td.textContent = cell;
+                }
+            } else {
+                td.textContent = cell;
+            }
+            
+            tr.appendChild(td);
+        });
+        
+        tbody.appendChild(tr);
+    });
+    
+    // Show table
+    table.style.display = 'table';
+    document.getElementById('empty-state').style.display = 'none';
+    
+    // Update table title
+    document.getElementById('table-title').textContent = `Price Validation Analysis - ${data.summary.outlet_name}`;
+}
+
+// Display summary cards
+function displaySummary(summary) {
+    document.getElementById('summary-total-items').textContent = summary.total_items_found.toLocaleString();
+    document.getElementById('summary-threshold').textContent = summary.gp_threshold;
+}
+
+// Update pagination controls
+function updatePagination(pagination) {
+    if (pagination.total_pages <= 1) {
+        document.getElementById('pagination-container').style.display = 'none';
+        return;
+    }
+    
+    document.getElementById('pagination-container').style.display = 'flex';
+    
+    // Update info
+    document.getElementById('pagination-info').textContent = 
+        `Showing ${pagination.start_index}-${pagination.end_index} of ${pagination.total_count.toLocaleString()} entries`;
+    
+    // Update buttons
+    document.getElementById('first-btn').disabled = !pagination.has_prev;
+    document.getElementById('prev-btn').disabled = !pagination.has_prev;
+    document.getElementById('next-btn').disabled = !pagination.has_next;
+    document.getElementById('last-btn').disabled = !pagination.has_next;
+    
+    totalPages = pagination.total_pages;
+    
+    // Render page numbers
+    renderPageNumbers(pagination.current_page, pagination.total_pages);
+}
+
+// Render page numbers
+function renderPageNumbers(currentPage, totalPages) {
+    const container = document.getElementById('page-numbers');
+    container.innerHTML = '';
+    
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + 4);
+    if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+    
+    for (let i = startPage; i <= endPage; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        btn.className = 'pagination-btn' + (i === currentPage ? ' active' : '');
+        btn.onclick = () => goToPage(i);
+        container.appendChild(btn);
+    }
+}
+
+// Pagination functions
+function changePage(direction) {
+    const newPage = currentPage + direction;
+    if (newPage >= 1 && newPage <= totalPages) {
+        loadCostFinderData(newPage);
+    }
+}
+
+function goToPage(page) {
+    if (page >= 1 && page <= totalPages) {
+        loadCostFinderData(page);
+    }
+}
+
+// Table search functionality
+function filterTableResults() {
+    const searchTerm = document.getElementById('table-search').value.toLowerCase();
+    const tbody = document.getElementById('table-body');
+    
+    if (!searchTerm) {
+        // Show all rows
+        Array.from(tbody.rows).forEach(row => {
+            row.style.display = '';
+        });
+        return;
+    }
+    
+    // Filter rows
+    Array.from(tbody.rows).forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Export cost finder data
+function exportCostFinderData(format) {
+    if (!currentFilters.platform || !currentFilters.outlet) {
+        showModal({
+            title: 'No Data to Export',
+            message: 'Please load the report data first.',
+            type: 'warning',
+            okText: 'OK'
+        });
+        return;
+    }
+    
+    // Create form and submit
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/integration/api/export-cost-finder/';
+    form.style.display = 'none';
+    
+    // Add CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+    
+    // Add parameters
+    const params = {
+        platform: currentFilters.platform,
+        outlet: currentFilters.outlet,
+        gp_threshold: currentFilters.gpThreshold,
+        format: format
+    };
+    
+    Object.keys(params).forEach(key => {
+        if (params[key]) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = params[key];
+            form.appendChild(input);
+        }
+    });
+    
+    // Submit form
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+}
+
+// Show error message
+function showError(message) {
+    document.getElementById('empty-state').style.display = 'block';
+    document.getElementById('empty-state').innerHTML = `
+        <i class="bx bx-error"></i>
+        <p style="color: #dc2626;">${message}</p>
+    `;
+}
+</script>
+
+<!-- CSRF Token for exports -->
+<form style="display:none;">{% csrf_token %}</form>
+{% endblock %}

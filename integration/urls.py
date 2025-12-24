@@ -8,8 +8,8 @@ from .views import (
     erp_export_api, download_erp_export_file,
     search_product_api, item_outlets_api, outlet_lock_toggle_api, save_product_api, outlet_price_update_api, item_deletion, delete_items_api, preview_csv_api, cls_lock_toggle_api,
     list_items_api,
-    reports_page, locked_products_report, export_all_items, export_platform_items, export_outlet_items,
-    report_data_api, report_stats_api, locked_products_data_api, export_locked_products_api,
+    reports_page, locked_products_report, cost_finder_report, export_all_items, export_platform_items, export_outlet_items,
+    report_data_api, report_stats_api, locked_products_data_api, export_locked_products_api, cost_finder_data_api, export_cost_finder_api,
     item_search_api, item_inline_edit_api,
     outlet_reset, outlet_reset_preview_api, outlet_reset_execute_api,
 )
@@ -83,11 +83,14 @@ urlpatterns = [
     # Reports
     path('reports/', reports_page, name='reports'),
     path('locked-products-report/', locked_products_report, name='locked_products_report'),
+    path('cost-finder-report/', cost_finder_report, name='cost_finder_report'),
     path('reports/export-all/', export_all_items, name='export_all_items'),
     path('reports/export-platform/', export_platform_items, name='export_platform_items'),
     path('reports/export-outlet/', export_outlet_items, name='export_outlet_items'),
     path('api/locked-products-data/', locked_products_data_api, name='locked_products_data_api'),
     path('api/export-locked-products/', export_locked_products_api, name='export_locked_products_api'),
+    path('api/cost-finder-data/', cost_finder_data_api, name='cost_finder_data_api'),
+    path('api/export-cost-finder/', export_cost_finder_api, name='export_cost_finder_api'),
     path('api/report-data/', report_data_api, name='report_data_api'),
     path('api/report-stats/', report_stats_api, name='report_stats_api'),
     # Outlet Reset System

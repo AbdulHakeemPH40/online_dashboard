@@ -158,10 +158,20 @@
                 display: flex !important;
                 visibility: visible !important;
                 opacity: 1 !important;
+                transition: width 0.3s ease !important;
+            }
+            
+            .left-sidebar.collapsed {
+                width: 70px !important;
             }
             
             .main-content {
                 margin-left: 280px !important;
+                transition: margin-left 0.3s ease !important;
+            }
+            
+            body.sidebar-collapsed .main-content {
+                margin-left: 70px !important;
             }
             
             /* HIDE MOBILE TOGGLE ON DESKTOP */
@@ -363,15 +373,39 @@
                 });
             }
             
-            // Also handle left sidebar toggle button
+            // Handle desktop sidebar toggle button
             const leftSidebarToggle = document.getElementById('sidebarToggle');
             if (leftSidebarToggle) {
-                leftSidebarToggle.addEventListener('click', function() {
-                    console.log('Left sidebar toggle clicked');
+                leftSidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Desktop sidebar toggle clicked');
+                    
                     const sidebar = document.querySelector('.left-sidebar');
-                    if (sidebar) {
-                        sidebar.classList.toggle('collapsed');
-                        document.body.classList.toggle('sidebar-collapsed');
+                    const mainContent = document.querySelector('.main-content');
+                    const toggleIcon = this.querySelector('i');
+                    
+                    if (sidebar && mainContent) {
+                        const isCollapsed = sidebar.classList.contains('collapsed');
+                        
+                        if (isCollapsed) {
+                            // Expand sidebar
+                            sidebar.classList.remove('collapsed');
+                            document.body.classList.remove('sidebar-collapsed');
+                            mainContent.style.marginLeft = '280px';
+                            if (toggleIcon) {
+                                toggleIcon.style.transform = 'rotate(0deg)';
+                            }
+                            console.log('Sidebar expanded');
+                        } else {
+                            // Collapse sidebar
+                            sidebar.classList.add('collapsed');
+                            document.body.classList.add('sidebar-collapsed');
+                            mainContent.style.marginLeft = '70px';
+                            if (toggleIcon) {
+                                toggleIcon.style.transform = 'rotate(180deg)';
+                            }
+                            console.log('Sidebar collapsed');
+                        }
                     }
                 });
             }

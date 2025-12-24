@@ -5349,3 +5349,432 @@ def outlet_reset_execute_api(request):
             'success': False, 
             'message': f'Reset execution failed: {str(e)}'
         })
+
+# =============================================================================
+# COST FINDER REPORT - Below Cost Products Analysis
+# =============================================================================
+
+@login_required
+def cost_finder_report(request):
+    """
+    Price Validation Report page - middleware ERP system for identifying below-cost products.
+    
+    Business Logic:
+    - GP% calculation: (selling_price - converted_outlet_cost) * 100 / selling_price
+    - Platform & outlet isolated filtering
+    - Complete listing of products below GP% threshold with pagination
+    - Export capabilities with AED currency formatting
+    - Focus on price validation for middleware ERP, not profit/loss analysis
+    """
+    context = {
+        'page_title': 'Price Validation Report - Middleware ERP',
+        'active_nav': 'cost_finder_report',
+    }
+    return render(request, 'cost_finder_report.html', context)
+
+
+@login_required
+def cost_finder_data_api(request):
+    """
+    API endpoint to get cost finder data for products selling below cost or with low GP%.
+    
+    Query params:
+    - platform: 'pasons', 'talabat' (required)
+    - outlet: outlet_id (required for platform isolation)
+    - gp_threshold: minimum GP percentage (default: 0)
+    - page: page number for pagination (default: 1)
+    - per_page: items per page (default: 50, max: 100)
+    """
+    from .models import Item, Outlet, ItemOutlet
+    from django.db.models import Q, F, Case, When, DecimalField
+    from decimal import Decimal
+    
+    try:
+        platform = request.GET.get('platform', '').strip()
+        outlet_id = request.GET.get('outlet', '').strip()
+        gp_threshold = request.GET.get('gp_threshold', '0').strip()
+        page = int(request.GET.get('page', 1))
+        per_page = min(int(request.GET.get('per_page', 50)), 100)  # Max 100 per page
+        
+        # Validate platform (required for platform isolation)
+        if not platform or platform not in ('pasons', 'talabat'):
+            return JsonResponse({
+                'success': False, 
+                'message': 'Platform selection is required. Please select Pasons or Talabat platform.'
+            })
+        
+        # Validate outlet (required for platform isolation)
+        if not outlet_id:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Outlet selection is required for platform-isolated cost analysis.'
+            })
+        
+        # Get outlet and validate platform isolation
+        try:
+            outlet = Outlet.objects.get(id=outlet_id, platforms=platform, is_active=True)
+        except Outlet.DoesNotExist:
+            return JsonResponse({
+                'success': False, 
+                'message': f'Selected outlet not found or does not belong to {platform} platform.'
+            })
+        
+        # Validate GP threshold
+        try:
+            gp_threshold = Decimal(gp_threshold)
+            if gp_threshold < -100 or gp_threshold > 100:
+                return JsonResponse({
+                    'success': False, 
+                    'message': 'GP threshold must be between -100% and 100%.'
+                })
+        except (ValueError, TypeError):
+            gp_threshold = Decimal('0')
+        
+        # Build base query with platform and outlet isolation
+        queryset = ItemOutlet.objects.filter(
+            outlet=outlet,
+            item__platform=platform,
+            item__is_active=True,
+            is_active_in_outlet=True,
+            outlet_selling_price__isnull=False,
+            outlet_selling_price__gt=0,
+            outlet_cost__isnull=False,
+            outlet_cost__gt=0
+        ).select_related('item', 'outlet')
+        
+        # Calculate GP percentage using database expressions
+        # GP% = (selling_price - cost) * 100 / selling_price
+        # Use item.converted_cost if available, otherwise outlet_cost
+        queryset = queryset.annotate(
+            gp_percentage=Case(
+                When(outlet_selling_price__gt=0, then=(
+                    (F('outlet_selling_price') - 
+                     Case(
+                         When(item__converted_cost__isnull=False, then=F('item__converted_cost')),
+                         default=F('outlet_cost'),
+                         output_field=DecimalField(max_digits=10, decimal_places=2)
+                     )) * 100 / F('outlet_selling_price')
+                )),
+                default=Decimal('0'),
+                output_field=DecimalField(max_digits=10, decimal_places=2)
+            )
+        )
+        
+        # Filter by GP threshold - show ALL products below threshold
+        queryset = queryset.filter(gp_percentage__lte=gp_threshold)
+        
+        # Order by GP percentage (lowest first - most problematic)
+        queryset = queryset.order_by('gp_percentage', 'item__item_code')
+        
+        # Get total count before pagination
+        total_count = queryset.count()
+        
+        # Apply pagination
+        start_idx = (page - 1) * per_page
+        end_idx = start_idx + per_page
+        page_items = queryset[start_idx:end_idx]
+        
+        # Format data for response - simplified table
+        headers = [
+            'Item Code', 'Units', 'Description', 'SKU', 'MRP', 
+            'Selling Price', 'Cost', 'Converted Cost', 'GP %'
+        ]
+        
+        # Remove financial calculations - initialize counters only
+        rows = []
+        total_loss_amount = Decimal('0')  # Keep for compatibility but not calculated
+        total_stock_value = Decimal('0')  # Keep for compatibility but not calculated
+        below_cost_count = 0
+        low_gp_count = 0
+        
+        for idx, item_outlet in enumerate(page_items, start_idx + 1):
+            item = item_outlet.item
+            selling_price = item_outlet.outlet_selling_price or Decimal('0')
+            outlet_cost = item_outlet.outlet_cost or Decimal('0')
+            
+            # Use converted_cost if available, otherwise use outlet_cost
+            converted_cost = item.converted_cost if item.converted_cost else outlet_cost
+            
+            # Calculate GP
+            if selling_price > 0:
+                gp_amount = selling_price - converted_cost
+                gp_percentage = (gp_amount * 100) / selling_price
+            else:
+                gp_amount = Decimal('0')
+                gp_percentage = Decimal('0')
+            
+            # Count status types for summary (no financial calculations)
+            if gp_percentage < 0:
+                below_cost_count += 1
+            elif gp_percentage < gp_threshold:
+                low_gp_count += 1
+            
+            rows.append([
+                item.item_code,
+                item.units or '-',
+                item.description[:50] + '...' if len(item.description) > 50 else item.description,
+                item.sku or '-',
+                f"AED {float(item_outlet.outlet_mrp or item.mrp):.2f}",
+                f"AED {float(selling_price):.2f}",
+                f"AED {float(outlet_cost):.2f}",
+                f"AED {float(converted_cost):.2f}",
+                f"{float(gp_percentage):.2f}%"
+            ])
+        
+        # Calculate pagination info
+        total_pages = (total_count + per_page - 1) // per_page
+        has_next = page < total_pages
+        has_prev = page > 1
+        
+        return JsonResponse({
+            'success': True,
+            'headers': headers,
+            'rows': rows,
+            'pagination': {
+                'current_page': page,
+                'per_page': per_page,
+                'total_count': total_count,
+                'total_pages': total_pages,
+                'has_next': has_next,
+                'has_prev': has_prev,
+                'start_index': start_idx + 1 if total_count > 0 else 0,
+                'end_index': min(end_idx, total_count)
+            },
+            'summary': {
+                'platform': platform.title(),
+                'outlet_name': outlet.name,
+                'outlet_store_id': outlet.store_id,
+                'gp_threshold': f"{float(gp_threshold):.1f}%",
+                'total_items_found': total_count,
+                'below_cost_count': below_cost_count,
+                'low_gp_count': low_gp_count
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Cost finder data API error: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'message': f'Error loading cost finder data: {str(e)}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Cost finder data API error: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'message': f'Error loading cost finder data: {str(e)}'
+        })
+
+
+@login_required
+def export_cost_finder_api(request):
+    """
+    Export cost finder data to CSV/Excel.
+    
+    POST params:
+    - platform: 'pasons', 'talabat' (required)
+    - outlet: outlet_id (required)
+    - gp_threshold: minimum GP percentage
+    - format: 'csv', 'excel'
+    """
+    import csv
+    from django.http import HttpResponse
+    from django.utils import timezone
+    from .models import Item, Outlet, ItemOutlet
+    from django.db.models import Q, F, Case, When, DecimalField
+    from decimal import Decimal
+    
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'POST method required'})
+    
+    try:
+        platform = request.POST.get('platform', '').strip()
+        outlet_id = request.POST.get('outlet', '').strip()
+        gp_threshold = request.POST.get('gp_threshold', '0').strip()
+        export_format = request.POST.get('format', 'csv').strip()
+        
+        # Validate platform
+        if not platform or platform not in ('pasons', 'talabat'):
+            return JsonResponse({'success': False, 'message': 'Valid platform is required'})
+        
+        # Validate outlet
+        if not outlet_id:
+            return JsonResponse({'success': False, 'message': 'Outlet selection is required'})
+        
+        # Get outlet and validate
+        try:
+            outlet = Outlet.objects.get(id=outlet_id, platforms=platform, is_active=True)
+        except Outlet.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Selected outlet not found or platform mismatch'})
+        
+        # Validate GP threshold
+        try:
+            gp_threshold = Decimal(gp_threshold)
+        except (ValueError, TypeError):
+            gp_threshold = Decimal('0')
+        
+        # Build query (same as data API)
+        queryset = ItemOutlet.objects.filter(
+            outlet=outlet,
+            item__platform=platform,
+            item__is_active=True,
+            is_active_in_outlet=True,
+            outlet_selling_price__isnull=False,
+            outlet_selling_price__gt=0,
+            outlet_cost__isnull=False,
+            outlet_cost__gt=0
+        ).select_related('item', 'outlet')
+        
+        # Calculate GP and filter - show ALL products below threshold
+        queryset = queryset.annotate(
+            gp_percentage=Case(
+                When(outlet_selling_price__gt=0, then=(
+                    (F('outlet_selling_price') - 
+                     Case(
+                         When(item__converted_cost__isnull=False, then=F('item__converted_cost')),
+                         default=F('outlet_cost'),
+                         output_field=DecimalField(max_digits=10, decimal_places=2)
+                     )) * 100 / F('outlet_selling_price')
+                )),
+                default=Decimal('0'),
+                output_field=DecimalField(max_digits=10, decimal_places=2)
+            )
+        ).filter(gp_percentage__lte=gp_threshold).order_by('gp_percentage', 'item__item_code')
+        
+        # Generate filename
+        timestamp = timezone.localtime().strftime('%Y-%m-%d-%H%M%S')
+        platform_name = platform.title()
+        outlet_name = outlet.name.replace(' ', '-').replace('/', '-')
+        filename = f'{platform_name}-{outlet_name}-GP-Report-{timestamp}'
+        
+        if export_format == 'excel':
+            # Excel export
+            import openpyxl
+            from openpyxl.utils import get_column_letter
+            from openpyxl.styles import Font, PatternFill, Alignment
+            
+            wb = openpyxl.Workbook()
+            ws = wb.active
+            ws.title = 'GP% Report'
+            
+            # Headers - simplified for middleware ERP
+            headers = [
+                'Item Code', 'Units', 'Description', 'SKU', 'MRP (AED)', 
+                'Selling Price (AED)', 'Cost (AED)', 'Converted Cost (AED)', 'GP %'
+            ]
+            
+            # Add headers with styling
+            for col, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col, value=header)
+                cell.font = Font(bold=True)
+                cell.fill = PatternFill(start_color="E6E6FA", end_color="E6E6FA", fill_type="solid")
+                cell.alignment = Alignment(horizontal="center")
+            
+            # Add data
+            row_num = 2
+            total_loss = Decimal('0')
+            
+            for item_outlet in queryset:
+                item = item_outlet.item
+                selling_price = item_outlet.outlet_selling_price or Decimal('0')
+                outlet_cost = item_outlet.outlet_cost or Decimal('0')
+                
+                # Use converted_cost if available, otherwise use outlet_cost
+                converted_cost = item.converted_cost if item.converted_cost else outlet_cost
+                
+                # Calculate values
+                if selling_price > 0:
+                    gp_amount = selling_price - converted_cost
+                    gp_percentage = (gp_amount * 100) / selling_price
+                else:
+                    gp_amount = Decimal('0')
+                    gp_percentage = Decimal('0')
+                
+                # Add row data - simplified for middleware ERP
+                ws.cell(row=row_num, column=1, value=item.item_code)
+                ws.cell(row=row_num, column=2, value=item.units or '')
+                ws.cell(row=row_num, column=3, value=item.description)
+                ws.cell(row=row_num, column=4, value=item.sku or '')
+                ws.cell(row=row_num, column=5, value=f"AED {float(item_outlet.outlet_mrp or item.mrp):.2f}")
+                ws.cell(row=row_num, column=6, value=f"AED {float(selling_price):.2f}")
+                ws.cell(row=row_num, column=7, value=f"AED {float(outlet_cost):.2f}")
+                ws.cell(row=row_num, column=8, value=f"AED {float(converted_cost):.2f}")
+                ws.cell(row=row_num, column=9, value=f"{float(gp_percentage):.2f}%")
+                
+                # Color code negative GP%
+                if gp_percentage < 0:
+                    for col in range(1, len(headers) + 1):
+                        ws.cell(row=row_num, column=col).fill = PatternFill(start_color="FFE6E6", end_color="FFE6E6", fill_type="solid")
+                
+                row_num += 1
+            
+            # Summary row - simplified for middleware ERP
+            row_num += 1
+            ws.cell(row=row_num, column=1, value="PRICE VALIDATION REPORT SUMMARY").font = Font(bold=True)
+            
+            # Auto-adjust column widths
+            for col in range(1, len(headers) + 1):
+                ws.column_dimensions[get_column_letter(col)].width = 15
+            
+            # Create response
+            response = HttpResponse(
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+            wb.save(response)
+            return response
+        
+        else:
+            # CSV export
+            response = HttpResponse(content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+            
+            writer = csv.writer(response)
+            
+            # Headers - simplified
+            headers = [
+                'Item Code', 'Units', 'Description', 'SKU', 'MRP', 
+                'Selling Price', 'Cost', 'Converted Cost', 'GP %'
+            ]
+            writer.writerow(headers)
+            
+            # Data
+            for item_outlet in queryset:
+                item = item_outlet.item
+                selling_price = item_outlet.outlet_selling_price or Decimal('0')
+                outlet_cost = item_outlet.outlet_cost or Decimal('0')
+                
+                # Use converted_cost if available, otherwise use outlet_cost
+                converted_cost = item.converted_cost if item.converted_cost else outlet_cost
+                
+                # Calculate values
+                if selling_price > 0:
+                    gp_amount = selling_price - converted_cost
+                    gp_percentage = (gp_amount * 100) / selling_price
+                else:
+                    gp_amount = Decimal('0')
+                    gp_percentage = Decimal('0')
+                
+                writer.writerow([
+                    item.item_code,
+                    item.units or '',
+                    item.description,
+                    item.sku or '',
+                    f"AED {float(item_outlet.outlet_mrp or item.mrp):.2f}",
+                    f"AED {float(selling_price):.2f}",
+                    f"AED {float(outlet_cost):.2f}",
+                    f"AED {float(converted_cost):.2f}",
+                    f"{float(gp_percentage):.2f}%"
+                ])
+            
+            # Add summary row
+            writer.writerow([])
+            writer.writerow(['PRICE VALIDATION REPORT SUMMARY', '', '', '', '', '', '', '', ''])
+            
+            return response
+            
+            return response
+        
+    except Exception as e:
+        logger.error(f"Export cost finder error: {str(e)}", exc_info=True)
+        return JsonResponse({'success': False, 'message': f'Export failed: {str(e)}'})
