@@ -17,7 +17,15 @@ data.json
 data_export.json
 data_export.zip
 # middleware_dashboard/settings.py
-#docs/digita_ocean.md
+
+# Documentation (for AI agents - uncomment when needed)
+docs/
+
+# Kiro specs and configuration (for AI agents - uncomment when needed)
+.kiro/
+
+# Backup directories (local backups only)
+backups/
 
 # Media exports (generated files)
 media/exports/
