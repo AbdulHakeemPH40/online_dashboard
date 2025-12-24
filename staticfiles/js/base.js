@@ -236,56 +236,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Sidebar Toggle Functionality
-    const sidebar = document.querySelector('.left-sidebar');
-    const sidebarToggle = document.getElementById('sidebarToggle');
-    const mobileToggle = document.querySelector('.mobile-sidebar-toggle');
-    const sidebarOverlay = document.getElementById('sidebarOverlay');
-
-    // Desktop sidebar collapse/expand
-    function toggleSidebar() {
-        if (sidebar) {
-            sidebar.classList.toggle('collapsed');
-            document.body.classList.toggle('sidebar-collapsed');
-            
-            const toggleIcon = sidebarToggle?.querySelector('i');
-            if (toggleIcon) {
-                toggleIcon.className = sidebar.classList.contains('collapsed') ? 
-                    'bx bx-chevron-right' : 'bx bx-chevron-left';
-            }
-            
-            // On mobile, also close the sidebar when collapsing
-            if (window.innerWidth <= 768 && sidebar.classList.contains('collapsed')) {
-                sidebar.classList.remove('active', 'mobile-open');
-                sidebarOverlay?.classList.remove('active');
-                document.body.style.overflow = 'auto';
-            }
-        }
-    }
-
-    // Mobile sidebar toggle
-    function toggleMobileSidebar() {
-        if (sidebar) {
-            sidebar.classList.toggle('mobile-open');
-            sidebar.classList.toggle('active');
-            if (sidebarOverlay) {
-                sidebarOverlay.classList.toggle('active');
-            }
-            document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : 'auto';
-        }
-    }
-
-    // Event listeners
-    sidebarToggle?.addEventListener('click', toggleSidebar);
-    mobileToggle?.addEventListener('click', toggleMobileSidebar);
-    sidebarOverlay?.addEventListener('click', toggleMobileSidebar);
+    // REMOVE ALL SIDEBAR FUNCTIONALITY FROM base.js - HANDLED IN base.html
 
     // Close mobile sidebar on resize
     window.addEventListener('resize', function() {
-        if (window.innerWidth > 768 && sidebar) {
-            sidebar.classList.remove('active');
-            sidebarOverlay?.classList.remove('active');
-            document.body.style.overflow = 'auto';
+        if (window.innerWidth > 1024) {
+            const sidebar = document.querySelector('.left-sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            if (sidebar) {
+                sidebar.classList.remove('active');
+                if (overlay) overlay.classList.remove('active');
+                document.body.style.overflow = 'auto';
+            }
         }
     });
 

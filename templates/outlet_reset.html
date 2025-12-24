@@ -1,0 +1,843 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<style>
+/* Reset any potential Tailwind conflicts */
+.outlet-reset-container * {
+    box-sizing: border-box;
+}
+
+/* Outlet Reset Styles - Matching locked products report design */
+.outlet-reset-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+/* Content Area */
+.tab-content {
+    background: linear-gradient(180deg, #ffffff, #fafbfc);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03);
+    min-height: 380px;
+    border: 1px solid rgba(0,0,0,0.04);
+    margin: 0;
+}
+
+/* Info Box */
+.info-box {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border: 1px solid #f59e0b;
+    border-radius: 6px;
+    padding: 14px;
+    margin-bottom: 20px;
+    border-left: 4px solid #f59e0b;
+}
+
+.info-box h4 {
+    color: #92400e;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.info-box p {
+    color: #92400e;
+    font-size: 11px;
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Filter Section */
+.filter-section {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-radius: 8px;
+    padding: 20px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 24px;
+}
+
+.filter-section h3 {
+    color: #374151;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+    align-items: end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.filter-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 2px;
+}
+
+.filter-group select {
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #374151;
+    background: white;
+    transition: all 0.15s ease;
+    min-height: 40px;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 8px center;
+    background-repeat: no-repeat;
+    background-size: 16px 16px;
+    padding-right: 32px;
+}
+
+.filter-group select:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.filter-group select:disabled {
+    background-color: #f9fafb;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+/* Preview Section */
+.preview-section {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 2px solid #f59e0b;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+    display: none;
+}
+
+.preview-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    color: #d97706;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.preview-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.preview-stat {
+    background: white;
+    padding: 12px;
+    border-radius: 6px;
+    text-align: center;
+    border: 1px solid #fbbf24;
+}
+
+.preview-stat-value {
+    font-size: 18px;
+    font-weight: bold;
+    color: #d97706;
+}
+
+.preview-stat-label {
+    font-size: 10px;
+    color: #6b7280;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.preview-details {
+    background: white;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #fbbf24;
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+/* Confirmation Section */
+.confirmation-section {
+    background: linear-gradient(135deg, #fef2f2, #fee2e2);
+    border: 2px solid #dc2626;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+    display: none;
+}
+
+.confirmation-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    color: #dc2626;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.confirmation-step {
+    background: white;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #fca5a5;
+    margin-bottom: 12px;
+}
+
+.confirmation-step label {
+    font-weight: 500;
+    color: #374151;
+    font-size: 12px;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.confirmation-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 2px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.confirmation-input:focus {
+    outline: none;
+    border-color: #dc2626;
+}
+
+.confirmation-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.confirmation-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+.confirmation-checkbox label {
+    margin-bottom: 0 !important;
+    font-size: 11px !important;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 16px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    white-space: nowrap;
+    min-height: 40px;
+}
+
+.btn.primary {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.2);
+}
+
+.btn.primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn.danger {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    color: white;
+    box-shadow: 0 1px 3px rgba(220, 38, 38, 0.2);
+}
+
+.btn.danger:hover:not(:disabled) {
+    background: linear-gradient(135deg, #b91c1c, #991b1b);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn.secondary {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn.secondary:hover:not(:disabled) {
+    background: #f9fafb;
+    border-color: #9ca3af;
+    transform: translateY(-1px);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+/* Loading State */
+.loading-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6b7280;
+    display: none;
+}
+
+.loading-spinner {
+    border: 4px solid #f3f4f6;
+    border-top: 4px solid #3b82f6;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 12px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Alert Messages */
+.alert {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.alert-success {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    border: 1px solid #10b981;
+    color: #065f46;
+}
+
+.alert-error {
+    background: linear-gradient(135deg, #fef2f2, #fecaca);
+    border: 1px solid #ef4444;
+    color: #991b1b;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    border: 1px solid #f59e0b;
+    color: #92400e;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .outlet-reset-container {
+        padding: 0;
+    }
+    
+    .tab-content {
+        padding: 16px;
+        border-radius: 8px;
+    }
+    
+    .filter-section {
+        padding: 16px;
+        border-radius: 6px;
+    }
+    
+    .filter-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .preview-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 1024px) and (min-width: 769px) {
+    .filter-row {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .tab-content {
+        padding: 20px;
+    }
+}
+</style>
+
+<div class="outlet-reset-container">
+    <div class="tab-content">
+        <!-- Info Box -->
+        <div class="info-box">
+            <h4>🔄 Outlet Reset System</h4>
+            <p>
+                <strong>Fix data corruption</strong> when outlet prices/stock are accidentally updated to wrong outlets. 
+                <strong>Platform Isolation:</strong> Pasons and Talabat data remain completely separate during reset operations.
+            </p>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alertContainer"></div>
+
+        <!-- Step 1: Platform & Outlet Selection -->
+        <div class="filter-section">
+            <h3>📍 Step 1: Select Platform & Outlet</h3>
+            <div class="filter-row">
+                <div class="filter-group">
+                    <label for="platformSelect">Platform</label>
+                    <select id="platformSelect" required>
+                        <option value="">-- Select Platform --</option>
+                        <option value="pasons">Pasons Ecommerce</option>
+                        <option value="talabat">Talabat Platform</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="outletSelect">Outlet</label>
+                    <select id="outletSelect" required disabled>
+                        <option value="">-- Select platform first --</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Data Preview and Confirmation -->
+        <div id="previewSection" class="preview-section">
+            <h3>📋 Step 2: Preview Data to be Reset</h3>
+            <div class="preview-header">
+                ⚠️ Preview: Data That Will Be Affected by Complete Reset
+            </div>
+            
+            <div id="previewContent">
+                <!-- Preview content will be loaded here -->
+            </div>
+
+            <div class="action-buttons">
+                <button type="button" id="proceedBtn" class="btn primary">
+                    Proceed with Complete Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- Step 3: Confirmation Section -->
+        <div id="confirmationSection" class="confirmation-section">
+            <div class="confirmation-header">
+                🚨 Final Confirmation Required - Complete Reset
+            </div>
+
+            <div class="confirmation-step">
+                <label for="confirmOutletName">
+                    Type the outlet name exactly to confirm complete reset: <strong id="confirmOutletNameLabel"></strong>
+                </label>
+                <input type="text" id="confirmOutletName" class="confirmation-input" placeholder="Type outlet name here...">
+            </div>
+
+            <div class="confirmation-step">
+                <div class="confirmation-checkbox">
+                    <input type="checkbox" id="confirmUnderstood">
+                    <label for="confirmUnderstood">
+                        I understand this will reset ALL prices to 0.00, stock to 0, and cannot be undone
+                    </label>
+                </div>
+            </div>
+
+            <div class="confirmation-step">
+                <label for="resetNotes">
+                    Optional: Notes about why this complete reset is being performed
+                </label>
+                <textarea id="resetNotes" class="confirmation-input" rows="2" placeholder="e.g., Fixed data corruption where Outlet A prices were accidentally applied to Outlet B..."></textarea>
+            </div>
+
+            <div class="action-buttons">
+                <button type="button" id="cancelBtn" class="btn secondary">
+                    Cancel
+                </button>
+                <button type="button" id="executeResetBtn" class="btn danger" disabled>
+                    Execute Complete Reset
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading Section -->
+        <div id="loadingSection" class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Processing reset operation...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Outlet data from Django context
+    var outletsData = {
+        pasons: [
+            {% for outlet in pasons_outlets %}
+            {
+                id: {{ outlet.id }},
+                name: "{{ outlet.name|escapejs }}",
+                store_id: "{{ outlet.store_id }}",
+                location: "{{ outlet.location|escapejs }}"
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ],
+        talabat: [
+            {% for outlet in talabat_outlets %}
+            {
+                id: {{ outlet.id }},
+                name: "{{ outlet.name|escapejs }}",
+                store_id: "{{ outlet.store_id }}",
+                location: "{{ outlet.location|escapejs }}"
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
+    };
+
+    // DOM elements
+    var platformSelect = document.getElementById('platformSelect');
+    var outletSelect = document.getElementById('outletSelect');
+    var previewSection = document.getElementById('previewSection');
+    var confirmationSection = document.getElementById('confirmationSection');
+    var loadingSection = document.getElementById('loadingSection');
+    var proceedBtn = document.getElementById('proceedBtn');
+    var executeResetBtn = document.getElementById('executeResetBtn');
+    var cancelBtn = document.getElementById('cancelBtn');
+    var confirmOutletName = document.getElementById('confirmOutletName');
+    var confirmUnderstood = document.getElementById('confirmUnderstood');
+    var alertContainer = document.getElementById('alertContainer');
+
+    var currentPreviewData = null;
+
+    // Platform selection handler
+    platformSelect.addEventListener('change', function() {
+        var platform = this.value;
+        outletSelect.innerHTML = '<option value="">-- Select Outlet --</option>';
+        
+        if (platform && outletsData[platform]) {
+            outletSelect.disabled = false;
+            outletsData[platform].forEach(function(outlet) {
+                var option = document.createElement('option');
+                option.value = outlet.id;
+                option.textContent = outlet.name + ' (' + outlet.store_id + ') - ' + outlet.location;
+                outletSelect.appendChild(option);
+            });
+        } else {
+            outletSelect.disabled = true;
+        }
+        
+        hidePreviewAndConfirmation();
+    });
+
+    // Outlet selection handler
+    outletSelect.addEventListener('change', function() {
+        if (this.value) {
+            checkPreviewReady();
+        } else {
+            hidePreviewAndConfirmation();
+        }
+    });
+
+    // Proceed button handler
+    proceedBtn.addEventListener('click', function() {
+        showConfirmation();
+    });
+
+    // Execute reset button handler
+    executeResetBtn.addEventListener('click', function() {
+        executeReset();
+    });
+
+    // Cancel button handler
+    cancelBtn.addEventListener('click', function() {
+        hidePreviewAndConfirmation();
+    });
+
+    // Confirmation validation
+    function validateConfirmation() {
+        var outletNameValid = confirmOutletName.value.trim() === (currentPreviewData ? currentPreviewData.outlet_name : '');
+        var understoodChecked = confirmUnderstood.checked;
+        
+        executeResetBtn.disabled = !(outletNameValid && understoodChecked);
+    }
+
+    confirmOutletName.addEventListener('input', validateConfirmation);
+    confirmUnderstood.addEventListener('change', validateConfirmation);
+
+    // Check if preview can be shown
+    function checkPreviewReady() {
+        var platform = platformSelect.value;
+        var outlet = outletSelect.value;
+        
+        if (platform && outlet) {
+            loadPreview(platform, outlet);
+        }
+    }
+
+    // Load preview data
+    function loadPreview(platform, outletId) {
+        showLoading();
+        
+        fetch('{% url "integration:outlet_reset_preview_api" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                platform: platform,
+                outlet_id: outletId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                currentPreviewData = data.preview;
+                showPreview(data.preview);
+            } else {
+                showAlert('error', data.message);
+            }
+        })
+        .catch(error => {
+            hideLoading();
+            showAlert('error', 'Failed to load preview: ' + error.message);
+        });
+    }
+
+    // Show preview section
+    function showPreview(previewData) {
+        var previewContent = document.getElementById('previewContent');
+        
+        // Build warnings HTML
+        var warningsHtml = '';
+        if (previewData.warnings && previewData.warnings.length > 0) {
+            warningsHtml = '<div class="alert alert-warning">' +
+                '<strong>Warnings:</strong>' +
+                '<ul style="margin: 5px 0 0 20px;">' +
+                previewData.warnings.map(function(warning) {
+                    return '<li>' + warning + '</li>';
+                }).join('') +
+                '</ul></div>';
+        }
+
+        // Build sample items table
+        var sampleItemsHtml = '';
+        if (previewData.sample_items.length > 0) {
+            sampleItemsHtml = '<div style="margin-top: 16px;">' +
+                '<h4 style="color: #374151; font-size: 12px; margin-bottom: 8px;">Sample Items (First 10):</h4>' +
+                '<div style="overflow-x: auto;">' +
+                '<table style="width: 100%; border-collapse: collapse; font-size: 11px;">' +
+                '<thead><tr style="background: #f3f4f6;">' +
+                '<th style="padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">Item Code</th>' +
+                '<th style="padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">Description</th>' +
+                '<th style="padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">MRP</th>' +
+                '<th style="padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">Selling Price</th>' +
+                '<th style="padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">Stock</th>' +
+                '<th style="padding: 8px; text-align: left; border-bottom: 1px solid #e5e7eb;">Status</th>' +
+                '</tr></thead><tbody>' +
+                previewData.sample_items.map(function(item) {
+                    return '<tr>' +
+                    '<td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">' + item.item_code + '</td>' +
+                    '<td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">' + item.description + '</td>' +
+                    '<td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">AED ' + item.current_mrp.toFixed(2) + '</td>' +
+                    '<td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">AED ' + item.current_selling_price.toFixed(2) + '</td>' +
+                    '<td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">' + item.current_stock + '</td>' +
+                    '<td style="padding: 8px; border-bottom: 1px solid #f1f5f9;">' + (item.is_active ? 'Active' : 'Inactive') + '</td>' +
+                    '</tr>';
+                }).join('') +
+                '</tbody></table></div></div>';
+        }
+
+        previewContent.innerHTML = warningsHtml +
+            '<div class="preview-stats">' +
+                '<div class="preview-stat">' +
+                    '<div class="preview-stat-value">' + previewData.total_items + '</div>' +
+                    '<div class="preview-stat-label">Items Affected</div>' +
+                '</div>' +
+                '<div class="preview-stat">' +
+                    '<div class="preview-stat-value">' + previewData.total_stock_value + '</div>' +
+                    '<div class="preview-stat-label">Total Stock Units</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="preview-details">' +
+                '<strong>Outlet:</strong> ' + previewData.outlet_name + ' (' + previewData.outlet_store_id + ')<br>' +
+                '<strong>Location:</strong> ' + previewData.outlet_location + '<br>' +
+                '<strong>Platform:</strong> ' + previewData.platform + '<br>' +
+                '<strong>Reset Type:</strong> Complete Reset - All prices will be set to 0.00, stock to 0, items remain assigned' +
+            '</div>' +
+            sampleItemsHtml;
+        
+        previewSection.style.display = 'block';
+    }
+
+    // Show confirmation section
+    function showConfirmation() {
+        if (!currentPreviewData) return;
+        
+        document.getElementById('confirmOutletNameLabel').textContent = currentPreviewData.outlet_name;
+        confirmOutletName.value = '';
+        confirmUnderstood.checked = false;
+        document.getElementById('resetNotes').value = '';
+        
+        confirmationSection.style.display = 'block';
+        validateConfirmation();
+    }
+
+    // Execute reset operation
+    function executeReset() {
+        var platform = platformSelect.value;
+        var outletId = outletSelect.value;
+        var notes = document.getElementById('resetNotes').value.trim();
+        
+        showLoading();
+        
+        fetch('{% url "integration:outlet_reset_execute_api" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                platform: platform,
+                outlet_id: outletId,
+                reset_type: 'complete_reset',
+                confirmation_outlet_name: confirmOutletName.value.trim(),
+                confirmation_understood: confirmUnderstood.checked,
+                notes: notes
+            })
+        })
+        .then(function(response) {
+            return response.json();
+        })
+        .then(function(data) {
+            hideLoading();
+            
+            if (data.success) {
+                showAlert('success', 
+                    'Reset completed successfully!<br>' +
+                    '<strong>Statistics:</strong><br>' +
+                    '• Items affected: ' + data.statistics.items_affected + '<br>' +
+                    '• Success: ' + data.statistics.items_success + '<br>' +
+                    '• Failed: ' + data.statistics.items_failed + '<br>' +
+                    '• Success rate: ' + data.statistics.success_rate.toFixed(1) + '%<br>' +
+                    '• Duration: ' + data.statistics.duration_seconds + 's'
+                );
+                
+                // Reset form
+                resetForm();
+            } else {
+                showAlert('error', data.message);
+            }
+        })
+        .catch(function(error) {
+            hideLoading();
+            showAlert('error', 'Reset execution failed: ' + error.message);
+        });
+    }
+
+    // Utility functions
+    function hidePreviewAndConfirmation() {
+        previewSection.style.display = 'none';
+        confirmationSection.style.display = 'none';
+        currentPreviewData = null;
+    }
+
+    function showLoading() {
+        loadingSection.style.display = 'block';
+    }
+
+    function hideLoading() {
+        loadingSection.style.display = 'none';
+    }
+
+    function showAlert(type, message) {
+        var alertClass = type === 'success' ? 'alert-success' : 
+                          type === 'warning' ? 'alert-warning' : 'alert-error';
+        
+        alertContainer.innerHTML = '<div class="alert ' + alertClass + '">' + message + '</div>';
+        
+        // Auto-hide success messages after 10 seconds
+        if (type === 'success') {
+            setTimeout(function() {
+                alertContainer.innerHTML = '';
+            }, 10000);
+        }
+    }
+
+    function resetForm() {
+        platformSelect.value = '';
+        outletSelect.innerHTML = '<option value="">-- Select platform first --</option>';
+        outletSelect.disabled = true;
+        
+        hidePreviewAndConfirmation();
+    }
+
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+});
+</script>
+{% endblock %}

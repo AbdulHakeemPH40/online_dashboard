@@ -696,7 +696,7 @@ function populateProductForm(item) {
     setCheck('status_locked', item.status_locked);
 
     // Auto-detect margin based on wrap type if margin not explicitly set
-    if (item && item.wrap && (!item.talabat_margin || item.talabat_margin === '')) {
+    if (item && item.wrap && (item.talabat_margin === null || item.talabat_margin === undefined || item.talabat_margin === '')) {
         autoDetectMargin();
     }
     // FIXED: Pass item_code, units, AND sku for unique item identification

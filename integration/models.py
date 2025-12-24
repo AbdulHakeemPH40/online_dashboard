@@ -767,3 +767,146 @@ class ERPExportHistory(models.Model):
             outlet=outlet,
             status='success'
         ).order_by('-export_timestamp').first()
+
+
+class OutletResetLog(models.Model):
+    """
+    Track outlet reset operations for audit and recovery purposes.
+    
+    PURPOSE: Log all outlet reset operations to provide audit trail and enable
+    recovery analysis when outlet data corruption is fixed via reset operations.
+    
+    BUSINESS CONTEXT: When users accidentally update "Outlet A" data to "Outlet B",
+    this model tracks the reset operations used to fix the data corruption.
+    """
+    
+    RESET_TYPE_CHOICES = [
+        ('prices_only', 'Reset Prices Only'),
+        ('stock_only', 'Reset Stock Only'),
+        ('complete_reset', 'Complete Reset'),
+        ('unassign_items', 'Unassign Items'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('success', 'Success'),
+        ('partial', 'Partial Success'),
+        ('failed', 'Failed'),
+        ('processing', 'Processing'),
+    ]
+    
+    # Reset operation details
+    outlet = models.ForeignKey(
+        Outlet,
+        on_delete=models.CASCADE,
+        related_name='reset_logs',
+        help_text="Which outlet was reset"
+    )
+    platform = models.CharField(
+        max_length=20,
+        choices=[('pasons', 'Pasons'), ('talabat', 'Talabat')],
+        help_text="Platform for this outlet (for isolation verification)"
+    )
+    reset_type = models.CharField(
+        max_length=20,
+        choices=RESET_TYPE_CHOICES,
+        help_text="Type of reset operation performed"
+    )
+    
+    # Operation statistics
+    items_affected = models.IntegerField(
+        default=0,
+        help_text="Total number of ItemOutlet records affected by reset"
+    )
+    items_success = models.IntegerField(
+        default=0,
+        help_text="Number of items successfully reset"
+    )
+    items_failed = models.IntegerField(
+        default=0,
+        help_text="Number of items that failed to reset"
+    )
+    
+    # Financial impact tracking (for complete audit)
+    total_price_value_reset = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=0,
+        help_text="Total monetary value of prices that were reset to zero"
+    )
+    total_stock_value_reset = models.IntegerField(
+        default=0,
+        help_text="Total stock quantity that was reset to zero"
+    )
+    
+    # Operation metadata
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='processing',
+        help_text="Status of the reset operation"
+    )
+    started_at = models.DateTimeField(
+        auto_now_add=True,
+        help_text="When the reset operation started"
+    )
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the reset operation completed (success or failure)"
+    )
+    
+    # Audit trail
+    performed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        help_text="User who performed the reset operation"
+    )
+    error_message = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Error details if reset operation failed"
+    )
+    
+    # Additional context for recovery
+    notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Optional notes about why reset was performed (data corruption details)"
+    )
+    
+    class Meta:
+        indexes = [
+            models.Index(fields=['outlet', 'platform', '-started_at']),
+            models.Index(fields=['performed_by', '-started_at']),
+            models.Index(fields=['status', '-started_at']),
+        ]
+        ordering = ['-started_at']
+        verbose_name = 'Outlet Reset Log'
+        verbose_name_plural = 'Outlet Reset Logs'
+    
+    def __str__(self):
+        return f"{self.outlet.name} ({self.get_platform_display()}) - {self.get_reset_type_display()} at {self.started_at.strftime('%Y-%m-%d %H:%M:%S')}"
+    
+    def mark_completed(self, status='success', error_message=None):
+        """Mark the reset operation as completed with final status"""
+        self.status = status
+        self.completed_at = timezone.now()
+        if error_message:
+            self.error_message = error_message
+        self.save(update_fields=['status', 'completed_at', 'error_message'])
+    
+    @property
+    def duration_seconds(self):
+        """Calculate operation duration in seconds"""
+        if self.completed_at:
+            return (self.completed_at - self.started_at).total_seconds()
+        return None
+    
+    @property
+    def success_rate(self):
+        """Calculate success rate percentage"""
+        if self.items_affected > 0:
+            return (self.items_success / self.items_affected) * 100
+        return 0

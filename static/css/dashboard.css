@@ -349,3 +349,352 @@ input:checked + .toggle-slider:before {
   border-color: #3e7dfc;
   box-shadow: none;
 }
+
+
+/* ========================================
+   RESPONSIVE DASHBOARD ENHANCEMENTS
+   ======================================== */
+
+/* Form container - use reasonable width */
+#product-form {
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+/* Ensure dashboard content uses full width */
+#talabat-dashboard-content {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Desktop: Keep 2-column layout with minimal spacing */
+@media (min-width: 769px) {
+    .grid.grid-cols-1.md\\:grid-cols-2 {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 24px !important;
+    }
+    
+    /* Nested grids for 4 fields in 2 columns */
+    .grid.grid-cols-2 .grid.grid-cols-2 {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+    }
+    
+    /* Reduce vertical spacing between rows */
+    .mt-3 {
+        margin-top: 14px !important;
+    }
+}
+
+/* Mobile-first responsive design for Item Master form */
+@media (max-width: 768px) {
+    /* Form container adjustments */
+    .p-6 {
+        padding: 16px !important;
+    }
+    
+    /* All grids become single column on mobile */
+    .grid.grid-cols-1.md\\:grid-cols-2,
+    .grid.grid-cols-2 {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+    
+    /* Search bar responsive */
+    #search-input {
+        width: 100% !important;
+        margin-bottom: 8px;
+    }
+    
+    .flex.flex-wrap.items-center.gap-2 {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    
+    /* Buttons full width on mobile */
+    #search-btn,
+    #clear-search,
+    #reset-form,
+    #edit-btn,
+    #save-btn,
+    #cancel-btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+    
+    /* Form fields responsive */
+    .grid.grid-cols-1.md\\:grid-cols-2,
+    .grid.grid-cols-1.md\\:grid-cols-3,
+    .grid.grid-cols-1.md\\:grid-cols-4 {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+    
+    /* Input fields */
+    input[type="text"],
+    input[type="number"],
+    select,
+    textarea {
+        width: 100% !important;
+        font-size: 16px !important; /* Prevents zoom on iOS */
+        padding: 10px 12px !important;
+    }
+    
+    /* Labels */
+    label {
+        font-size: 13px !important;
+        margin-bottom: 6px !important;
+    }
+    
+    /* Stats cards responsive */
+    .grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-3 {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+    
+    /* Section titles */
+    .section-title {
+        font-size: 16px !important;
+    }
+    
+    /* Outlet table mobile card layout */
+    .outlet-table-wrapper {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+    }
+    
+    .outlet-table {
+        min-width: 100% !important;
+        display: block !important;
+    }
+    
+    .outlet-table thead {
+        display: none !important;
+    }
+    
+    .outlet-table tbody {
+        display: block !important;
+    }
+    
+    .outlet-table tbody tr {
+        display: block !important;
+        margin-bottom: 16px !important;
+        border: 1px solid #E5E7EB !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        background: white !important;
+    }
+    
+    .outlet-table tbody td {
+        display: block !important;
+        text-align: right !important;
+        padding: 8px 0 !important;
+        border: none !important;
+        border-bottom: 1px solid #F3F4F6 !important;
+    }
+    
+    .outlet-table tbody td:last-child {
+        border-bottom: none !important;
+    }
+    
+    .outlet-table tbody td::before {
+        content: attr(data-label) !important;
+        float: left !important;
+        font-weight: 600 !important;
+        color: #6B7280 !important;
+        font-size: 12px !important;
+        text-transform: uppercase !important;
+    }
+    
+    /* Hide message container on mobile if empty */
+    #messageContainer:empty {
+        display: none !important;
+    }
+}
+
+/* Tablet responsive (768px - 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .p-6 {
+        padding: 20px !important;
+    }
+    
+    /* 2-column layout for most fields */
+    .grid.grid-cols-1.md\\:grid-cols-2 {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 20px !important;
+    }
+    
+    /* 3-column for margin/MRP/price */
+    .grid.grid-cols-1.md\\:grid-cols-3 {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 16px !important;
+    }
+    
+    /* 4-column for WDF/OCQ/MinQty/Wrap */
+    .grid.grid-cols-1.md\\:grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 16px !important;
+    }
+    
+    /* Stats cards 2-column */
+    .grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-3 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    /* Buttons side by side */
+    #save-btn,
+    #cancel-btn {
+        width: auto !important;
+        min-width: 140px !important;
+    }
+}
+
+/* Desktop responsive (1025px and up) */
+@media (min-width: 1025px) {
+    /* Full layout as designed */
+    .grid.grid-cols-1.md\\:grid-cols-2 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+    
+    .grid.grid-cols-1.md\\:grid-cols-3 {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+    
+    .grid.grid-cols-1.md\\:grid-cols-4 {
+        grid-template-columns: repeat(4, 1fr) !important;
+    }
+    
+    .grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-3 {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+}
+
+/* Very small devices (< 370px) */
+@media (max-width: 370px) {
+    .p-6 {
+        padding: 12px !important;
+    }
+    
+    input[type="text"],
+    input[type="number"] {
+        font-size: 14px !important;
+        padding: 8px 10px !important;
+    }
+    
+    label {
+        font-size: 12px !important;
+    }
+    
+    button {
+        font-size: 13px !important;
+        padding: 8px 12px !important;
+    }
+    
+    .section-title {
+        font-size: 14px !important;
+    }
+}
+
+/* Landscape mobile orientation */
+@media (max-width: 896px) and (orientation: landscape) {
+    .grid.grid-cols-1.md\\:grid-cols-2,
+    .grid.grid-cols-1.md\\:grid-cols-3,
+    .grid.grid-cols-1.md\\:grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+
+/* Print styles */
+@media print {
+    #edit-btn,
+    #save-btn,
+    #cancel-btn,
+    #search-btn,
+    #clear-search,
+    #reset-form {
+        display: none !important;
+    }
+    
+    .outlet-table {
+        page-break-inside: avoid !important;
+    }
+}
+
+/* Touch-friendly improvements for mobile */
+@media (hover: none) and (pointer: coarse) {
+    /* Larger touch targets */
+    button,
+    input[type="checkbox"],
+    .icon-btn {
+        min-height: 44px !important;
+        min-width: 44px !important;
+    }
+    
+    /* Better spacing for touch */
+    .flex.items-center.gap-4 {
+        gap: 12px !important;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .form-input {
+        border-width: 2px !important;
+    }
+    
+    .outlet-table {
+        border-width: 2px !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Focus visible for accessibility */
+input:focus-visible,
+button:focus-visible,
+select:focus-visible {
+    outline: 2px solid #3B82F6 !important;
+    outline-offset: 2px !important;
+}
+
+/* Ensure proper spacing on all screen sizes */
+.mt-4 {
+    margin-top: 16px !important;
+}
+
+.mt-6 {
+    margin-top: 24px !important;
+}
+
+.mb-6 {
+    margin-bottom: 24px !important;
+}
+
+.mb-8 {
+    margin-bottom: 32px !important;
+}
+
+@media (max-width: 768px) {
+    .mt-4 {
+        margin-top: 12px !important;
+    }
+    
+    .mt-6 {
+        margin-top: 16px !important;
+    }
+    
+    .mb-6 {
+        margin-bottom: 16px !important;
+    }
+    
+    .mb-8 {
+        margin-bottom: 20px !important;
+    }
+}

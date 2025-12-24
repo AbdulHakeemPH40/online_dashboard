@@ -5,9 +5,12 @@ from django.http import JsonResponse
 from django.contrib import messages
 from django.core.cache import cache
 from django.views.decorators.http import require_http_methods
+from django.db import OperationalError
 from .models import Outlet, Item, ItemOutlet
 from .utils import decode_csv_upload, validate_wdf_for_division, validate_ocq_for_division
 from .promotion_service import PromotionService
+from .db_utils import retry_on_db_lock
+from .batch_manager import BatchTransactionManager
 import logging
 from decimal import Decimal, InvalidOperation
 from django.db.models import Q, Sum
@@ -89,6 +92,58 @@ def login_view(request):
             return render(request, 'login.html', {
                 'error': 'Please enter both username and password.'
             })
+
+
+@login_required
+def change_password(request):
+    """
+    Change password view for authenticated users
+    """
+    from django.contrib.auth import update_session_auth_hash
+    
+    if request.method == 'GET':
+        context = {
+            'page_title': 'Change Password',
+            'active_nav': 'settings'
+        }
+        return render(request, 'change_password.html', context)
+    
+    elif request.method == 'POST':
+        current_password = request.POST.get('current_password')
+        new_password = request.POST.get('new_password')
+        confirm_password = request.POST.get('confirm_password')
+        
+        # Validate inputs
+        if not all([current_password, new_password, confirm_password]):
+            messages.error(request, "All fields are required.")
+            return redirect('change_password')
+        
+        # Check if current password is correct
+        if not request.user.check_password(current_password):
+            messages.error(request, "Current password is incorrect.")
+            return redirect('change_password')
+        
+        # Check if new passwords match
+        if new_password != confirm_password:
+            messages.error(request, "New passwords do not match.")
+            return redirect('change_password')
+        
+        # Check password length
+        if len(new_password) < 8:
+            messages.error(request, "New password must be at least 8 characters long.")
+            return redirect('change_password')
+        
+        # Change password
+        request.user.set_password(new_password)
+        request.user.save()
+        
+        # Update session to prevent logout
+        update_session_auth_hash(request, request.user)
+        
+        messages.success(request, "Password changed successfully!")
+        logger.info(f"User {request.user.username} changed their password")
+        
+        return redirect('dashboard')
 
 
 @login_required
@@ -1179,194 +1234,226 @@ def product_update(request):
             errors = []
             no_change_count = 0
             
-            with transaction.atomic():
-                for row_num, row in csv_rows:
-                    try:
-                        item_code = row['item_code']
-                        units = row['units']
-                        
-                        items_list = items_dict.get((item_code, units))
-                        if not items_list:
-                            not_found_items.append(f"{item_code} ({units})")
-                            continue
-                        
-                        # Process ALL items for this (item_code, units) key
-                        for item in items_list:
+            # BATCH PROCESSING: Process CSV rows in batches to reduce database lock time
+            # This allows concurrent operations to interleave between batches
+            # Batch size 1000 balances speed (~1.5 min for 50k items) with concurrency (2-3 users)
+            BATCH_SIZE = 1000
+            batch_manager = BatchTransactionManager(batch_size=BATCH_SIZE)
+            
+            logger.info(f"Processing {len(csv_rows)} rows in batches of {BATCH_SIZE}")
+            
+            # Process rows in batches
+            for batch_start in range(0, len(csv_rows), BATCH_SIZE):
+                batch_end = min(batch_start + BATCH_SIZE, len(csv_rows))
+                batch_rows = csv_rows[batch_start:batch_end]
+                
+                # Process this batch in a transaction with retry logic
+                @retry_on_db_lock(max_retries=5, initial_delay=1.0, backoff_factor=2.0)
+                def process_batch():
+                    nonlocal outlets_to_update_set, outlets_to_update, outlets_to_create
+                    nonlocal updated_count, protected_count, not_found_items, errors, no_change_count
+                    nonlocal present_value_headers
+                    
+                    with transaction.atomic():
+                        for row_num, row in batch_rows:
                             try:
-                                item_outlet = outlets_map.get(item.id)
-                                is_new_outlet = False
+                                item_code = row['item_code']
+                                units = row['units']
                                 
-                                if not item_outlet:
-                                    # Create new ItemOutlet with Item defaults
-                                    item_outlet = ItemOutlet(
-                                        item=item,
-                                        outlet=outlet,
-                                        outlet_stock=item.stock or 0,
-                                        outlet_selling_price=item.selling_price or Decimal('0'),
-                                        outlet_mrp=item.mrp or Decimal('0'),
-                                        outlet_cost=item.cost or Decimal('0'),
-                                        is_active_in_outlet=True
-                                    )
-                                    outlets_map[item.id] = item_outlet
-                                    outlets_to_create.append(item_outlet)
-                                    is_new_outlet = True
+                                items_list = items_dict.get((item_code, units))
+                                if not items_list:
+                                    not_found_items.append(f"{item_code} ({units})")
+                                    continue
                                 
-                                outlet_changed = False
-                                
-                                # CHECK LOCKS before processing updates
-                                # CLS locks (item-level)
-                                cls_price_locked = bool(getattr(item, 'price_locked', False))
-                                cls_status_locked = bool(getattr(item, 'status_locked', False))
-                                # BLS locks (outlet-level)
-                                bls_price_locked = bool(getattr(item_outlet, 'price_locked', False))
-                                bls_status_locked = bool(getattr(item_outlet, 'status_locked', False))
-                                
-                                # Process MRP - OUTLET-SPECIFIC ONLY (do NOT update shared Item model)
-                                # SKIP if price is locked (CLS or BLS)
-                                if 'mrp' in present_value_headers:
-                                    mrp_str = row.get('mrp', '').strip()
-                                    if mrp_str:
-                                        # CHECK PRICE LOCK - skip if locked
-                                        if cls_price_locked or bls_price_locked:
-                                            # Price is locked - skip this update silently
-                                            pass
-                                        else:
-                                            try:
-                                                new_mrp = Decimal(mrp_str.replace(',', ''))
-                                                if new_mrp < 0:
-                                                    new_mrp = Decimal('0')
-                                                
-                                                mrp_rounded = new_mrp.quantize(Decimal('0.01'))
-                                                
-                                                # Calculate selling price with proper conversion
-                                                new_selling_price = calculate_item_selling_price(item, mrp_rounded, platform)
-                                                
-                                                # ONLY update outlet MRP and selling price (NOT shared Item model)
-                                                current_outlet_mrp = item_outlet.outlet_mrp or Decimal('0')
-                                                if current_outlet_mrp != mrp_rounded:
-                                                    item_outlet.outlet_mrp = mrp_rounded
-                                                    outlet_changed = True
-                                                
-                                                # PROMOTION PROTECTION: Check if selling price should be protected
-                                                should_protect = should_protect_selling_price(platform, item_outlet)
-                                                
-                                                if should_protect:
-                                                    # Talabat promotion item - skip selling price update, preserve promotion price
-                                                    logger.info(f"PROMOTION PROTECTION: Skipping selling price update for Talabat promotion item {item.item_code} at {outlet.name}")
-                                                    protected_count += 1
+                                # Process ALL items for this (item_code, units) key
+                                for item in items_list:
+                                    try:
+                                        item_outlet = outlets_map.get(item.id)
+                                        is_new_outlet = False
+                                        
+                                        if not item_outlet:
+                                            # Create new ItemOutlet with Item defaults
+                                            item_outlet = ItemOutlet(
+                                                item=item,
+                                                outlet=outlet,
+                                                outlet_stock=item.stock or 0,
+                                                outlet_selling_price=item.selling_price or Decimal('0'),
+                                                outlet_mrp=item.mrp or Decimal('0'),
+                                                outlet_cost=item.cost or Decimal('0'),
+                                                is_active_in_outlet=True
+                                            )
+                                            outlets_map[item.id] = item_outlet
+                                            outlets_to_create.append(item_outlet)
+                                            is_new_outlet = True
+                                        
+                                        outlet_changed = False
+                                        
+                                        # CHECK LOCKS before processing updates
+                                        # CLS locks (item-level)
+                                        cls_price_locked = bool(getattr(item, 'price_locked', False))
+                                        cls_status_locked = bool(getattr(item, 'status_locked', False))
+                                        # BLS locks (outlet-level)
+                                        bls_price_locked = bool(getattr(item_outlet, 'price_locked', False))
+                                        bls_status_locked = bool(getattr(item_outlet, 'status_locked', False))
+                                        
+                                        # Process MRP - OUTLET-SPECIFIC ONLY (do NOT update shared Item model)
+                                        # SKIP if price is locked (CLS or BLS)
+                                        if 'mrp' in present_value_headers:
+                                            mrp_str = row.get('mrp', '').strip()
+                                            if mrp_str:
+                                                # CHECK PRICE LOCK - skip if locked
+                                                if cls_price_locked or bls_price_locked:
+                                                    # Price is locked - skip this update silently
+                                                    pass
                                                 else:
-                                                    # Normal selling price update for all other cases
-                                                    current_outlet_sp = item_outlet.outlet_selling_price or Decimal('0')
-                                                    if current_outlet_sp != new_selling_price:
-                                                        item_outlet.outlet_selling_price = new_selling_price
+                                                    try:
+                                                        new_mrp = Decimal(mrp_str.replace(',', ''))
+                                                        if new_mrp < 0:
+                                                            new_mrp = Decimal('0')
+                                                        
+                                                        mrp_rounded = new_mrp.quantize(Decimal('0.01'))
+                                                        
+                                                        # Calculate selling price with proper conversion
+                                                        new_selling_price = calculate_item_selling_price(item, mrp_rounded, platform)
+                                                        
+                                                        # ONLY update outlet MRP and selling price (NOT shared Item model)
+                                                        current_outlet_mrp = item_outlet.outlet_mrp or Decimal('0')
+                                                        if current_outlet_mrp != mrp_rounded:
+                                                            item_outlet.outlet_mrp = mrp_rounded
+                                                            outlet_changed = True
+                                                        
+                                                        # PROMOTION PROTECTION: Check if selling price should be protected
+                                                        should_protect = should_protect_selling_price(platform, item_outlet)
+                                                        
+                                                        if should_protect:
+                                                            # Talabat promotion item - skip selling price update, preserve promotion price
+                                                            logger.info(f"PROMOTION PROTECTION: Skipping selling price update for Talabat promotion item {item.item_code} at {outlet.name}")
+                                                            protected_count += 1
+                                                        else:
+                                                            # Normal selling price update for all other cases
+                                                            current_outlet_sp = item_outlet.outlet_selling_price or Decimal('0')
+                                                            if current_outlet_sp != new_selling_price:
+                                                                item_outlet.outlet_selling_price = new_selling_price
+                                                                outlet_changed = True
+                                                    
+                                                    except InvalidOperation:
+                                                        errors.append(f"Row {row_num}: Invalid MRP '{mrp_str}'")
+                                        
+                                        # Process Cost - OUTLET-SPECIFIC ONLY (do NOT update shared Item model)
+                                        if 'cost' in present_value_headers:
+                                            cost_str = row.get('cost', '').strip()
+                                            if cost_str:
+                                                try:
+                                                    new_cost = Decimal(cost_str.replace(',', ''))
+                                                    if new_cost < 0:
+                                                        new_cost = Decimal('0')
+                                                    
+                                                    # ONLY update outlet cost (NOT shared Item model)
+                                                    current_outlet_cost = item_outlet.outlet_cost or Decimal('0')
+                                                    if current_outlet_cost != new_cost:
+                                                        item_outlet.outlet_cost = new_cost
                                                         outlet_changed = True
-                                            
-                                            except InvalidOperation:
-                                                errors.append(f"Row {row_num}: Invalid MRP '{mrp_str}'")
-                                
-                                # Process Cost - OUTLET-SPECIFIC ONLY (do NOT update shared Item model)
-                                if 'cost' in present_value_headers:
-                                    cost_str = row.get('cost', '').strip()
-                                    if cost_str:
-                                        try:
-                                            new_cost = Decimal(cost_str.replace(',', ''))
-                                            if new_cost < 0:
-                                                new_cost = Decimal('0')
-                                            
-                                            # ONLY update outlet cost (NOT shared Item model)
-                                            current_outlet_cost = item_outlet.outlet_cost or Decimal('0')
-                                            if current_outlet_cost != new_cost:
-                                                item_outlet.outlet_cost = new_cost
-                                                outlet_changed = True
+                                                
+                                                except InvalidOperation:
+                                                    errors.append(f"Row {row_num}: Invalid cost '{cost_str}'")
                                         
-                                        except InvalidOperation:
-                                            errors.append(f"Row {row_num}: Invalid cost '{cost_str}'")
-                                
-                                # Process Stock - OUTLET-SPECIFIC ONLY (do NOT update shared Item model)
-                                # NOTE: Stock quantity updates even if status_locked (stock number can change)
-                                # BUT: is_active_in_outlet stays FALSE if status_locked (item stays Disabled)
-                                if 'stock' in present_value_headers:
-                                    stock_str = row.get('stock', '').strip()
-                                    if stock_str:
-                                        try:
-                                            csv_stock = int(float(stock_str.replace(',', '')))
-                                            if csv_stock < 0:
-                                                csv_stock = 0
-                                            
-                                            # Apply stock conversion based on wrap type
-                                            if item.wrap == '9900':
-                                                # wrap=9900: stock × WDF (e.g., 10 KG × 4 = 40 packs of 250g)
-                                                wdf = validate_wdf_for_division(
-                                                    item.weight_division_factor, 
-                                                    str(item.item_code), 
-                                                    'stock conversion calculation'
-                                                )
-                                                new_stock = int(csv_stock * float(wdf))
-                                            elif item.wrap == '10000':
-                                                # wrap=10000: stock ÷ OCQ (e.g., 50 ÷ 4 = 12.5 cases)
-                                                ocq = validate_ocq_for_division(
-                                                    item.outer_case_quantity, 
-                                                    str(item.item_code), 
-                                                    'stock conversion calculation'
-                                                )
-                                                new_stock = int(csv_stock / ocq)
-                                            else:
-                                                new_stock = csv_stock
-                                            
-                                            # ONLY update outlet stock (NOT shared Item model)
-                                            if item_outlet.outlet_stock != new_stock:
-                                                item_outlet.outlet_stock = new_stock
-                                                outlet_changed = True
-                                            
-                                            # ENFORCE STATUS LOCK: If locked, keep is_active_in_outlet = FALSE
-                                            # This prevents stock update from enabling a locked item
-                                            if cls_status_locked or bls_status_locked:
-                                                # Status is locked - ensure item stays disabled
-                                                if item_outlet.is_active_in_outlet:
-                                                    item_outlet.is_active_in_outlet = False
-                                                    outlet_changed = True
+                                        # Process Stock - OUTLET-SPECIFIC ONLY (do NOT update shared Item model)
+                                        # NOTE: Stock quantity updates even if status_locked (stock number can change)
+                                        # BUT: is_active_in_outlet stays FALSE if status_locked (item stays Disabled)
+                                        if 'stock' in present_value_headers:
+                                            stock_str = row.get('stock', '').strip()
+                                            if stock_str:
+                                                try:
+                                                    csv_stock = int(float(stock_str.replace(',', '')))
+                                                    if csv_stock < 0:
+                                                        csv_stock = 0
+                                                    
+                                                    # Apply stock conversion based on wrap type
+                                                    if item.wrap == '9900':
+                                                        # wrap=9900: stock × WDF (e.g., 10 KG × 4 = 40 packs of 250g)
+                                                        wdf = validate_wdf_for_division(
+                                                            item.weight_division_factor, 
+                                                            str(item.item_code), 
+                                                            'stock conversion calculation'
+                                                        )
+                                                        new_stock = int(csv_stock * float(wdf))
+                                                    elif item.wrap == '10000':
+                                                        # wrap=10000: stock ÷ OCQ (e.g., 50 ÷ 4 = 12.5 cases)
+                                                        ocq = validate_ocq_for_division(
+                                                            item.outer_case_quantity, 
+                                                            str(item.item_code), 
+                                                            'stock conversion calculation'
+                                                        )
+                                                        new_stock = int(csv_stock / ocq)
+                                                    else:
+                                                        new_stock = csv_stock
+                                                    
+                                                    # ONLY update outlet stock (NOT shared Item model)
+                                                    if item_outlet.outlet_stock != new_stock:
+                                                        item_outlet.outlet_stock = new_stock
+                                                        outlet_changed = True
+                                                    
+                                                    # ENFORCE STATUS LOCK: If locked, keep is_active_in_outlet = FALSE
+                                                    # This prevents stock update from enabling a locked item
+                                                    if cls_status_locked or bls_status_locked:
+                                                        # Status is locked - ensure item stays disabled
+                                                        if item_outlet.is_active_in_outlet:
+                                                            item_outlet.is_active_in_outlet = False
+                                                            outlet_changed = True
+                                                
+                                                except ValueError:
+                                                    errors.append(f"Row {row_num}: Invalid stock '{stock_str}'")
                                         
-                                        except ValueError:
-                                            errors.append(f"Row {row_num}: Invalid stock '{stock_str}'")
-                                
-                                # Track changes - O(1) set lookup
-                                # NOTE: We no longer update shared Item model, only ItemOutlet
-                                if outlet_changed and not is_new_outlet and id(item_outlet) not in outlets_to_update_set:
-                                    outlets_to_update_set.add(id(item_outlet))
-                                    outlets_to_update.append(item_outlet)
-                                
-                                if outlet_changed:
-                                    updated_count += 1
-                                else:
-                                    no_change_count += 1
+                                        # Track changes - O(1) set lookup
+                                        # NOTE: We no longer update shared Item model, only ItemOutlet
+                                        if outlet_changed and not is_new_outlet and id(item_outlet) not in outlets_to_update_set:
+                                            outlets_to_update_set.add(id(item_outlet))
+                                            outlets_to_update.append(item_outlet)
+                                        
+                                        if outlet_changed:
+                                            updated_count += 1
+                                        else:
+                                            no_change_count += 1
+                                    
+                                    except Exception as e:
+                                        errors.append(f"Row {row_num}: {str(e)}")
                             
                             except Exception as e:
                                 errors.append(f"Row {row_num}: {str(e)}")
-                    
-                    except Exception as e:
-                        errors.append(f"Row {row_num}: {str(e)}")
+                        
+                        # Bulk operations for this batch - OUTLET-SPECIFIC ONLY (no Item model updates)
+                        if outlets_to_create:
+                            ItemOutlet.objects.bulk_create(outlets_to_create, ignore_conflicts=True)
+                            outlets_to_create = []  # Clear for next batch
+                        
+                        # NOTE: We no longer update shared Item model to prevent cross-outlet contamination
+                        # All updates are outlet-specific via ItemOutlet
+                        
+                        if outlets_to_update:
+                            # Only update outlet fields based on what was in the CSV
+                            outlet_update_fields = []
+                            if 'mrp' in present_value_headers:
+                                outlet_update_fields.extend(['outlet_mrp', 'outlet_selling_price'])
+                            if 'cost' in present_value_headers:
+                                outlet_update_fields.append('outlet_cost')
+                            if 'stock' in present_value_headers:
+                                outlet_update_fields.append('outlet_stock')
+                                # Also update is_active_in_outlet for status lock enforcement
+                                outlet_update_fields.append('is_active_in_outlet')
+                            
+                            if outlet_update_fields:
+                                ItemOutlet.objects.bulk_update(outlets_to_update, outlet_update_fields, batch_size=2000)
+                            outlets_to_update = []  # Clear for next batch
+                            outlets_to_update_set = set()  # Clear for next batch
                 
-                # Bulk operations - OUTLET-SPECIFIC ONLY (no Item model updates)
-                if outlets_to_create:
-                    ItemOutlet.objects.bulk_create(outlets_to_create, ignore_conflicts=True)
-                
-                # NOTE: We no longer update shared Item model to prevent cross-outlet contamination
-                # All updates are outlet-specific via ItemOutlet
-                
-                if outlets_to_update:
-                    # Only update outlet fields based on what was in the CSV
-                    outlet_update_fields = []
-                    if 'mrp' in present_value_headers:
-                        outlet_update_fields.extend(['outlet_mrp', 'outlet_selling_price'])
-                    if 'cost' in present_value_headers:
-                        outlet_update_fields.append('outlet_cost')
-                    if 'stock' in present_value_headers:
-                        outlet_update_fields.append('outlet_stock')
-                        # Also update is_active_in_outlet for status lock enforcement
-                        outlet_update_fields.append('is_active_in_outlet')
-                    
-                    if outlet_update_fields:
-                        ItemOutlet.objects.bulk_update(outlets_to_update, outlet_update_fields, batch_size=2000)
+                # Execute the batch with retry logic
+                try:
+                    process_batch()
+                    logger.debug(f"Completed batch {batch_start//BATCH_SIZE + 1}/{(len(csv_rows) + BATCH_SIZE - 1)//BATCH_SIZE}")
+                except Exception as e:
+                    # If retry logic is exhausted, log the error and continue with next batch
+                    logger.error(f"Batch {batch_start//BATCH_SIZE + 1} failed after retries: {str(e)}")
+                    errors.append(f"Batch {batch_start//BATCH_SIZE + 1} failed: {str(e)}")
             
             # Success messages with promotion protection statistics
             if updated_count > 0 or protected_count > 0:
@@ -1419,6 +1506,10 @@ def product_update(request):
             
         except Outlet.DoesNotExist:
             messages.error(request, "Selected outlet not found.")
+        except OperationalError as e:
+            # This is likely from the retry decorator with a user-friendly message
+            logger.error(f"Database operation failed after retries: {str(e)}")
+            messages.error(request, str(e))  # Use the user-friendly message from retry decorator
         except Exception as e:
             logger.error(f"Product update error: {str(e)}", exc_info=True)
             messages.error(request, f"Error processing CSV: {str(e)}")
@@ -5033,3 +5124,220 @@ def item_search_api(request):
     except Exception as e:
         logger.error(f"Item search error: {str(e)}", exc_info=True)
         return JsonResponse({'success': False, 'message': f'Search error: {str(e)}'})
+
+
+# =============================================================================
+# OUTLET RESET SYSTEM - Data Corruption Fix
+# =============================================================================
+
+@login_required
+def outlet_reset(request):
+    """
+    Main outlet reset page for fixing data corruption scenarios.
+    
+    Business Context: When users accidentally update "Outlet A" data to "Outlet B",
+    this page provides a controlled way to reset outlet-specific data.
+    
+    Features:
+    - Platform-isolated outlet selection
+    - Multiple reset types (prices, stock, complete, unassign)
+    - Multi-step confirmation system
+    - Preview of affected data before reset
+    """
+    from .reset_operations import get_outlets_for_platform
+    
+    # Get outlets for both platforms for dropdown population
+    pasons_outlets = get_outlets_for_platform('pasons')
+    talabat_outlets = get_outlets_for_platform('talabat')
+    
+    context = {
+        'page_title': 'Outlet Reset System - Fix Data Corruption',
+        'active_nav': 'outlet_reset',
+        'pasons_outlets': pasons_outlets,
+        'talabat_outlets': talabat_outlets,
+    }
+    return render(request, 'outlet_reset.html', context)
+
+
+@login_required
+def outlet_reset_preview_api(request):
+    """
+    API endpoint to preview data that will be affected by complete outlet reset operation.
+    
+    Returns preview information including:
+    - Count of affected ItemOutlet records
+    - Sample items with current values
+    - Outlet information for confirmation
+    - Validation warnings
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'POST method required'})
+    
+    try:
+        from .reset_operations import OutletResetEngine, validate_reset_operation
+        from .models import Outlet
+        
+        # Parse request data
+        data = json.loads(request.body)
+        outlet_id = data.get('outlet_id')
+        platform = data.get('platform')
+        
+        # Validate required fields (reset_type is always 'complete_reset')
+        if not all([outlet_id, platform]):
+            return JsonResponse({
+                'success': False, 
+                'message': 'Missing required fields: outlet_id, platform'
+            })
+        
+        # Always use complete reset
+        reset_type = 'complete_reset'
+        
+        # Get outlet and validate
+        try:
+            outlet = Outlet.objects.get(id=outlet_id, platforms=platform)
+        except Outlet.DoesNotExist:
+            return JsonResponse({
+                'success': False, 
+                'message': f'Outlet not found or platform mismatch'
+            })
+        
+        # Validate reset operation
+        validation = validate_reset_operation(outlet, platform, reset_type)
+        if not validation['is_valid']:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Validation failed',
+                'errors': validation['errors']
+            })
+        
+        # Create reset engine and get preview
+        reset_engine = OutletResetEngine(outlet, platform, reset_type, request.user)
+        preview_data = reset_engine.get_affected_items_preview(limit=10)
+        
+        # Format preview items for display
+        preview_items = []
+        for item_outlet in preview_data['preview_items']:
+            preview_items.append({
+                'item_code': item_outlet.item.item_code,
+                'description': item_outlet.item.description[:50] + '...' if len(item_outlet.item.description) > 50 else item_outlet.item.description,
+                'current_mrp': float(item_outlet.outlet_mrp or 0),
+                'current_selling_price': float(item_outlet.outlet_selling_price or 0),
+                'current_cost': float(item_outlet.outlet_cost or 0),
+                'current_stock': item_outlet.outlet_stock or 0,
+                'is_active': item_outlet.is_active_in_outlet,
+                'is_on_promotion': item_outlet.is_on_promotion,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'preview': {
+                'outlet_name': outlet.name,
+                'outlet_store_id': outlet.store_id,
+                'outlet_location': outlet.location,
+                'platform': platform.title(),
+                'reset_type': 'complete_reset',
+                'total_items': preview_data['total_count'],
+                'total_stock_value': preview_data['total_stock_value'],
+                'sample_items': preview_items,
+                'warnings': validation['warnings']
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Outlet reset preview error: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False, 
+            'message': f'Preview failed: {str(e)}'
+        })
+
+
+@login_required
+def outlet_reset_execute_api(request):
+    """
+    API endpoint to execute outlet reset operation after user confirmation.
+    
+    Performs the actual reset operation with full transaction safety and audit logging.
+    Requires all confirmation steps to be completed on frontend.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'POST method required'})
+    
+    try:
+        from .reset_operations import OutletResetEngine, validate_reset_operation
+        from .models import Outlet
+        
+        # Parse request data
+        data = json.loads(request.body)
+        outlet_id = data.get('outlet_id')
+        platform = data.get('platform')
+        confirmation_outlet_name = data.get('confirmation_outlet_name', '').strip()
+        confirmation_understood = data.get('confirmation_understood', False)
+        notes = data.get('notes', '').strip()
+        
+        # Always use complete reset
+        reset_type = 'complete_reset'
+        
+        # Validate required fields (reset_type is always 'complete_reset')
+        if not all([outlet_id, platform]):
+            return JsonResponse({
+                'success': False, 
+                'message': 'Missing required fields: outlet_id, platform'
+            })
+        
+        # Get outlet and validate
+        try:
+            outlet = Outlet.objects.get(id=outlet_id, platforms=platform)
+        except Outlet.DoesNotExist:
+            return JsonResponse({
+                'success': False, 
+                'message': f'Outlet not found or platform mismatch'
+            })
+        
+        # Validate confirmation steps
+        if confirmation_outlet_name != outlet.name:
+            return JsonResponse({
+                'success': False, 
+                'message': f'Outlet name confirmation failed. Expected "{outlet.name}", got "{confirmation_outlet_name}"'
+            })
+        
+        if not confirmation_understood:
+            return JsonResponse({
+                'success': False, 
+                'message': 'You must confirm that you understand this operation cannot be undone'
+            })
+        
+        # Final validation of reset operation
+        validation = validate_reset_operation(outlet, platform, reset_type)
+        if not validation['is_valid']:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Final validation failed',
+                'errors': validation['errors']
+            })
+        
+        # Create reset engine and execute reset
+        reset_engine = OutletResetEngine(outlet, platform, reset_type, request.user)
+        result = reset_engine.execute_reset(notes=notes)
+        
+        # Log the operation
+        logger.info(f"Outlet reset executed by {request.user.username}: {outlet.name} ({platform}) - {reset_type}")
+        
+        return JsonResponse({
+            'success': result['success'],
+            'message': result['message'],
+            'reset_log_id': result['reset_log'].id,
+            'statistics': {
+                'items_affected': result['items_affected'],
+                'items_success': result['items_success'],
+                'items_failed': result['items_failed'],
+                'success_rate': result['reset_log'].success_rate if result['reset_log'] else 0,
+                'duration_seconds': result['reset_log'].duration_seconds if result['reset_log'] else 0
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Outlet reset execution error: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False, 
+            'message': f'Reset execution failed: {str(e)}'
+        })

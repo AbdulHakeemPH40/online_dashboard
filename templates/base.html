@@ -20,13 +20,165 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
 
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
-    <link rel="stylesheet" href="{% static 'css/sidebar-logo.css' %}">
     <link rel="stylesheet" href="{% static 'css/retro_modern.css' %}">
-    <link rel="stylesheet" href="{% static 'css/dark_navbar.css' %}">
     <link rel="stylesheet" href="{% static 'css/left_sidebar.css' %}">
-    <link rel="stylesheet" href="{% static 'css/mobile_navbar_fix.css' %}">
+    <link rel="stylesheet" href="{% static 'css/dark_navbar.css' %}">
     <link rel="stylesheet" href="{% static 'css/bulk_operations.css' %}">
     <link rel="stylesheet" href="{% static 'css/modal.css' %}">
+    
+    <style>
+        /* Global responsive utilities */
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow-x: hidden;
+        }
+        
+        /* Responsive images */
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        
+        /* Responsive containers */
+        @media (max-width: 768px) {
+            .container {
+                padding-left: 12px !important;
+                padding-right: 12px !important;
+            }
+        }
+        
+        /* CRITICAL MOBILE SIDEBAR FIX */
+        @media (max-width: 1024px) {
+            .left-sidebar {
+                position: fixed !important;
+                top: 0 !important;
+                left: -280px !important;
+                width: 280px !important;
+                height: 100vh !important;
+                z-index: 9999 !important;
+                background: white !important;
+                transition: left 0.3s ease !important;
+                box-shadow: 2px 0 15px rgba(0, 0, 0, 0.3) !important;
+            }
+            
+            .left-sidebar.mobile-open {
+                left: 0px !important;
+            }
+            
+            .sidebar-overlay {
+                display: none !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                background: rgba(0, 0, 0, 0.5) !important;
+                z-index: 9998 !important;
+            }
+            
+            .sidebar-overlay.active {
+                display: block !important;
+            }
+            
+            .main-content {
+                margin-left: 0 !important;
+                padding-top: 60px !important;
+            }
+            
+            /* HIDE DESKTOP SIDEBAR TOGGLE ON MOBILE */
+            .sidebar-toggle,
+            #sidebarToggle,
+            .left-sidebar .sidebar-toggle {
+                display: none !important;
+            }
+            
+            /* CONSISTENT MOBILE TOGGLE BUTTON - ALL SCREEN SIZES */
+            .mobile-sidebar-toggle,
+            button.mobile-sidebar-toggle,
+            .dark-navbar .mobile-sidebar-toggle {
+                display: flex !important;
+                position: fixed !important;
+                top: 15px !important;
+                left: 15px !important;
+                z-index: 10000 !important;
+                width: 45px !important;
+                height: 45px !important;
+                background: #4f46e5 !important;
+                color: white !important;
+                border: none !important;
+                border-radius: 50% !important;
+                align-items: center !important;
+                justify-content: center !important;
+                font-size: 18px !important;
+                cursor: pointer !important;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
+                transition: all 0.2s ease !important;
+            }
+            
+            .mobile-sidebar-toggle:hover,
+            button.mobile-sidebar-toggle:hover,
+            .dark-navbar .mobile-sidebar-toggle:hover {
+                background: #4338ca !important;
+                transform: scale(1.05) !important;
+                box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4) !important;
+            }
+            
+            .mobile-sidebar-toggle:active,
+            button.mobile-sidebar-toggle:active,
+            .dark-navbar .mobile-sidebar-toggle:active {
+                transform: scale(0.95) !important;
+            }
+        }
+        
+        /* SMALLER MOBILE SCREENS */
+        @media (max-width: 480px) {
+            .mobile-sidebar-toggle,
+            button.mobile-sidebar-toggle,
+            .dark-navbar .mobile-sidebar-toggle {
+                width: 40px !important;
+                height: 40px !important;
+                top: 12px !important;
+                left: 12px !important;
+                font-size: 16px !important;
+            }
+        }
+        
+        /* Desktop - ensure sidebar is visible */
+        @media (min-width: 1025px) {
+            .left-sidebar {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 280px !important;
+                height: 100vh !important;
+                z-index: 1000 !important;
+                display: flex !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+            }
+            
+            .main-content {
+                margin-left: 280px !important;
+            }
+            
+            /* HIDE MOBILE TOGGLE ON DESKTOP */
+            .mobile-sidebar-toggle,
+            button.mobile-sidebar-toggle,
+            .dark-navbar .mobile-sidebar-toggle {
+                display: none !important;
+            }
+            
+            /* SHOW DESKTOP SIDEBAR TOGGLE */
+            .sidebar-toggle,
+            #sidebarToggle,
+            .left-sidebar .sidebar-toggle {
+                display: flex !important;
+            }
+        }
+    </style>
 
     {% block extra_head %}{% endblock %}
 </head>
@@ -35,7 +187,7 @@
     <!-- Header -->
     <header class="dark-navbar">
         <div class="flex items-center gap-4">
-            <button class="mobile-sidebar-toggle" id="mobileToggle">
+            <button class="mobile-sidebar-toggle" id="mobileToggle" onclick="toggleSidebar()">
                 <i class="bx bx-menu"></i>
             </button>
             <div class="user-profile">
@@ -43,8 +195,8 @@
                     <i class="bi bi-person"></i>
                 </div>
                 <div class="user-info">
-                    <div class="user-name">Admin User</div>
-                    <div class="user-role">System Manager</div>
+                    <div class="user-name">{{ user.username|default:"Guest" }}</div>
+                    <div class="user-role">{% if user.is_superuser %}Administrator{% elif user.is_staff %}Staff Member{% else %}User{% endif %}</div>
                 </div>
             </div>
         </div>
@@ -73,6 +225,35 @@
             <a href="{% url 'integration:erp_page' %}"
                 class="{% if active_nav == 'erp' %}active{% endif %}">ERP</a>
         </nav>
+        
+        <!-- User Info on Right (Desktop Only) -->
+        {% if user.is_authenticated %}
+            <div class="user-dropdown-container desktop-only" style="position: relative; margin-left: 16px; padding-left: 16px; border-left: 1px solid #e5e7eb;">
+                <button class="user-dropdown-trigger" onclick="toggleUserDropdown()" style="display: flex; align-items: center; gap: 8px; background: transparent; border: none; cursor: pointer; padding: 6px 10px; border-radius: 6px; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='transparent'">
+                    <i class="bi bi-person-circle" style="font-size: 18px; color: #6b7280;"></i>
+                    <span style="color: #6b7280; font-size: 13px; font-weight: 500;">{{ user.get_full_name|default:user.username }}</span>
+                    <i class="bi bi-chevron-down" style="font-size: 12px; color: #6b7280;"></i>
+                </button>
+                
+                <!-- Dropdown Menu -->
+                <div id="userDropdownMenu" class="user-dropdown-menu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 8px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 200px; z-index: 1000;">
+                    <div style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb;">
+                        <div style="font-size: 14px; font-weight: 600; color: #1f2937;">{{ user.get_full_name|default:user.username }}</div>
+                        <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">{{ user.email|default:"" }}</div>
+                    </div>
+                    <div style="padding: 8px 0;">
+                        <a href="{% url 'change_password' %}" style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: #6b7280; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f3f4f6'; this.style.color='#1f2937';" onmouseout="this.style.backgroundColor='transparent'; this.style.color='#6b7280';">
+                            <i class="bi bi-key" style="font-size: 16px;"></i>
+                            <span style="font-size: 14px;">Change Password</span>
+                        </a>
+                        <a href="{% url 'logout' %}" style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; color: #dc2626; text-decoration: none; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#fef2f2'; this.style.color='#991b1b';" onmouseout="this.style.backgroundColor='transparent'; this.style.color='#dc2626';">
+                            <i class="bi bi-box-arrow-right" style="font-size: 16px;"></i>
+                            <span style="font-size: 14px;">Logout</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
     </header>
 
 
@@ -125,10 +306,95 @@
     </div>
 
     <!-- Scripts: Load in correct order -->
+    <script>
+        // SIMPLIFIED SIDEBAR TOGGLE - CLASS-BASED APPROACH
+        function toggleSidebar() {
+            console.log('Hamburger clicked - starting sidebar toggle');
+            
+            const sidebar = document.querySelector('.left-sidebar');
+            const overlay = document.querySelector('.sidebar-overlay');
+            
+            console.log('Sidebar found:', !!sidebar);
+            console.log('Overlay found:', !!overlay);
+            
+            if (!sidebar) {
+                console.error('Sidebar not found!');
+                return;
+            }
+            
+            // Check if we're on mobile
+            const isMobile = window.innerWidth <= 1024;
+            console.log('Is mobile:', isMobile);
+            
+            if (isMobile) {
+                // Toggle mobile-open class
+                const isOpen = sidebar.classList.contains('mobile-open');
+                console.log('Sidebar currently open:', isOpen);
+                
+                if (isOpen) {
+                    // CLOSE sidebar
+                    console.log('Closing sidebar');
+                    sidebar.classList.remove('mobile-open');
+                    if (overlay) {
+                        overlay.classList.remove('active');
+                    }
+                    document.body.style.overflow = 'auto';
+                } else {
+                    // OPEN sidebar
+                    console.log('Opening sidebar');
+                    sidebar.classList.add('mobile-open');
+                    if (overlay) {
+                        overlay.classList.add('active');
+                    }
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+            
+            console.log('Sidebar toggle complete');
+        }
+        
+        // Close sidebar when clicking overlay
+        document.addEventListener('DOMContentLoaded', function() {
+            const overlay = document.querySelector('.sidebar-overlay');
+            if (overlay) {
+                overlay.addEventListener('click', function() {
+                    console.log('Overlay clicked - closing sidebar');
+                    toggleSidebar();
+                });
+            }
+            
+            // Also handle left sidebar toggle button
+            const leftSidebarToggle = document.getElementById('sidebarToggle');
+            if (leftSidebarToggle) {
+                leftSidebarToggle.addEventListener('click', function() {
+                    console.log('Left sidebar toggle clicked');
+                    const sidebar = document.querySelector('.left-sidebar');
+                    if (sidebar) {
+                        sidebar.classList.toggle('collapsed');
+                        document.body.classList.toggle('sidebar-collapsed');
+                    }
+                });
+            }
+        });
+        
+        // User dropdown toggle
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdownMenu');
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('userDropdownMenu');
+            const trigger = document.querySelector('.user-dropdown-trigger');
+            
+            if (dropdown && trigger && !trigger.contains(event.target) && !dropdown.contains(event.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+    </script>
     <script src="{% static 'js/modal.js' %}"></script>
     <script src="{% static 'js/base.js' %}"></script>
-    <script src="{% static 'js/mobile_navbar.js' %}"></script>
-    <!-- <script src="{% static 'js/dark_sidebar.js' %}"></script> -->
     {% block extra_js %}{% endblock %}
 </body>
 

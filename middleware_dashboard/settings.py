@@ -88,13 +88,16 @@ WSGI_APPLICATION = 'middleware_dashboard.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # SQLite for all environments (local, pythonanywhere, digitalocean)
+# Configured with WAL mode for better concurrent write handling
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
         'OPTIONS': {
-            'timeout': 30,
-        }
+            'timeout': 30,  # 30 second timeout for database locks
+            'check_same_thread': False,  # Allow multi-threaded access
+        },
+        'CONN_MAX_AGE': 600,  # Keep connections alive for 10 minutes (connection pooling)
     }
 }
 

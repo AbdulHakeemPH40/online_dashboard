@@ -24,46 +24,46 @@
                 <li class="nav-item">
                     <a href="{% url 'dashboard' %}"
                         class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
-                        <i class="bx bx-grid-alt nav-icon">📊</i>
+                        <i class="nav-icon">📊</i>
                         <span class="nav-text">Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="{% url 'integration:store_list' %}" class="nav-link">
-                        <i class="bx bx-store nav-icon">🏪</i>
+                        <i class="nav-icon">🏪</i>
                         <span class="nav-text">Manage Stores</span>
                     </a>
                 </li>
                 <li class="nav-item has-dropdown">
                     <a href="#" class="nav-link">
-                        <i class="bx bx-data nav-icon">📦</i>
+                        <i class="nav-icon">📦</i>
                         <span class="nav-text">Bulk Operations</span>
                         <i class="bx bx-chevron-down dropdown-arrow"></i>
                     </a>
                     <div id="bulkOperationsDropdown" class="dropdown-menu" style="display: none;">
                         <a href="{% url 'integration:product_update' %}" class="dropdown-link">
-                            <i class="bx bx-edit nav-icon">✏️</i>
+                            <i class="nav-icon">✏️</i>
                             <span>Product Update</span>
                         </a>
                         <a href="{% url 'integration:rules_update_price' %}" class="dropdown-link">
-                            <i class="bx bx-money nav-icon">💰</i>
+                            <i class="nav-icon">💰</i>
                             <span>Rules Update (Price)</span>
                         </a>
                         <a href="{% url 'integration:rules_update_stock' %}" class="dropdown-link">
-                            <i class="bx bx-cube nav-icon">📊</i>
+                            <i class="nav-icon">📊</i>
                             <span>Rules Update (Stock)</span>
                         </a>
                         <a href="{% url 'integration:bulk_promotion_update' %}" class="dropdown-link">
-                            <i class="bx bx-purchase-tag nav-icon">🏷️</i>
+                            <i class="nav-icon">🏷️</i>
                             <span>Promotion Update</span>
                         </a>
                         <a href="{% url 'integration:bulk_item_creation' %}" class="dropdown-link">
-                            <i class="bx bx-plus-circle nav-icon">➕</i>
+                            <i class="nav-icon">➕</i>
                             <span>Bulk Item Creation</span>
                         </a>
 
                         <a href="{% url 'integration:item_deletion' %}" class="dropdown-link">
-                            <i class="bx bx-trash nav-icon">🗑️</i>
+                            <i class="nav-icon">🗑️</i>
                             <span>Item Deletion</span>
                         </a>
                         
@@ -71,29 +71,36 @@
                 </li>
                 <li class="nav-item">
                     <a href="{% url 'integration:shop_integration' %}" class="nav-link">
-                        <i class="bx bx-link nav-icon">🔗</i>
+                        <i class="nav-icon">🔗</i>
                         <span class="nav-text">Shop Integration</span>
                     </a>
                 </li>
                 <li class="nav-item">
                     <a href="{% url 'integration:promotion_update' %}" class="nav-link">
-                        <i class="bx bx-purchase-tag nav-icon">🏷️</i>
+                        <i class="nav-icon">🏷️</i>
                         <span class="nav-text">Promotion Integration</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'integration:outlet_reset' %}" 
+                        class="nav-link {% if request.resolver_match.url_name == 'outlet_reset' %}active{% endif %}">
+                        <i class="nav-icon">🔄</i>
+                        <span class="nav-text">Reset Outlet</span>
                     </a>
                 </li>
                 <li class="nav-item has-dropdown">
                     <a href="#" class="nav-link">
-                        <i class="bx bx-chart-line nav-icon">📊</i>
+                        <i class="nav-icon">📊</i>
                         <span class="nav-text">Reports & Analytics</span>
                         <i class="bx bx-chevron-down dropdown-arrow"></i>
                     </a>
                     <div id="reportsDropdown" class="dropdown-menu" style="display: none;">
                         <a href="{% url 'integration:reports' %}" class="dropdown-link">
-                            <i class="bx bx-file nav-icon">📈</i>
+                            <i class="nav-icon">📈</i>
                             <span>Data Export Reports</span>
                         </a>
                         <a href="{% url 'integration:locked_products_report' %}" class="dropdown-link">
-                            <i class="bx bx-lock nav-icon">🔒</i>
+                            <i class="nav-icon">🔒</i>
                             <span>Locked Products Report</span>
                         </a>
                     </div>
@@ -107,7 +114,7 @@
                     <form method="post" action="{% url 'logout' %}">
                         {% csrf_token %}
                         <button type="submit" class="nav-link logout">
-                            <i class="bx bx-log-out nav-icon">➡️</i>
+                            <i class="nav-icon">➡️</i>
                             <span class="nav-text">Logout</span>
                         </button>
                     </form>
