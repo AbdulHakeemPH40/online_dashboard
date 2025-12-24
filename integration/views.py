@@ -1393,11 +1393,19 @@ def product_update(request):
                                                         item_outlet.outlet_stock = new_stock
                                                         outlet_changed = True
                                                     
-                                                    # ENFORCE STATUS LOCK: If locked, keep is_active_in_outlet = FALSE
-                                                    # This prevents stock update from enabling a locked item
+                                                    # STOCK STATUS LOGIC: Handle is_active_in_outlet based on stock and locks
                                                     if cls_status_locked or bls_status_locked:
                                                         # Status is locked - ensure item stays disabled
                                                         if item_outlet.is_active_in_outlet:
+                                                            item_outlet.is_active_in_outlet = False
+                                                            outlet_changed = True
+                                                    else:
+                                                        # Status is NOT locked - enable item if stock > 0
+                                                        # This fixes the issue after outlet reset where items stay disabled
+                                                        if new_stock > 0 and not item_outlet.is_active_in_outlet:
+                                                            item_outlet.is_active_in_outlet = True
+                                                            outlet_changed = True
+                                                        elif new_stock == 0 and item_outlet.is_active_in_outlet:
                                                             item_outlet.is_active_in_outlet = False
                                                             outlet_changed = True
                                                 
