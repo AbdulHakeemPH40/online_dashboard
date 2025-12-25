@@ -5482,7 +5482,7 @@ def cost_finder_data_api(request):
         # Format data for response - simplified table
         headers = [
             'Item Code', 'Units', 'Description', 'SKU', 'MRP', 
-            'Selling Price', 'Cost', 'Converted Cost', 'GP %'
+            'Selling Price', 'Cost', 'Converted Cost', 'GP %', 'Stock Status'
         ]
         
         # Remove financial calculations - initialize counters only
@@ -5525,6 +5525,10 @@ def cost_finder_data_api(request):
             elif gp_percentage < gp_threshold:
                 low_gp_count += 1
             
+            # Get stock status based only on is_active_in_outlet boolean field
+            # True = "Active", False = "Disabled"
+            stock_status = "Active" if item_outlet.is_active_in_outlet else "Disabled"
+            
             rows.append([
                 item.item_code,
                 item.units or '-',
@@ -5534,7 +5538,8 @@ def cost_finder_data_api(request):
                 f"AED {float(selling_price):.2f}",
                 f"AED {float(outlet_cost):.2f}",
                 f"AED {float(converted_cost):.2f}",
-                f"{float(gp_percentage):.2f}%"
+                f"{float(gp_percentage):.2f}%",
+                stock_status  # "Active" or "Disabled"
             ])
         
         # Calculate pagination info
@@ -5676,7 +5681,7 @@ def export_cost_finder_api(request):
             # Headers - simplified for middleware ERP
             headers = [
                 'Item Code', 'Units', 'Description', 'SKU', 'MRP (AED)', 
-                'Selling Price (AED)', 'Cost (AED)', 'Converted Cost (AED)', 'GP %'
+                'Selling Price (AED)', 'Cost (AED)', 'Converted Cost (AED)', 'GP %', 'Stock Status'
             ]
             
             # Add headers with styling
@@ -5724,6 +5729,10 @@ def export_cost_finder_api(request):
                     gp_amount = Decimal('0')
                     gp_percentage = Decimal('0')
                 
+                # Get stock status based only on is_active_in_outlet boolean field
+                # True = "Active", False = "Disabled"
+                stock_status = "Active" if item_outlet.is_active_in_outlet else "Disabled"
+                
                 # Add row data - simplified for middleware ERP
                 ws.cell(row=row_num, column=1, value=item.item_code)
                 ws.cell(row=row_num, column=2, value=item.units or '')
@@ -5734,6 +5743,7 @@ def export_cost_finder_api(request):
                 ws.cell(row=row_num, column=7, value=f"AED {float(display_cost):.2f}")
                 ws.cell(row=row_num, column=8, value=f"AED {float(display_converted_cost):.2f}")
                 ws.cell(row=row_num, column=9, value=f"{float(gp_percentage):.2f}%")
+                ws.cell(row=row_num, column=10, value=stock_status)
                 
                 # Color code negative GP%
                 if gp_percentage < 0:
@@ -5768,7 +5778,7 @@ def export_cost_finder_api(request):
             # Headers - simplified
             headers = [
                 'Item Code', 'Units', 'Description', 'SKU', 'MRP', 
-                'Selling Price', 'Cost', 'Converted Cost', 'GP %'
+                'Selling Price', 'Cost', 'Converted Cost', 'GP %', 'Stock Status'
             ]
             writer.writerow(headers)
             
@@ -5807,6 +5817,10 @@ def export_cost_finder_api(request):
                     gp_amount = Decimal('0')
                     gp_percentage = Decimal('0')
                 
+                # Get stock status based only on is_active_in_outlet boolean field
+                # True = "Active", False = "Disabled"
+                stock_status = "Active" if item_outlet.is_active_in_outlet else "Disabled"
+                
                 writer.writerow([
                     item.item_code,
                     item.units or '',
@@ -5816,7 +5830,8 @@ def export_cost_finder_api(request):
                     f"AED {float(display_selling_price):.2f}",
                     f"AED {float(display_cost):.2f}",
                     f"AED {float(display_converted_cost):.2f}",
-                    f"{float(gp_percentage):.2f}%"
+                    f"{float(gp_percentage):.2f}%",
+                    stock_status
                 ])
             
             # Add summary row
