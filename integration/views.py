@@ -1235,6 +1235,7 @@ def product_update(request):
             
             # NEW: Track actual business operations (not individual field changes)
             actual_database_changes = 0     # Count of ItemOutlet records that were modified
+            actual_field_changes = 0        # Count of individual field changes
             actual_business_operations = 0  # Count of logical business operations (MRP update, Cost update, Stock update)
             
             # Track Item model changes (for converted_cost updates)
