@@ -1228,14 +1228,18 @@ def product_update(request):
             outlets_to_update = []
             outlets_to_create = []
             
-            # Track actual database changes vs CSV rows processed
+            # Track actual business operations vs individual field changes
             csv_rows_processed = 0
             csv_rows_with_changes = 0
             csv_rows_with_protection = 0
             
-            # NEW: Track actual database field changes
-            actual_database_changes = 0  # Count of actual ItemOutlet records that were modified
-            actual_field_changes = 0     # Count of individual field changes (MRP, cost, stock, etc.)
+            # NEW: Track actual business operations (not individual field changes)
+            actual_database_changes = 0     # Count of ItemOutlet records that were modified
+            actual_business_operations = 0  # Count of logical business operations (MRP update, Cost update, Stock update)
+            
+            # Track Item model changes (for converted_cost updates)
+            items_to_update_set = set()
+            items_to_update = []
             
             not_found_items = []
             errors = []
@@ -1263,7 +1267,8 @@ def product_update(request):
                 def process_batch():
                     nonlocal outlets_to_update_set, outlets_to_update, outlets_to_create
                     nonlocal csv_rows_processed, csv_rows_with_changes, csv_rows_with_protection
-                    nonlocal actual_database_changes, actual_field_changes
+                    nonlocal actual_database_changes, actual_business_operations
+                    nonlocal items_to_update_set, items_to_update
                     nonlocal not_found_items, errors, present_value_headers
                     
                     with transaction.atomic():
@@ -1304,6 +1309,7 @@ def product_update(request):
                                         
                                         outlet_changed = False
                                         field_changes_count = 0  # Count individual field changes for this ItemOutlet
+                                        item_changed = False     # Track if Item model needs updating
                                         
                                         # CHECK LOCKS before processing updates
                                         # CLS locks (item-level)
@@ -1338,7 +1344,6 @@ def product_update(request):
                                                         if current_outlet_mrp != mrp_rounded:
                                                             item_outlet.outlet_mrp = mrp_rounded
                                                             outlet_changed = True
-                                                            field_changes_count += 1  # Count MRP change
                                                         
                                                         # PROMOTION PROTECTION: Check if selling price should be protected
                                                         should_protect = should_protect_selling_price(platform, item_outlet)
@@ -1346,14 +1351,13 @@ def product_update(request):
                                                         if should_protect:
                                                             # Talabat promotion item - skip selling price update, preserve promotion price
                                                             logger.info(f"PROMOTION PROTECTION: Skipping selling price update for Talabat promotion item {item.item_code} at {outlet.name}")
-                                                            csv_row_had_protection = True
+                                                            protected_count += 1
                                                         else:
                                                             # Normal selling price update for all other cases
                                                             current_outlet_sp = item_outlet.outlet_selling_price or Decimal('0')
                                                             if current_outlet_sp != new_selling_price:
                                                                 item_outlet.outlet_selling_price = new_selling_price
-                                                                outlet_changed = True
-                                                                field_changes_count += 1  # Count selling price change
+                                                                outlet_changed = True        
                                                     
                                                     except InvalidOperation:
                                                         errors.append(f"Row {row_num}: Invalid MRP '{mrp_str}'")
@@ -1373,6 +1377,20 @@ def product_update(request):
                                                         item_outlet.outlet_cost = new_cost
                                                         outlet_changed = True
                                                         field_changes_count += 1  # Count cost change
+                                                        
+                                                        # CALCULATE CONVERTED COST: This is missing business logic!
+                                                        # When cost changes, converted_cost must be recalculated
+                                                        new_converted_cost = calculate_item_converted_cost(item, new_cost)
+                                                        current_converted_cost = getattr(item_outlet, 'outlet_converted_cost', None) or Decimal('0')
+                                                        
+                                                        # Check if we need to add outlet_converted_cost field to ItemOutlet model
+                                                        # For now, update the Item model's converted_cost (as per existing logic)
+                                                        if hasattr(item, 'converted_cost'):
+                                                            current_item_converted_cost = item.converted_cost or Decimal('0')
+                                                            if current_item_converted_cost != new_converted_cost:
+                                                                item.converted_cost = new_converted_cost
+                                                                field_changes_count += 1  # Count converted_cost change
+                                                                item_changed = True
                                                 
                                                 except InvalidOperation:
                                                     errors.append(f"Row {row_num}: Invalid cost '{cost_str}'")
@@ -1442,6 +1460,11 @@ def product_update(request):
                                             outlets_to_update_set.add(id(item_outlet))
                                             outlets_to_update.append(item_outlet)
                                         
+                                        # Track Item model changes (for converted_cost)
+                                        if item_changed and id(item) not in items_to_update_set:
+                                            items_to_update_set.add(id(item))
+                                            items_to_update.append(item)
+                                        
                                         if outlet_changed:
                                             csv_row_had_changes = True
                                             actual_database_changes += 1  # Count ItemOutlet records changed
@@ -1459,14 +1482,18 @@ def product_update(request):
                             except Exception as e:
                                 errors.append(f"Row {row_num}: {str(e)}")
                         
-                        # Bulk operations for this batch - OUTLET-SPECIFIC ONLY (no Item model updates)
+                        # Bulk operations for this batch
                         if outlets_to_create:
                             ItemOutlet.objects.bulk_create(outlets_to_create, ignore_conflicts=True)
                             outlets_to_create = []  # Clear for next batch
                         
-                        # NOTE: We no longer update shared Item model to prevent cross-outlet contamination
-                        # All updates are outlet-specific via ItemOutlet
+                        # Update Item models (for converted_cost changes)
+                        if items_to_update:
+                            Item.objects.bulk_update(items_to_update, ['converted_cost'], batch_size=2000)
+                            items_to_update = []  # Clear for next batch
+                            items_to_update_set = set()  # Clear for next batch
                         
+                        # Update ItemOutlet models
                         if outlets_to_update:
                             # Only update outlet fields based on what was in the CSV
                             outlet_update_fields = []
@@ -1493,12 +1520,12 @@ def product_update(request):
                     logger.error(f"Batch {batch_start//BATCH_SIZE + 1} failed after retries: {str(e)}")
                     errors.append(f"Batch {batch_start//BATCH_SIZE + 1} failed: {str(e)}")
             
-            # Success messages with actual database change statistics
+            # Success messages with actual business operation statistics
             if actual_database_changes > 0 or csv_rows_with_protection > 0:
                 if csv_rows_with_protection > 0:
                     # Include protection statistics in message
                     if actual_database_changes > 0:
-                        messages.success(request, f"Updated {actual_database_changes} database records ({actual_field_changes} field changes) at {outlet.name} ({platform.title()}), protected {csv_rows_with_protection} promotion items from price updates.")
+                        messages.success(request, f"Updated {actual_business_operations} business operations ({actual_database_changes} database records) at {outlet.name} ({platform.title()}), protected {csv_rows_with_protection} promotion items from price updates.")
                     else:
                         messages.success(request, f"Protected {csv_rows_with_protection} promotion items from price updates at {outlet.name} ({platform.title()}).")
                     
@@ -1507,7 +1534,7 @@ def product_update(request):
                         messages.info(request, f"Talabat promotion prices preserved - MRP updated but selling prices protected for {csv_rows_with_protection} CSV rows.")
                 else:
                     # Normal message when no protection occurred
-                    messages.success(request, f"Updated {actual_database_changes} database records ({actual_field_changes} field changes) at {outlet.name} ({platform.title()}).")
+                    messages.success(request, f"Updated {actual_business_operations} business operations ({actual_database_changes} database records) at {outlet.name} ({platform.title()}).")
             
             csv_rows_no_change = csv_rows_processed - csv_rows_with_changes - len(not_found_items) - len(errors)
             if csv_rows_no_change > 0:
@@ -1523,11 +1550,11 @@ def product_update(request):
                 if len(errors) > 3:
                     messages.warning(request, f"And {len(errors) - 3} more errors...")
             
-            # Log upload history with actual database change statistics
+            # Log upload history with actual business operation statistics
             if csv_rows_with_protection > 0:
-                logger.info(f"Product update completed: {actual_database_changes} database records updated ({actual_field_changes} field changes), {csv_rows_with_protection} CSV rows with Talabat promotion protection, {len(errors)} errors, {len(not_found_items)} not found")
+                logger.info(f"Product update completed: {actual_business_operations} business operations ({actual_database_changes} database records), {csv_rows_with_protection} CSV rows with Talabat promotion protection, {len(errors)} errors, {len(not_found_items)} not found")
             else:
-                logger.info(f"Product update completed: {actual_database_changes} database records updated ({actual_field_changes} field changes), {len(errors)} errors, {len(not_found_items)} not found")
+                logger.info(f"Product update completed: {actual_business_operations} business operations ({actual_database_changes} database records), {len(errors)} errors, {len(not_found_items)} not found")
             
             UploadHistory.objects.create(
                 file_name=csv_file.name,
@@ -1535,10 +1562,10 @@ def product_update(request):
                 outlet=outlet,
                 update_type='product',
                 records_total=csv_rows_processed,
-                records_success=actual_database_changes,  # Use actual database changes
+                records_success=actual_business_operations,  # Use actual business operations
                 records_failed=len(errors),
                 records_skipped=len(not_found_items) + csv_rows_no_change,
-                status='success' if not errors else ('partial' if actual_database_changes > 0 else 'failed'),
+                status='success' if not errors else ('partial' if actual_business_operations > 0 else 'failed'),
                 uploaded_by=request.user if request.user.is_authenticated else None,
             )
             
