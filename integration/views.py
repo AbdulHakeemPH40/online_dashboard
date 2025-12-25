@@ -1268,9 +1268,10 @@ def product_update(request):
                 def process_batch():
                     nonlocal outlets_to_update_set, outlets_to_update, outlets_to_create
                     nonlocal csv_rows_processed, csv_rows_with_changes, csv_rows_with_protection
-                    nonlocal actual_database_changes, actual_business_operations
+                    nonlocal actual_database_changes, actual_field_changes, actual_business_operations
                     nonlocal items_to_update_set, items_to_update
                     nonlocal not_found_items, errors, present_value_headers
+                    nonlocal updated_count, protected_count, no_change_count
                     
                     with transaction.atomic():
                         for row_num, row in batch_rows:
@@ -1526,7 +1527,7 @@ def product_update(request):
                 if csv_rows_with_protection > 0:
                     # Include protection statistics in message
                     if actual_database_changes > 0:
-                        messages.success(request, f"Updated {actual_business_operations} business operations ({actual_database_changes} database records) at {outlet.name} ({platform.title()}), protected {csv_rows_with_protection} promotion items from price updates.")
+                        messages.success(request, f"Updated {actual_database_changes} items at {outlet.name} ({platform.title()}), protected {csv_rows_with_protection} promotion items from price updates.")
                     else:
                         messages.success(request, f"Protected {csv_rows_with_protection} promotion items from price updates at {outlet.name} ({platform.title()}).")
                     
@@ -1535,7 +1536,7 @@ def product_update(request):
                         messages.info(request, f"Talabat promotion prices preserved - MRP updated but selling prices protected for {csv_rows_with_protection} CSV rows.")
                 else:
                     # Normal message when no protection occurred
-                    messages.success(request, f"Updated {actual_business_operations} business operations ({actual_database_changes} database records) at {outlet.name} ({platform.title()}).")
+                    messages.success(request, f"Updated {actual_database_changes} items at {outlet.name} ({platform.title()}).")
             
             csv_rows_no_change = csv_rows_processed - csv_rows_with_changes - len(not_found_items) - len(errors)
             if csv_rows_no_change > 0:
@@ -1551,11 +1552,11 @@ def product_update(request):
                 if len(errors) > 3:
                     messages.warning(request, f"And {len(errors) - 3} more errors...")
             
-            # Log upload history with actual business operation statistics
+            # Log upload history with simplified statistics
             if csv_rows_with_protection > 0:
-                logger.info(f"Product update completed: {actual_business_operations} business operations ({actual_database_changes} database records), {csv_rows_with_protection} CSV rows with Talabat promotion protection, {len(errors)} errors, {len(not_found_items)} not found")
+                logger.info(f"Product update completed: {actual_database_changes} items updated, {csv_rows_with_protection} CSV rows with Talabat promotion protection, {len(errors)} errors, {len(not_found_items)} not found")
             else:
-                logger.info(f"Product update completed: {actual_business_operations} business operations ({actual_database_changes} database records), {len(errors)} errors, {len(not_found_items)} not found")
+                logger.info(f"Product update completed: {actual_database_changes} items updated, {len(errors)} errors, {len(not_found_items)} not found")
             
             UploadHistory.objects.create(
                 file_name=csv_file.name,
@@ -1563,7 +1564,7 @@ def product_update(request):
                 outlet=outlet,
                 update_type='product',
                 records_total=csv_rows_processed,
-                records_success=actual_business_operations,  # Use actual business operations
+                records_success=actual_database_changes,  # Use actual updated items count
                 records_failed=len(errors),
                 records_skipped=len(not_found_items) + csv_rows_no_change,
                 status='success' if not errors else ('partial' if actual_business_operations > 0 else 'failed'),
