@@ -1228,10 +1228,17 @@ def product_update(request):
             outlets_to_update = []
             outlets_to_create = []
             
-            updated_count = 0
-            protected_count = 0  # Track items with selling price protected
+            # Track CSV rows processed vs individual ItemOutlet changes
+            csv_rows_processed = 0
+            csv_rows_with_changes = 0
+            csv_rows_with_protection = 0
+            total_itemoutlet_changes = 0  # For detailed logging
             not_found_items = []
             errors = []
+            
+            # Initialize counting variables (legacy compatibility)
+            updated_count = 0
+            protected_count = 0
             no_change_count = 0
             
             # BATCH PROCESSING: Process CSV rows in batches to reduce database lock time
@@ -1251,11 +1258,15 @@ def product_update(request):
                 @retry_on_db_lock(max_retries=5, initial_delay=1.0, backoff_factor=2.0)
                 def process_batch():
                     nonlocal outlets_to_update_set, outlets_to_update, outlets_to_create
-                    nonlocal updated_count, protected_count, not_found_items, errors, no_change_count
-                    nonlocal present_value_headers
+                    nonlocal csv_rows_processed, csv_rows_with_changes, csv_rows_with_protection, total_itemoutlet_changes
+                    nonlocal not_found_items, errors, present_value_headers
                     
                     with transaction.atomic():
                         for row_num, row in batch_rows:
+                            csv_rows_processed += 1
+                            csv_row_had_changes = False
+                            csv_row_had_protection = False
+                            
                             try:
                                 item_code = row['item_code']
                                 units = row['units']
@@ -1328,7 +1339,7 @@ def product_update(request):
                                                         if should_protect:
                                                             # Talabat promotion item - skip selling price update, preserve promotion price
                                                             logger.info(f"PROMOTION PROTECTION: Skipping selling price update for Talabat promotion item {item.item_code} at {outlet.name}")
-                                                            protected_count += 1
+                                                            csv_row_had_protection = True
                                                         else:
                                                             # Normal selling price update for all other cases
                                                             current_outlet_sp = item_outlet.outlet_selling_price or Decimal('0')
@@ -1419,12 +1430,17 @@ def product_update(request):
                                             outlets_to_update.append(item_outlet)
                                         
                                         if outlet_changed:
-                                            updated_count += 1
-                                        else:
-                                            no_change_count += 1
+                                            csv_row_had_changes = True
+                                            total_itemoutlet_changes += 1
                                     
                                     except Exception as e:
                                         errors.append(f"Row {row_num}: {str(e)}")
+                                
+                                # Track CSV row-level statistics
+                                if csv_row_had_changes:
+                                    csv_rows_with_changes += 1
+                                if csv_row_had_protection:
+                                    csv_rows_with_protection += 1
                             
                             except Exception as e:
                                 errors.append(f"Row {row_num}: {str(e)}")
@@ -1463,23 +1479,25 @@ def product_update(request):
                     logger.error(f"Batch {batch_start//BATCH_SIZE + 1} failed after retries: {str(e)}")
                     errors.append(f"Batch {batch_start//BATCH_SIZE + 1} failed: {str(e)}")
             
-            # Success messages with promotion protection statistics
-            if updated_count > 0 or protected_count > 0:
-                if protected_count > 0:
+            # Success messages with CSV row-based statistics
+            if csv_rows_with_changes > 0 or csv_rows_with_protection > 0:
+                if csv_rows_with_protection > 0:
                     # Include protection statistics in message
-                    if updated_count > 0:
-                        messages.success(request, f"Updated {updated_count} products at {outlet.name} ({platform.title()}), protected {protected_count} promotion items from price updates.")
+                    if csv_rows_with_changes > 0:
+                        messages.success(request, f"Updated {csv_rows_with_changes} CSV rows at {outlet.name} ({platform.title()}), protected {csv_rows_with_protection} promotion items from price updates.")
                     else:
-                        messages.success(request, f"Protected {protected_count} promotion items from price updates at {outlet.name} ({platform.title()}).")
+                        messages.success(request, f"Protected {csv_rows_with_protection} promotion items from price updates at {outlet.name} ({platform.title()}).")
                     
                     # Additional info message for Talabat protection
                     if platform.lower() == 'talabat':
-                        messages.info(request, f"Talabat promotion prices preserved - MRP updated but selling prices protected for {protected_count} items.")
+                        messages.info(request, f"Talabat promotion prices preserved - MRP updated but selling prices protected for {csv_rows_with_protection} CSV rows.")
                 else:
                     # Normal message when no protection occurred
-                    messages.success(request, f"Updated {updated_count} products at {outlet.name} ({platform.title()}).")
-            if no_change_count > 0:
-                messages.info(request, f"{no_change_count} products already up-to-date.")
+                    messages.success(request, f"Updated {csv_rows_with_changes} CSV rows at {outlet.name} ({platform.title()}).")
+            
+            csv_rows_no_change = csv_rows_processed - csv_rows_with_changes - len(not_found_items) - len(errors)
+            if csv_rows_no_change > 0:
+                messages.info(request, f"{csv_rows_no_change} CSV rows already up-to-date.")
             if not_found_items:
                 if len(not_found_items) <= 5:
                     messages.warning(request, f"Items not found: {', '.join(not_found_items)}")
@@ -1491,22 +1509,22 @@ def product_update(request):
                 if len(errors) > 3:
                     messages.warning(request, f"And {len(errors) - 3} more errors...")
             
-            # Log upload history with protection statistics
-            if protected_count > 0:
-                logger.info(f"Product update completed: {updated_count} items updated, {protected_count} Talabat promotion items protected, {len(errors)} errors, {len(not_found_items)} not found")
+            # Log upload history with CSV row-based statistics
+            if csv_rows_with_protection > 0:
+                logger.info(f"Product update completed: {csv_rows_with_changes} CSV rows updated, {csv_rows_with_protection} CSV rows with Talabat promotion protection, {total_itemoutlet_changes} total ItemOutlet changes, {len(errors)} errors, {len(not_found_items)} not found")
             else:
-                logger.info(f"Product update completed: {updated_count} items updated, {len(errors)} errors, {len(not_found_items)} not found")
+                logger.info(f"Product update completed: {csv_rows_with_changes} CSV rows updated, {total_itemoutlet_changes} total ItemOutlet changes, {len(errors)} errors, {len(not_found_items)} not found")
             
             UploadHistory.objects.create(
                 file_name=csv_file.name,
                 platform=platform,
                 outlet=outlet,
                 update_type='product',
-                records_total=len(csv_rows),
-                records_success=updated_count,
+                records_total=csv_rows_processed,
+                records_success=csv_rows_with_changes,
                 records_failed=len(errors),
-                records_skipped=len(not_found_items) + no_change_count,
-                status='success' if not errors else ('partial' if updated_count > 0 else 'failed'),
+                records_skipped=len(not_found_items) + csv_rows_no_change,
+                status='success' if not errors else ('partial' if csv_rows_with_changes > 0 else 'failed'),
                 uploaded_by=request.user if request.user.is_authenticated else None,
             )
             
