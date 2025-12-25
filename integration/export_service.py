@@ -557,8 +557,7 @@ class ExportService:
     def export(
         self,
         user=None,
-        manual_export_type: Optional[str] = None,
-        exclude_promotions: bool = False
+        manual_export_type: Optional[str] = None
     ) -> Tuple[Optional[List[Dict]], Optional[ExportHistory]]:
         """
         Execute complete export with validation and history tracking.
@@ -573,7 +572,6 @@ class ExportService:
             user: User requesting export (for audit trail)
             manual_export_type: Override export type ('full' or 'partial')
                 If None, automatically determined based on history
-            exclude_promotions: If True, exclude items that are currently on promotion
         
         Returns:
             (export_data, export_history) tuple
@@ -616,11 +614,6 @@ class ExportService:
             items_to_export = self.processor.get_items_for_export(
                 export_type, last_export_timestamp
             )
-            
-            # STEP 3.5: Filter out promotion items if requested
-            if exclude_promotions:
-                items_to_export = items_to_export.filter(is_on_promotion=False)
-                logger.info(f"Excluding promotion items from export")
             
             # STEP 4: Validate items
             valid_items, validation_errors = self.validator.validate_all_items(

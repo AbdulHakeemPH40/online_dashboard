@@ -3607,7 +3607,11 @@ def export_feed_api(request):
     platform = request.GET.get('platform', '').strip()
     outlet_id = request.GET.get('outlet_id', '').strip()
     export_type_param = request.GET.get('export_type', '').strip()  # Can be '', 'full', or 'partial'
-    exclude_promotions = request.GET.get('exclude_promotions', '').strip().lower() in ('true', '1', 'yes')
+    
+    # DEPRECATED: exclude_promotions parameter is no longer supported for shop integration
+    # Shop integration now always exports all items regardless of promotion status
+    if request.GET.get('exclude_promotions'):
+        logger.warning(f"Deprecated parameter 'exclude_promotions' received in shop integration export for outlet {outlet_id}. Parameter ignored - all items will be exported.")
     
     # VALIDATION 1: Platform
     if platform not in ('pasons', 'talabat'):
@@ -3647,11 +3651,10 @@ def export_feed_api(request):
         # If user explicitly requested full/partial, use that; otherwise auto-detect
         manual_export_type = export_type_param if export_type_param in ('full', 'partial') else None
         
-        # Execute export
+        # Execute export - always include all items (no promotion filtering)
         export_data, export_history = export_service.export(
             user=request.user if request.user.is_authenticated else None,
-            manual_export_type=manual_export_type,
-            exclude_promotions=exclude_promotions
+            manual_export_type=manual_export_type
         )
         
         # Check if export succeeded
