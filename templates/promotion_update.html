@@ -1543,10 +1543,9 @@ const columnDefinitions = {
     promo_price: { type: 'number', title: 'Promo' },
     converted_promo: { type: 'number', title: 'C.Promo' },
     gp_percentage: { type: 'number', title: 'GP%' },
+    variance: { type: 'number', title: 'Var' },
     stock: { type: 'number', title: 'Stock' },
     status: { type: 'select', title: 'Status', options: ['Active', 'Disabled'] },
-    start_date: { type: 'date', title: 'Start' },
-    end_date: { type: 'date', title: 'End' },
     days_remaining: { type: 'number', title: 'Days' }
 };
 
@@ -2088,6 +2087,30 @@ function renderGPPercentage(cPromo, cCost) {
     return `<span style="${colorClass} ${bgColor}">${gpPercentage.toFixed(2)}%</span>`;
 }
 
+function renderVariance(sellingPrice, cPromo) {
+    // Calculate variance: Selling Price - C.Promo
+    const selling = parseFloat(sellingPrice) || 0;
+    const promo = parseFloat(cPromo) || 0;
+    const variance = selling - promo;
+    
+    // Determine color based on variance (positive = good, negative = bad)
+    let colorClass = '';
+    let bgColor = '';
+    
+    if (variance > 2) {
+        colorClass = 'color: #16a34a; font-weight: 600;'; // Green for good variance (>2 AED)
+        bgColor = 'background: #dcfce7; padding: 4px 8px; border-radius: 4px;';
+    } else if (variance >= 0) {
+        colorClass = 'color: #ea580c; font-weight: 600;'; // Orange for low variance (0-2 AED)
+        bgColor = 'background: #fed7aa; padding: 4px 8px; border-radius: 4px;';
+    } else {
+        colorClass = 'color: #dc2626; font-weight: 600;'; // Red for negative variance
+        bgColor = 'background: #fecaca; padding: 4px 8px; border-radius: 4px;';
+    }
+    
+    return `<span style="${colorClass} ${bgColor}">${variance.toFixed(2)}</span>`;
+}
+
 // Edit Mode Controller
 let editState = {
     isEditing: false,
@@ -2132,7 +2155,7 @@ function enableEditMode(platform) {
         // Add real-time validation and GP% calculation
         input.addEventListener('input', function() {
             validateInput(this, promoId, field);
-            if (field === 'converted_promo') {
+            if (field === 'converted_promo' || field === 'selling_price') {
                 updateGPPercentage(promoId);
             }
         });
@@ -2198,15 +2221,22 @@ function validateInput(input, promoId, field) {
 function updateGPPercentage(promoId) {
     const row = document.querySelector(`tr[data-promo-id="${promoId}"]`);
     const cPromoCell = row.querySelector('.editable-cell[data-field="converted_promo"]');
+    const sellingPriceCell = row.querySelector('.editable-cell[data-field="selling_price"]');
     const gpCell = row.querySelector('.gp-cell');
+    const varianceCell = row.querySelector('.variance-cell');
     const cCost = parseFloat(cPromoCell.dataset.cost) || 0;
     
-    // Get current C.Promo value from input
+    // Get current values from inputs
     const cPromoInput = cPromoCell.querySelector('input');
+    const sellingPriceInput = sellingPriceCell.querySelector('input');
     const cPromo = parseFloat(cPromoInput.value) || 0;
+    const sellingPrice = parseFloat(sellingPriceInput.value) || 0;
     
     // Update GP% display
     gpCell.innerHTML = renderGPPercentage(cPromo, cCost);
+    
+    // Update Variance display
+    varianceCell.innerHTML = renderVariance(sellingPrice, cPromo);
 }
 
 function saveChanges(platform) {
@@ -2361,10 +2391,9 @@ function displayFilteredPromotions(platform, promotions) {
                         <th>${createColumnHeader('promo_price', 'Promo')}</th>
                         <th>${createColumnHeader('converted_promo', 'C.Promo')}</th>
                         <th>${createColumnHeader('gp_percentage', 'GP%')}</th>
+                        <th>${createColumnHeader('variance', 'Var')}</th>
                         <th>${createColumnHeader('stock', 'Stock')}</th>
                         <th>${createColumnHeader('status', 'Status')}</th>
-                        <th>${createColumnHeader('start_date', 'Start')}</th>
-                        <th>${createColumnHeader('end_date', 'End')}</th>
                         <th>${createColumnHeader('days_remaining', 'Days')}</th>
                         <th style="width: 60px;">Action</th>
                     </tr>
@@ -2407,10 +2436,9 @@ function displayFilteredPromotions(platform, promotions) {
                     <td><strong style="color: #16a34a;">${promo.promo_price || '-'}</strong></td>
                     <td class="editable-cell" data-field="converted_promo" data-original="${promo.converted_promo || ''}" data-cost="${promo.converted_cost || 0}"><strong style="color: #0066CC;">${promo.converted_promo || '-'}</strong></td>
                     <td class="gp-cell">${renderGPPercentage(promo.converted_promo, promo.converted_cost)}</td>
+                    <td class="variance-cell">${renderVariance(promo.selling_price, promo.converted_promo)}</td>
                     <td>${promo.stock}</td>
                     <td>${statusBadge}</td>
-                    <td style="font-size: 11px;">${promo.start_date || '-'}</td>
-                    <td style="font-size: 11px;">${promo.end_date || '-'}</td>
                     <td><span class="badge ${daysBadge}">${promo.days_remaining}d</span></td>
                     <td>
                         <button class="btn-cancel-sm" onclick="cancelPromotion('${promo.id}', '${platform}')">
@@ -2501,6 +2529,10 @@ function loadActivePromotions(platform, page = 1) {
                 // Calculate GP% for each promotion
                 promotions.forEach(promo => {
                     promo.gp_percentage = calculateGP(promo.converted_promo, promo.converted_cost);
+                    // Calculate variance: Selling Price - C.Promo
+                    const selling = parseFloat(promo.selling_price) || 0;
+                    const cPromo = parseFloat(promo.converted_promo) || 0;
+                    promo.variance = selling - cPromo;
                 });
                 
                 allPromotions[platform] = promotions;
