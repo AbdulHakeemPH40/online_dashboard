@@ -325,58 +325,296 @@
     color: #166534; 
 }
 
-/* Pagination */
+/* Pagination - Enhanced Design */
 .pagination-container {
-    background: #f8fafc;
-    padding: 16px 20px;
-    border-top: 1px solid #e5e7eb;
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    padding: 20px 24px;
+    border-top: 1px solid #e2e8f0;
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 16px;
+    border-radius: 0 0 8px 8px;
+}
+
+.pagination-left {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
 }
 
 .pagination-info {
-    font-size: 13px;
-    color: #6b7280;
+    font-size: 14px;
+    color: #475569;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pagination-info::before {
+    content: "📄";
+    font-size: 16px;
+}
+
+.page-size-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .pagination-controls {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
+    background: white;
+    padding: 4px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e2e8f0;
 }
 
 .pagination-btn {
-    min-width: 36px;
-    height: 36px;
-    border: 1px solid #e5e7eb;
-    background: white;
-    border-radius: 6px;
+    min-width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
-    color: #374151;
+    font-weight: 600;
+    color: #64748b;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.pagination-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    border-radius: 8px;
 }
 
 .pagination-btn:hover:not(:disabled) {
-    background: #f3f4f6;
-    border-color: #3b82f6;
+    color: #1e40af;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+}
+
+.pagination-btn:hover:not(:disabled)::before {
+    opacity: 0.1;
 }
 
 .pagination-btn:disabled {
-    opacity: 0.4;
+    opacity: 0.3;
     cursor: not-allowed;
+    color: #94a3b8;
+}
+
+.pagination-btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
 }
 
 .pagination-btn.active {
-    background: #3b82f6;
-    border-color: #3b82f6;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
     color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    transform: translateY(-1px);
+}
+
+.pagination-btn.active::before {
+    opacity: 0;
+}
+
+.pagination-btn.active:hover {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+/* Navigation buttons (First, Prev, Next, Last) */
+.pagination-btn[title="First"],
+.pagination-btn[title="Previous"],
+.pagination-btn[title="Next"],
+.pagination-btn[title="Last"] {
+    font-size: 16px;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+.pagination-btn[title="First"]:hover:not(:disabled),
+.pagination-btn[title="Previous"]:hover:not(:disabled),
+.pagination-btn[title="Next"]:hover:not(:disabled),
+.pagination-btn[title="Last"]:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.2);
+    color: #4f46e5;
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* Page numbers container */
+.pagination-numbers {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin: 0 8px;
+}
+
+/* Pagination ellipsis */
+.pagination-ellipsis {
+    padding: 0 8px;
+    color: #94a3b8;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    user-select: none;
+}
+
+/* Enhanced pagination info */
+.pagination-info strong {
+    color: #1e40af;
+    font-weight: 600;
+}
+
+/* Loading animation for pagination */
+.pagination-loading {
+    opacity: 0.6;
+    pointer-events: none;
+    position: relative;
+}
+
+.pagination-loading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+}
+
+/* Smooth transitions for all pagination elements */
+.pagination-container * {
+    transition: all 0.3s ease;
+}
+
+/* Hover effects for better UX */
+.pagination-btn:not(:disabled):not(.active):hover {
+    background: rgba(59, 130, 246, 0.1);
+    color: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+/* Active state enhancements */
+.pagination-btn.active {
+    position: relative;
+    z-index: 1;
+}
+
+.pagination-btn.active::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: linear-gradient(45deg, #3b82f6, #8b5cf6, #06b6d4, #10b981);
+    border-radius: 10px;
+    z-index: -1;
+    opacity: 0.3;
+    animation: borderGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes borderGlow {
+    0% { opacity: 0.3; }
+    100% { opacity: 0.6; }
+}
+
+/* Responsive pagination */
+@media (max-width: 768px) {
+    .pagination-container {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+        padding: 16px;
+    }
+    
+    .pagination-left {
+        order: 2;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .pagination-info {
+        font-size: 13px;
+        text-align: center;
+    }
+    
+    .page-size-selector {
+        justify-content: center;
+    }
+    
+    .pagination-controls {
+        order: 1;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px;
+        padding: 6px;
+    }
+    
+    .pagination-btn {
+        min-width: 36px;
+        height: 36px;
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .pagination-left {
+        width: 100%;
+    }
+    
+    .pagination-info {
+        font-size: 12px;
+    }
+    
+    .page-size-selector {
+        font-size: 12px;
+    }
+    
+    .page-size-selector select {
+        font-size: 12px !important;
+        padding: 2px 6px !important;
+    }
+    
+    .pagination-numbers {
+        margin: 0 4px;
+    }
+    
+    .pagination-btn {
+        min-width: 32px;
+        height: 32px;
+        font-size: 12px;
+    }
 }
 
 /* Loading and Empty States */
@@ -599,15 +837,41 @@
                 </tbody>
             </table>
             
-            <!-- Pagination -->
+            <!-- Enhanced Pagination -->
             <div class="pagination-container" id="pagination-container" style="display: none;">
-                <div class="pagination-info" id="pagination-info">Showing 1-50 of 0</div>
+                <div class="pagination-left">
+                    <div class="pagination-info" id="pagination-info">Showing 1-50 of 0 entries</div>
+                    <div class="page-size-selector" style="margin-left: 16px;">
+                        <label for="page-size-select" style="font-size: 13px; color: #64748b; margin-right: 8px;">Show:</label>
+                        <select id="page-size-select" onchange="changePageSize()" style="
+                            padding: 4px 8px; 
+                            border: 1px solid #d1d5db; 
+                            border-radius: 6px; 
+                            font-size: 13px; 
+                            background: white;
+                            cursor: pointer;
+                        ">
+                            <option value="25">25</option>
+                            <option value="50" selected>50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span style="font-size: 13px; color: #64748b; margin-left: 8px;">per page</span>
+                    </div>
+                </div>
                 <div class="pagination-controls">
-                    <button class="pagination-btn" onclick="goToPage(1)" id="first-btn" title="First">«</button>
-                    <button class="pagination-btn" onclick="changePage(-1)" id="prev-btn" title="Previous">‹</button>
+                    <button class="pagination-btn" onclick="goToPage(1)" id="first-btn" title="First Page">
+                        <span>⏮</span>
+                    </button>
+                    <button class="pagination-btn" onclick="changePage(-1)" id="prev-btn" title="Previous Page">
+                        <span>◀</span>
+                    </button>
                     <div class="pagination-numbers" id="page-numbers"></div>
-                    <button class="pagination-btn" onclick="changePage(1)" id="next-btn" title="Next">›</button>
-                    <button class="pagination-btn" onclick="goToPage(totalPages)" id="last-btn" title="Last">»</button>
+                    <button class="pagination-btn" onclick="changePage(1)" id="next-btn" title="Next Page">
+                        <span>▶</span>
+                    </button>
+                    <button class="pagination-btn" onclick="goToPage(totalPages)" id="last-btn" title="Last Page">
+                        <span>⏭</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -848,9 +1112,16 @@ function updatePagination(pagination) {
     
     document.getElementById('pagination-container').style.display = 'flex';
     
-    // Update info
-    document.getElementById('pagination-info').textContent = 
-        `Showing ${pagination.start_index}-${pagination.end_index} of ${pagination.total_count.toLocaleString()} entries`;
+    // Update info with enhanced formatting
+    const totalCount = pagination.total_count.toLocaleString();
+    const startIndex = pagination.start_index.toLocaleString();
+    const endIndex = pagination.end_index.toLocaleString();
+    const currentPageNum = pagination.current_page;
+    const totalPagesNum = pagination.total_pages;
+    
+    document.getElementById('pagination-info').innerHTML = 
+        `Showing <strong>${startIndex}-${endIndex}</strong> of <strong>${totalCount}</strong> entries 
+         <span style="color: #94a3b8; margin-left: 8px;">(Page ${currentPageNum} of ${totalPagesNum})</span>`;
     
     // Update buttons
     document.getElementById('first-btn').disabled = !pagination.has_prev;
@@ -864,20 +1135,80 @@ function updatePagination(pagination) {
     renderPageNumbers(pagination.current_page, pagination.total_pages);
 }
 
-// Render page numbers
+// Enhanced page numbers rendering with ellipsis
 function renderPageNumbers(currentPage, totalPages) {
     const container = document.getElementById('page-numbers');
     container.innerHTML = '';
     
-    let startPage = Math.max(1, currentPage - 2);
-    let endPage = Math.min(totalPages, startPage + 4);
-    if (endPage - startPage < 4) startPage = Math.max(1, endPage - 4);
+    if (totalPages <= 1) return;
     
+    // Always show first page
+    if (currentPage > 3) {
+        const btn = document.createElement('button');
+        btn.textContent = '1';
+        btn.className = 'pagination-btn';
+        btn.onclick = () => goToPage(1);
+        container.appendChild(btn);
+        
+        // Add ellipsis if there's a gap
+        if (currentPage > 4) {
+            const ellipsis = document.createElement('span');
+            ellipsis.textContent = '...';
+            ellipsis.className = 'pagination-ellipsis';
+            ellipsis.style.cssText = 'padding: 0 8px; color: #94a3b8; font-weight: 500; display: flex; align-items: center;';
+            container.appendChild(ellipsis);
+        }
+    }
+    
+    // Calculate visible page range
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, currentPage + 2);
+    
+    // Adjust range to show 5 pages when possible
+    if (endPage - startPage < 4) {
+        if (startPage === 1) {
+            endPage = Math.min(totalPages, startPage + 4);
+        } else if (endPage === totalPages) {
+            startPage = Math.max(1, endPage - 4);
+        }
+    }
+    
+    // Render page numbers in range
     for (let i = startPage; i <= endPage; i++) {
+        // Skip if already rendered (first page)
+        if (i === 1 && currentPage > 3) continue;
+        
         const btn = document.createElement('button');
         btn.textContent = i;
         btn.className = 'pagination-btn' + (i === currentPage ? ' active' : '');
         btn.onclick = () => goToPage(i);
+        
+        // Add tooltip for current page
+        if (i === currentPage) {
+            btn.title = `Current page: ${i}`;
+        } else {
+            btn.title = `Go to page ${i}`;
+        }
+        
+        container.appendChild(btn);
+    }
+    
+    // Always show last page
+    if (currentPage < totalPages - 2) {
+        // Add ellipsis if there's a gap
+        if (currentPage < totalPages - 3) {
+            const ellipsis = document.createElement('span');
+            ellipsis.textContent = '...';
+            ellipsis.className = 'pagination-ellipsis';
+            ellipsis.style.cssText = 'padding: 0 8px; color: #94a3b8; font-weight: 500; display: flex; align-items: center;';
+            container.appendChild(ellipsis);
+        }
+        
+        const btn = document.createElement('button');
+        btn.textContent = totalPages;
+        btn.className = 'pagination-btn';
+        btn.onclick = () => goToPage(totalPages);
+        btn.title = `Go to last page: ${totalPages}`;
         container.appendChild(btn);
     }
 }
@@ -894,6 +1225,86 @@ function goToPage(page) {
     if (page >= 1 && page <= totalPages) {
         loadCostFinderData(page);
     }
+}
+
+// Handle page size changes
+function changePageSize() {
+    const pageSize = document.getElementById('page-size-select').value;
+    // Update the API call to use new page size and reset to page 1
+    currentPage = 1;
+    loadCostFinderDataWithPageSize(pageSize);
+}
+
+// Enhanced load function with page size support
+function loadCostFinderDataWithPageSize(pageSize = 50, page = 1) {
+    const platform = document.getElementById('platform-filter').value;
+    const outlet = document.getElementById('outlet-filter').value;
+    const gpThreshold = document.getElementById('gp-threshold').value || '0';
+    
+    // Validation
+    if (!platform) {
+        showModal({
+            title: 'Platform Required',
+            message: 'Please select a platform (Pasons or Talabat).',
+            type: 'warning',
+            okText: 'OK'
+        });
+        return;
+    }
+    
+    if (!outlet) {
+        showModal({
+            title: 'Outlet Required',
+            message: 'Please select an outlet for platform-isolated cost analysis.',
+            type: 'warning',
+            okText: 'OK'
+        });
+        return;
+    }
+    
+    // Store current filters
+    currentFilters = { platform, outlet, gpThreshold };
+    currentPage = page;
+    
+    // Show loading state
+    document.getElementById('loading-state').style.display = 'block';
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('data-table').style.display = 'none';
+    document.getElementById('pagination-container').style.display = 'none';
+    document.getElementById('summary-section').style.display = 'none';
+    document.getElementById('export-csv-btn').style.display = 'none';
+    document.getElementById('export-excel-btn').style.display = 'none';
+    
+    // Build API URL with page size
+    let apiUrl = `/integration/api/cost-finder-data/?platform=${platform}&outlet=${outlet}&gp_threshold=${gpThreshold}&page=${page}&per_page=${pageSize}`;
+    
+    console.log('API URL:', apiUrl);
+    
+    // Fetch data
+    fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loading-state').style.display = 'none';
+            
+            if (data.success) {
+                currentData = data;
+                displayData(data);
+                displaySummary(data.summary);
+                updatePagination(data.pagination);
+                
+                // Show export buttons and summary
+                document.getElementById('export-csv-btn').style.display = 'inline-flex';
+                document.getElementById('export-excel-btn').style.display = 'inline-flex';
+                document.getElementById('summary-section').style.display = 'grid';
+            } else {
+                showError(data.message || 'Failed to load data');
+            }
+        })
+        .catch(error => {
+            document.getElementById('loading-state').style.display = 'none';
+            console.error('Error loading data:', error);
+            showError('Network error occurred. Please try again.');
+        });
 }
 
 // Table search functionality

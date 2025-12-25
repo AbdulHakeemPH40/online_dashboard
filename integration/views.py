@@ -5443,17 +5443,22 @@ def cost_finder_data_api(request):
         ).select_related('item', 'outlet')
         
         # Calculate GP percentage using database expressions
-        # GP% = (selling_price - cost) * 100 / selling_price
-        # Use item.converted_cost if available, otherwise outlet_cost
+        # GP% = (selling_price - converted_cost) * 100 / selling_price
+        # Calculate converted_cost from outlet_cost based on wrap type
         queryset = queryset.annotate(
+            converted_cost_calculated=Case(
+                When(
+                    item__wrap='9900',
+                    item__weight_division_factor__isnull=False,
+                    item__weight_division_factor__gt=0,
+                    then=F('outlet_cost') / F('item__weight_division_factor')
+                ),
+                default=F('outlet_cost'),
+                output_field=DecimalField(max_digits=10, decimal_places=2)
+            ),
             gp_percentage=Case(
                 When(outlet_selling_price__gt=0, then=(
-                    (F('outlet_selling_price') - 
-                     Case(
-                         When(item__converted_cost__isnull=False, then=F('item__converted_cost')),
-                         default=F('outlet_cost'),
-                         output_field=DecimalField(max_digits=10, decimal_places=2)
-                     )) * 100 / F('outlet_selling_price')
+                    (F('outlet_selling_price') - F('converted_cost_calculated')) * 100 / F('outlet_selling_price')
                 )),
                 default=Decimal('0'),
                 output_field=DecimalField(max_digits=10, decimal_places=2)
@@ -5489,13 +5494,24 @@ def cost_finder_data_api(request):
         
         for idx, item_outlet in enumerate(page_items, start_idx + 1):
             item = item_outlet.item
+            
+            # Get stored prices (already correct for this item_code, units, sku combination)
             selling_price = item_outlet.outlet_selling_price or Decimal('0')
+            mrp = item_outlet.outlet_mrp or item.mrp or Decimal('0')
             outlet_cost = item_outlet.outlet_cost or Decimal('0')
             
-            # Use converted_cost if available, otherwise use outlet_cost
-            converted_cost = item.converted_cost if item.converted_cost else outlet_cost
+            # Calculate proper converted_cost using existing business logic only
+            from .utils import calculate_item_converted_cost
+            try:
+                if outlet_cost > 0:
+                    converted_cost = calculate_item_converted_cost(item, outlet_cost)
+                else:
+                    converted_cost = Decimal('0')
+            except (ValueError, TypeError):
+                # Fallback to stored converted_cost or outlet_cost
+                converted_cost = item.converted_cost if item.converted_cost else outlet_cost
             
-            # Calculate GP
+            # Calculate GP using stored prices (no unit conversion needed)
             if selling_price > 0:
                 gp_amount = selling_price - converted_cost
                 gp_percentage = (gp_amount * 100) / selling_price
@@ -5514,7 +5530,7 @@ def cost_finder_data_api(request):
                 item.units or '-',
                 item.description[:50] + '...' if len(item.description) > 50 else item.description,
                 item.sku or '-',
-                f"AED {float(item_outlet.outlet_mrp or item.mrp):.2f}",
+                f"AED {float(mrp):.2f}",
                 f"AED {float(selling_price):.2f}",
                 f"AED {float(outlet_cost):.2f}",
                 f"AED {float(converted_cost):.2f}",
@@ -5676,16 +5692,34 @@ def export_cost_finder_api(request):
             
             for item_outlet in queryset:
                 item = item_outlet.item
-                selling_price = item_outlet.outlet_selling_price or Decimal('0')
+                
+                # Get base prices
+                base_selling_price = item_outlet.outlet_selling_price or Decimal('0')
+                base_mrp = item_outlet.outlet_mrp or item.mrp or Decimal('0')
                 outlet_cost = item_outlet.outlet_cost or Decimal('0')
                 
-                # Use converted_cost if available, otherwise use outlet_cost
-                converted_cost = item.converted_cost if item.converted_cost else outlet_cost
+                # Calculate proper converted_cost using business logic
+                from .utils import calculate_item_converted_cost
+                try:
+                    if outlet_cost > 0:
+                        calculated_converted_cost = calculate_item_converted_cost(item, outlet_cost)
+                    else:
+                        calculated_converted_cost = Decimal('0')
+                except (ValueError, TypeError):
+                    # Fallback to stored converted_cost or outlet_cost
+                    calculated_converted_cost = item.converted_cost if item.converted_cost else outlet_cost
                 
-                # Calculate values
-                if selling_price > 0:
-                    gp_amount = selling_price - converted_cost
-                    gp_percentage = (gp_amount * 100) / selling_price
+                # Use stored database values directly - no unit conversion needed
+                # Database already contains correct prices for each (item_code, units, sku) combination
+                display_selling_price = base_selling_price
+                display_mrp = base_mrp
+                display_cost = outlet_cost
+                display_converted_cost = calculated_converted_cost
+                
+                # Calculate GP using stored database values and proper converted cost
+                if display_selling_price > 0:
+                    gp_amount = display_selling_price - display_converted_cost
+                    gp_percentage = (gp_amount * 100) / display_selling_price
                 else:
                     gp_amount = Decimal('0')
                     gp_percentage = Decimal('0')
@@ -5695,10 +5729,10 @@ def export_cost_finder_api(request):
                 ws.cell(row=row_num, column=2, value=item.units or '')
                 ws.cell(row=row_num, column=3, value=item.description)
                 ws.cell(row=row_num, column=4, value=item.sku or '')
-                ws.cell(row=row_num, column=5, value=f"AED {float(item_outlet.outlet_mrp or item.mrp):.2f}")
-                ws.cell(row=row_num, column=6, value=f"AED {float(selling_price):.2f}")
-                ws.cell(row=row_num, column=7, value=f"AED {float(outlet_cost):.2f}")
-                ws.cell(row=row_num, column=8, value=f"AED {float(converted_cost):.2f}")
+                ws.cell(row=row_num, column=5, value=f"AED {float(display_mrp):.2f}")
+                ws.cell(row=row_num, column=6, value=f"AED {float(display_selling_price):.2f}")
+                ws.cell(row=row_num, column=7, value=f"AED {float(display_cost):.2f}")
+                ws.cell(row=row_num, column=8, value=f"AED {float(display_converted_cost):.2f}")
                 ws.cell(row=row_num, column=9, value=f"{float(gp_percentage):.2f}%")
                 
                 # Color code negative GP%
@@ -5741,16 +5775,34 @@ def export_cost_finder_api(request):
             # Data
             for item_outlet in queryset:
                 item = item_outlet.item
-                selling_price = item_outlet.outlet_selling_price or Decimal('0')
+                
+                # Get base prices
+                base_selling_price = item_outlet.outlet_selling_price or Decimal('0')
+                base_mrp = item_outlet.outlet_mrp or item.mrp or Decimal('0')
                 outlet_cost = item_outlet.outlet_cost or Decimal('0')
                 
-                # Use converted_cost if available, otherwise use outlet_cost
-                converted_cost = item.converted_cost if item.converted_cost else outlet_cost
+                # Calculate proper converted_cost using business logic
+                from .utils import calculate_item_converted_cost
+                try:
+                    if outlet_cost > 0:
+                        calculated_converted_cost = calculate_item_converted_cost(item, outlet_cost)
+                    else:
+                        calculated_converted_cost = Decimal('0')
+                except (ValueError, TypeError):
+                    # Fallback to stored converted_cost or outlet_cost
+                    calculated_converted_cost = item.converted_cost if item.converted_cost else outlet_cost
                 
-                # Calculate values
-                if selling_price > 0:
-                    gp_amount = selling_price - converted_cost
-                    gp_percentage = (gp_amount * 100) / selling_price
+                # Use stored database values directly - no unit conversion needed
+                # Database already contains correct prices for each (item_code, units, sku) combination
+                display_selling_price = base_selling_price
+                display_mrp = base_mrp
+                display_cost = outlet_cost
+                display_converted_cost = calculated_converted_cost
+                
+                # Calculate GP using stored database values and proper converted cost
+                if display_selling_price > 0:
+                    gp_amount = display_selling_price - display_converted_cost
+                    gp_percentage = (gp_amount * 100) / display_selling_price
                 else:
                     gp_amount = Decimal('0')
                     gp_percentage = Decimal('0')
@@ -5760,10 +5812,10 @@ def export_cost_finder_api(request):
                     item.units or '',
                     item.description,
                     item.sku or '',
-                    f"AED {float(item_outlet.outlet_mrp or item.mrp):.2f}",
-                    f"AED {float(selling_price):.2f}",
-                    f"AED {float(outlet_cost):.2f}",
-                    f"AED {float(converted_cost):.2f}",
+                    f"AED {float(display_mrp):.2f}",
+                    f"AED {float(display_selling_price):.2f}",
+                    f"AED {float(display_cost):.2f}",
+                    f"AED {float(display_converted_cost):.2f}",
                     f"{float(gp_percentage):.2f}%"
                 ])
             
