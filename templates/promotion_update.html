@@ -3,6 +3,12 @@
 
 {% block title %}Promotion Integration{% endblock %}
 
+{% block extra_head %}
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+{% endblock %}
+
 {% block content %}
 <style>
 /* Tab Container */
@@ -333,12 +339,391 @@
 
 .promo-table thead th {
     background: linear-gradient(135deg, #f8fafc, #f1f5f9);
-    padding: 12px 16px;
+    padding: 8px 12px;
     text-align: left;
     font-weight: 600;
     color: #475569;
     border-bottom: 2px solid #e2e8f0;
     white-space: nowrap;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* Column Header with Filter */
+.column-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 24px;
+}
+
+.column-title {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* Special styling for Item Code column */
+.column-header[data-column="item_code"] .column-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.column-header[data-column="item_code"] .filter-icon {
+    font-size: 17px;
+    color: #0066CC;
+}
+
+.column-header[data-column="item_code"] .filter-icon:hover {
+    color: #0052A3;
+    background: rgba(0, 102, 204, 0.2);
+}
+
+.column-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Sort Icons */
+.sort-icon {
+    font-size: 14px;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.sort-icon:hover {
+    color: #475569;
+}
+
+.sort-icon.active {
+    color: #0066CC;
+}
+
+/* Filter Icon */
+.filter-icon {
+    font-size: 16px;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.filter-icon:hover {
+    color: #475569;
+    background: rgba(0, 102, 204, 0.1);
+}
+
+.filter-icon.active {
+    color: #0066CC;
+    background: rgba(0, 102, 204, 0.15);
+}
+
+.filter-icon.has-filter {
+    color: #ea580c;
+    background: rgba(234, 88, 12, 0.15);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Filter Dropdown */
+.filter-dropdown {
+    position: absolute;
+    top: 100%;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    width: 280px;
+    display: none;
+}
+
+/* Position dropdown based on column position */
+.filter-dropdown.dropdown-left {
+    left: 0;
+    right: auto;
+}
+
+.filter-dropdown.dropdown-right {
+    right: 0;
+    left: auto;
+}
+
+.filter-dropdown.dropdown-center {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.filter-dropdown.show {
+    display: block;
+    animation: filterDropdownShow 0.2s ease;
+}
+
+@keyframes filterDropdownShow {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.filter-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-radius: 12px 12px 0 0;
+}
+
+.filter-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.filter-content {
+    padding: 16px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+/* Text Filter */
+.filter-search {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 16px;
+    transition: border-color 0.2s;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.filter-search:focus {
+    outline: none;
+    border-color: #0066CC;
+    box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+.filter-search::placeholder {
+    color: #9ca3af;
+    font-style: italic;
+}
+
+/* Filter Options */
+.filter-options {
+    max-height: 240px;
+    overflow-y: auto;
+    padding: 4px 0;
+}
+
+/* Custom scrollbar for filter options */
+.filter-options::-webkit-scrollbar {
+    width: 6px;
+}
+
+.filter-options::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.filter-options::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.filter-options::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.filter-option {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-radius: 6px;
+    margin: 1px 8px;
+}
+
+.filter-option:hover {
+    background: #f8fafc;
+}
+
+.filter-option input[type="checkbox"] {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.filter-option-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    flex: 1;
+    cursor: pointer;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.filter-option-count {
+    font-size: 12px;
+    color: #6b7280;
+    background: #f1f5f9;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: 600;
+    min-width: 24px;
+    text-align: center;
+}
+
+/* Range Filter */
+.range-filter {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.range-input {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.range-input:focus {
+    outline: none;
+    border-color: #0066CC;
+}
+
+.range-separator {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+/* Date Filter */
+.date-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.date-input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.date-input:focus {
+    outline: none;
+    border-color: #0066CC;
+}
+
+/* Filter Actions */
+.filter-actions {
+    padding: 16px 20px;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    background: #fafbfc;
+    border-radius: 0 0 12px 12px;
+}
+
+.btn-filter-apply {
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #0066CC, #0052A3);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex: 1;
+}
+
+.btn-filter-clear {
+    padding: 10px 20px;
+    background: #f1f5f9;
+    color: #64748b;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex: 1;
+}
+
+.btn-filter-apply:hover {
+    background: #0052A3;
+}
+
+.btn-filter-clear:hover {
+    background: #e2e8f0;
+}
+
+/* Filter Summary */
+.filter-summary {
+    padding: 8px 16px;
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    color: #0369a1;
+}
+
+.filter-summary-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 12px;
+    margin-bottom: 4px;
+}
+
+.filter-summary-remove {
+    cursor: pointer;
+    color: #dc2626;
+    font-weight: bold;
+}
+
+.filter-summary-remove:hover {
+    color: #b91c1c;
+}
+
+/* Clear All Filters Button */
+.btn-clear-all-filters {
+    padding: 6px 12px;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-clear-all-filters:hover {
+    background: #fde68a;
+    border-color: #f59e0b;
 }
 
 .promo-table tbody td {
@@ -579,6 +964,91 @@
     z-index: 10000;
     justify-content: center;
     align-items: center;
+}
+
+/* Edit Mode Styles */
+.editable-cell.editing {
+    background: #f0fdf4;
+    border: 1px solid #10b981;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.edit-input {
+    width: 80px;
+    padding: 4px 8px;
+    border: 2px solid #e2e8f0;
+    border-radius: 4px;
+    font-size: 12px;
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.edit-input:focus {
+    outline: none;
+    border-color: #0066CC;
+    box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.1);
+}
+
+.edit-input.valid {
+    border-color: #10b981;
+    background-color: #f0fdf4;
+}
+
+.edit-input.invalid {
+    border-color: #ef4444;
+    background-color: #fef2f2;
+}
+
+/* Button Styles for Edit Mode */
+.btn-edit, .btn-save, .btn-cancel-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-right: 8px;
+}
+
+.btn-edit {
+    background: linear-gradient(135deg, #0066CC, #0052A3);
+    color: white;
+}
+
+.btn-edit:hover {
+    background: linear-gradient(135deg, #0052A3, #003d82);
+    transform: translateY(-1px);
+}
+
+.btn-save {
+    background: linear-gradient(135deg, #16a34a, #15803d);
+    color: white;
+}
+
+.btn-save:hover {
+    background: linear-gradient(135deg, #15803d, #166534);
+    transform: translateY(-1px);
+}
+
+.btn-cancel-edit {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+    color: white;
+}
+
+.btn-cancel-edit:hover {
+    background: linear-gradient(135deg, #b91c1c, #991b1b);
+    transform: translateY(-1px);
+}
+
+.btn-save:disabled, .btn-cancel-edit:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+    transform: none;
 }
 
 /* Search Input Styles */
@@ -956,6 +1426,9 @@
 
 {% block extra_js %}
 <script>
+// Force browser to reload JavaScript - Cache buster
+console.log('Promotion Integration JS loaded at:', new Date().toISOString());
+
 let currentPlatform = 'pasons';
 
 // Custom Alert Function
@@ -1019,25 +1492,6 @@ function confirmCancel() {
     confirmCallback = null;
 }
 
-// Tab switching
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        const platform = this.dataset.platform;
-        
-        // Update active tab
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        
-        // Update content
-        document.querySelectorAll('.content-section').forEach(section => {
-            section.classList.remove('active');
-        });
-        document.getElementById(`${platform}-content`).classList.add('active');
-        
-        currentPlatform = platform;
-    });
-});
-
 // Load outlets for both platforms
 function loadOutlets(platform) {
     fetch(`/integration/api/outlets-by-platform/?platform=${platform}`)
@@ -1075,6 +1529,455 @@ let currentPage = { pasons: 1, talabat: 1 };
 let selectedPromotions = { pasons: [], talabat: [] };
 let searchQueries = { pasons: '', talabat: '' };
 let allPromotions = { pasons: [], talabat: [] }; // Store all promotions for search
+let filteredPromotions = { pasons: [], talabat: [] }; // Store filtered promotions
+let activeFilters = { pasons: {}, talabat: {} }; // Store active filters
+let sortState = { pasons: {}, talabat: {} }; // Store sort state
+
+// Column definitions for filtering
+const columnDefinitions = {
+    item_code: { type: 'text', title: 'Item Code' },
+    units: { type: 'text', title: 'Units' },
+    sku: { type: 'text', title: 'SKU' },
+    selling_price: { type: 'number', title: 'Selling' },
+    converted_cost: { type: 'number', title: 'C.Cost' },
+    promo_price: { type: 'number', title: 'Promo' },
+    converted_promo: { type: 'number', title: 'C.Promo' },
+    gp_percentage: { type: 'number', title: 'GP%' },
+    stock: { type: 'number', title: 'Stock' },
+    status: { type: 'select', title: 'Status', options: ['Active', 'Disabled'] },
+    start_date: { type: 'date', title: 'Start' },
+    end_date: { type: 'date', title: 'End' },
+    days_remaining: { type: 'number', title: 'Days' }
+};
+
+// Excel-like filtering and sorting functions
+function createColumnHeader(columnKey, title) {
+    try {
+        return `
+            <div class="column-header" data-column="${columnKey}">
+                <span class="column-title">${title}</span>
+                <div class="column-controls">
+                    <i class="bx bx-up-arrow-alt sort-icon" data-column="${columnKey}" data-direction="asc" onclick="sortColumn('${columnKey}', 'asc')" title="Sort Ascending"></i>
+                    <i class="bx bx-down-arrow-alt sort-icon" data-column="${columnKey}" data-direction="desc" onclick="sortColumn('${columnKey}', 'desc')" title="Sort Descending"></i>
+                    <i class="bx bx-filter-alt filter-icon" data-column="${columnKey}" onclick="toggleFilter('${columnKey}')" title="Filter ${title}"></i>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error in createColumnHeader:', error);
+        return `<span>${title}</span>`;
+    }
+}
+
+// Sort column function
+function sortColumn(columnKey, direction) {
+    const platform = currentPlatform;
+    
+    // Update sort state
+    sortState[platform] = { column: columnKey, direction: direction };
+    
+    // Update sort icons
+    document.querySelectorAll('.sort-icon').forEach(icon => {
+        icon.classList.remove('active');
+    });
+    document.querySelector(`.sort-icon[data-column="${columnKey}"][data-direction="${direction}"]`).classList.add('active');
+    
+    // Sort the filtered promotions
+    const promotions = [...filteredPromotions[platform]];
+    
+    promotions.sort((a, b) => {
+        let aVal = a[columnKey];
+        let bVal = b[columnKey];
+        
+        // Handle different data types
+        if (columnDefinitions[columnKey].type === 'number') {
+            aVal = parseFloat(aVal) || 0;
+            bVal = parseFloat(bVal) || 0;
+        } else if (columnDefinitions[columnKey].type === 'date') {
+            aVal = new Date(aVal || '1900-01-01');
+            bVal = new Date(bVal || '1900-01-01');
+        } else {
+            aVal = String(aVal || '').toLowerCase();
+            bVal = String(bVal || '').toLowerCase();
+        }
+        
+        if (direction === 'asc') {
+            return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+        } else {
+            return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+        }
+    });
+    
+    displayFilteredPromotions(platform, promotions);
+}
+
+// Toggle filter dropdown
+function toggleFilter(columnKey) {
+    const platform = currentPlatform;
+    
+    // Close any open filter dropdowns
+    document.querySelectorAll('.filter-dropdown').forEach(dropdown => {
+        dropdown.classList.remove('show');
+    });
+    
+    // Create and show filter dropdown
+    const filterIcon = document.querySelector(`.filter-icon[data-column="${columnKey}"]`);
+    const existingDropdown = filterIcon.parentElement.querySelector('.filter-dropdown');
+    
+    if (existingDropdown) {
+        existingDropdown.remove();
+        return;
+    }
+    
+    const dropdown = createFilterDropdown(columnKey, platform);
+    
+    // Smart positioning based on column position
+    const columnHeaders = Array.from(document.querySelectorAll('.column-header'));
+    const currentColumnIndex = columnHeaders.findIndex(header => 
+        header.getAttribute('data-column') === columnKey
+    );
+    
+    // Position dropdown intelligently
+    if (currentColumnIndex <= 2) {
+        // First 3 columns: position to the left
+        dropdown.classList.add('dropdown-left');
+    } else if (currentColumnIndex >= columnHeaders.length - 2) {
+        // Last 2 columns: position to the right
+        dropdown.classList.add('dropdown-right');
+    } else {
+        // Middle columns: center position
+        dropdown.classList.add('dropdown-center');
+    }
+    
+    filterIcon.parentElement.appendChild(dropdown);
+    
+    // Position and show dropdown
+    setTimeout(() => {
+        dropdown.classList.add('show');
+    }, 10);
+    
+    // Close dropdown when clicking outside
+    setTimeout(() => {
+        document.addEventListener('click', function closeDropdown(e) {
+            if (!dropdown.contains(e.target) && !filterIcon.contains(e.target)) {
+                dropdown.classList.remove('show');
+                setTimeout(() => dropdown.remove(), 200);
+                document.removeEventListener('click', closeDropdown);
+            }
+        });
+    }, 100);
+}
+
+// Create filter dropdown based on column type
+function createFilterDropdown(columnKey, platform) {
+    const columnDef = columnDefinitions[columnKey];
+    const dropdown = document.createElement('div');
+    dropdown.className = 'filter-dropdown';
+    
+    let content = `
+        <div class="filter-header">
+            <h4 class="filter-title">Filter ${columnDef.title}</h4>
+        </div>
+        <div class="filter-content">
+    `;
+    
+    if (columnDef.type === 'text' || columnDef.type === 'select') {
+        content += createTextSelectFilter(columnKey, platform, columnDef);
+    } else if (columnDef.type === 'number') {
+        content += createNumberFilter(columnKey, platform);
+    } else if (columnDef.type === 'date') {
+        content += createDateFilter(columnKey, platform);
+    }
+    
+    content += `
+        </div>
+        <div class="filter-actions">
+            <button class="btn-filter-clear" onclick="clearColumnFilter('${columnKey}')">Clear</button>
+            <button class="btn-filter-apply" onclick="applyColumnFilter('${columnKey}')">Apply</button>
+        </div>
+    `;
+    
+    dropdown.innerHTML = content;
+    return dropdown;
+}
+
+// Create text/select filter
+function createTextSelectFilter(columnKey, platform, columnDef) {
+    const values = [...new Set(allPromotions[platform].map(p => {
+        let val = p[columnKey];
+        if (columnKey === 'status') {
+            val = p.is_active ? 'Active' : 'Disabled';
+        }
+        return val || 'Empty';
+    }))].sort();
+    
+    const currentFilter = activeFilters[platform][columnKey] || [];
+    
+    // Custom placeholder text for different columns
+    let placeholderText = `Search ${columnDef.title}...`;
+    if (columnKey === 'item_code') {
+        placeholderText = 'Type item code (e.g., 9900127, 100456)...';
+    } else if (columnKey === 'sku') {
+        placeholderText = 'Type SKU (e.g., 9900127250)...';
+    } else if (columnKey === 'units') {
+        placeholderText = 'Type units (KGS, PCS, etc.)...';
+    }
+    
+    let html = `
+        <input type="text" class="filter-search" placeholder="${placeholderText}" 
+               onkeyup="filterOptions('${columnKey}')" id="filter-search-${columnKey}">
+        <div class="filter-options" id="filter-options-${columnKey}">
+    `;
+    
+    values.forEach(value => {
+        const count = allPromotions[platform].filter(p => {
+            let val = p[columnKey];
+            if (columnKey === 'status') {
+                val = p.is_active ? 'Active' : 'Disabled';
+            }
+            return (val || 'Empty') === value;
+        }).length;
+        
+        const checked = currentFilter.includes(value) ? 'checked' : '';
+        
+        html += `
+            <div class="filter-option">
+                <input type="checkbox" id="filter-${columnKey}-${value}" value="${value}" ${checked}>
+                <label class="filter-option-label" for="filter-${columnKey}-${value}">${value}</label>
+                <span class="filter-option-count">${count}</span>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    return html;
+}
+
+// Create number filter
+function createNumberFilter(columnKey, platform) {
+    const values = allPromotions[platform]
+        .map(p => parseFloat(p[columnKey]) || 0)
+        .filter(v => v > 0);
+    
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    
+    const currentFilter = activeFilters[platform][columnKey] || {};
+    
+    return `
+        <div class="range-filter">
+            <input type="number" class="range-input" placeholder="Min" 
+                   id="filter-${columnKey}-min" value="${currentFilter.min || ''}" 
+                   min="${min}" max="${max}" step="0.01">
+            <span class="range-separator">to</span>
+            <input type="number" class="range-input" placeholder="Max" 
+                   id="filter-${columnKey}-max" value="${currentFilter.max || ''}" 
+                   min="${min}" max="${max}" step="0.01">
+        </div>
+        <div style="font-size: 11px; color: #94a3b8; margin-top: 8px;">
+            Range: ${min.toFixed(2)} - ${max.toFixed(2)}
+        </div>
+    `;
+}
+
+// Create date filter
+function createDateFilter(columnKey, platform) {
+    const currentFilter = activeFilters[platform][columnKey] || {};
+    
+    return `
+        <div class="date-filter">
+            <label style="font-size: 12px; color: #64748b; margin-bottom: 4px;">From Date:</label>
+            <input type="date" class="date-input" id="filter-${columnKey}-from" value="${currentFilter.from || ''}">
+            <label style="font-size: 12px; color: #64748b; margin-bottom: 4px; margin-top: 8px;">To Date:</label>
+            <input type="date" class="date-input" id="filter-${columnKey}-to" value="${currentFilter.to || ''}">
+        </div>
+    `;
+}
+
+// Filter options in text filter
+function filterOptions(columnKey) {
+    const searchTerm = document.getElementById(`filter-search-${columnKey}`).value.toLowerCase();
+    const options = document.querySelectorAll(`#filter-options-${columnKey} .filter-option`);
+    
+    options.forEach(option => {
+        const label = option.querySelector('.filter-option-label').textContent.toLowerCase();
+        option.style.display = label.includes(searchTerm) ? 'flex' : 'none';
+    });
+}
+
+// Apply column filter
+function applyColumnFilter(columnKey) {
+    const platform = currentPlatform;
+    const columnDef = columnDefinitions[columnKey];
+    
+    let filterValue = null;
+    
+    if (columnDef.type === 'text' || columnDef.type === 'select') {
+        const checkboxes = document.querySelectorAll(`input[type="checkbox"][id^="filter-${columnKey}-"]:checked`);
+        filterValue = Array.from(checkboxes).map(cb => cb.value);
+        if (filterValue.length === 0) filterValue = null;
+    } else if (columnDef.type === 'number') {
+        const min = document.getElementById(`filter-${columnKey}-min`).value;
+        const max = document.getElementById(`filter-${columnKey}-max`).value;
+        if (min || max) {
+            filterValue = { min: min ? parseFloat(min) : null, max: max ? parseFloat(max) : null };
+        }
+    } else if (columnDef.type === 'date') {
+        const from = document.getElementById(`filter-${columnKey}-from`).value;
+        const to = document.getElementById(`filter-${columnKey}-to`).value;
+        if (from || to) {
+            filterValue = { from: from || null, to: to || null };
+        }
+    }
+    
+    // Update active filters
+    if (filterValue) {
+        activeFilters[platform][columnKey] = filterValue;
+    } else {
+        delete activeFilters[platform][columnKey];
+    }
+    
+    // Update filter icon
+    const filterIcon = document.querySelector(`.filter-icon[data-column="${columnKey}"]`);
+    if (filterValue) {
+        filterIcon.classList.add('has-filter');
+    } else {
+        filterIcon.classList.remove('has-filter');
+    }
+    
+    // Apply all filters
+    applyAllFilters(platform);
+    
+    // Close dropdown
+    document.querySelector('.filter-dropdown.show').classList.remove('show');
+}
+
+// Clear column filter
+function clearColumnFilter(columnKey) {
+    const platform = currentPlatform;
+    
+    // Remove from active filters
+    delete activeFilters[platform][columnKey];
+    
+    // Update filter icon
+    const filterIcon = document.querySelector(`.filter-icon[data-column="${columnKey}"]`);
+    filterIcon.classList.remove('has-filter');
+    
+    // Apply all filters
+    applyAllFilters(platform);
+    
+    // Close dropdown
+    document.querySelector('.filter-dropdown.show').classList.remove('show');
+}
+
+// Apply all active filters
+function applyAllFilters(platform) {
+    let filtered = [...allPromotions[platform]];
+    
+    Object.keys(activeFilters[platform]).forEach(columnKey => {
+        const filterValue = activeFilters[platform][columnKey];
+        const columnDef = columnDefinitions[columnKey];
+        
+        filtered = filtered.filter(promo => {
+            let value = promo[columnKey];
+            
+            // Handle special cases
+            if (columnKey === 'status') {
+                value = promo.is_active ? 'Active' : 'Disabled';
+            }
+            
+            if (columnDef.type === 'text' || columnDef.type === 'select') {
+                return filterValue.includes(value || 'Empty');
+            } else if (columnDef.type === 'number') {
+                const numValue = parseFloat(value) || 0;
+                if (filterValue.min !== null && numValue < filterValue.min) return false;
+                if (filterValue.max !== null && numValue > filterValue.max) return false;
+                return true;
+            } else if (columnDef.type === 'date') {
+                const dateValue = new Date(value || '1900-01-01');
+                if (filterValue.from && dateValue < new Date(filterValue.from)) return false;
+                if (filterValue.to && dateValue > new Date(filterValue.to)) return false;
+                return true;
+            }
+            
+            return true;
+        });
+    });
+    
+    // Store filtered results
+    filteredPromotions[platform] = filtered;
+    
+    // Apply current sort if any
+    if (sortState[platform].column) {
+        sortColumn(sortState[platform].column, sortState[platform].direction);
+    } else {
+        displayFilteredPromotions(platform, filtered);
+    }
+}
+
+// Clear all filters
+function clearAllFilters(platform) {
+    activeFilters[platform] = {};
+    sortState[platform] = {};
+    
+    // Update all filter icons
+    document.querySelectorAll('.filter-icon').forEach(icon => {
+        icon.classList.remove('has-filter');
+    });
+    
+    // Update all sort icons
+    document.querySelectorAll('.sort-icon').forEach(icon => {
+        icon.classList.remove('active');
+    });
+    
+    filteredPromotions[platform] = [...allPromotions[platform]];
+    displayFilteredPromotions(platform, filteredPromotions[platform]);
+}
+
+// Create filter summary
+function createFilterSummary(platform) {
+    const filters = activeFilters[platform];
+    const filterKeys = Object.keys(filters);
+    
+    if (filterKeys.length === 0) return '';
+    
+    let html = '<div class="filter-summary">';
+    html += '<strong>Active Filters:</strong> ';
+    
+    filterKeys.forEach(key => {
+        const columnDef = columnDefinitions[key];
+        const filterValue = filters[key];
+        
+        html += '<span class="filter-summary-item">';
+        html += `<strong>${columnDef.title}:</strong> `;
+        
+        if (Array.isArray(filterValue)) {
+            html += filterValue.join(', ');
+        } else if (typeof filterValue === 'object') {
+            if (filterValue.min !== null && filterValue.max !== null) {
+                html += `${filterValue.min} - ${filterValue.max}`;
+            } else if (filterValue.min !== null) {
+                html += `≥ ${filterValue.min}`;
+            } else if (filterValue.max !== null) {
+                html += `≤ ${filterValue.max}`;
+            } else if (filterValue.from && filterValue.to) {
+                html += `${filterValue.from} to ${filterValue.to}`;
+            } else if (filterValue.from) {
+                html += `from ${filterValue.from}`;
+            } else if (filterValue.to) {
+                html += `until ${filterValue.to}`;
+            }
+        }
+        
+        html += ` <span class="filter-summary-remove" onclick="clearColumnFilter('${key}')" title="Remove filter">×</span>`;
+        html += '</span>';
+    });
+    
+    html += ` <button class="btn-clear-all-filters" onclick="clearAllFilters('${platform}')">Clear All</button>`;
+    html += '</div>';
+    
+    return html;
+}
 
 // Search promotions function
 function searchPromotions(platform) {
@@ -1082,152 +1985,469 @@ function searchPromotions(platform) {
     const query = searchInput.value.toLowerCase().trim();
     searchQueries[platform] = query;
     
-    // If search is empty, reload all promotions
-    if (!query) {
-        displayFilteredPromotions(platform, allPromotions[platform]);
+    // Start with all promotions
+    let searchResults = [...allPromotions[platform]];
+    
+    // Apply search filter if query exists
+    if (query) {
+        searchResults = searchResults.filter(promo => {
+            return (
+                promo.item_code.toLowerCase().includes(query) ||
+                promo.units.toLowerCase().includes(query) ||
+                (promo.sku && promo.sku.toLowerCase().includes(query)) ||
+                (promo.selling_price && promo.selling_price.toString().includes(query))
+            );
+        });
+    }
+    
+    // Apply column filters to search results
+    Object.keys(activeFilters[platform] || {}).forEach(columnKey => {
+        const filterValue = activeFilters[platform][columnKey];
+        const columnDef = columnDefinitions[columnKey];
+        
+        searchResults = searchResults.filter(promo => {
+            let value = promo[columnKey];
+            
+            // Handle special cases
+            if (columnKey === 'status') {
+                value = promo.is_active ? 'Active' : 'Disabled';
+            }
+            
+            if (columnDef.type === 'text' || columnDef.type === 'select') {
+                return filterValue.includes(value || 'Empty');
+            } else if (columnDef.type === 'number') {
+                const numValue = parseFloat(value) || 0;
+                if (filterValue.min !== null && numValue < filterValue.min) return false;
+                if (filterValue.max !== null && numValue > filterValue.max) return false;
+                return true;
+            } else if (columnDef.type === 'date') {
+                const dateValue = new Date(value || '1900-01-01');
+                if (filterValue.from && dateValue < new Date(filterValue.from)) return false;
+                if (filterValue.to && dateValue > new Date(filterValue.to)) return false;
+                return true;
+            }
+            
+            return true;
+        });
+    });
+    
+    // Update filtered promotions
+    filteredPromotions[platform] = searchResults;
+    
+    // Apply current sort if any
+    if (sortState[platform].column) {
+        sortColumn(sortState[platform].column, sortState[platform].direction);
+    } else {
+        displayFilteredPromotions(platform, searchResults);
+    }
+}
+
+// Clear search function
+function clearSearch(platform) {
+    document.getElementById(`${platform}-search`).value = '';
+    searchQueries[platform] = '';
+    
+    // Reapply only column filters (not search)
+    applyAllFilters(platform);
+}
+
+// GP% Calculation Functions
+function calculateGP(cPromo, cCost) {
+    // Handle null, undefined, or zero values
+    if (!cPromo || cPromo <= 0 || !cCost || cCost < 0) {
+        return 0;
+    }
+    
+    const promo = parseFloat(cPromo);
+    const cost = parseFloat(cCost);
+    
+    // Calculate GP% using formula: ((C.Promo - C.Cost) / C.Promo) × 100
+    const gpPercentage = ((promo - cost) / promo) * 100;
+    
+    return Math.round(gpPercentage * 100) / 100; // Round to 2 decimal places
+}
+
+function renderGPPercentage(cPromo, cCost) {
+    const gpPercentage = calculateGP(cPromo, cCost);
+    
+    // Determine color based on GP% threshold (20%)
+    let colorClass = '';
+    let bgColor = '';
+    
+    if (gpPercentage >= 20) {
+        colorClass = 'color: #16a34a; font-weight: 600;'; // Green for good margin
+        bgColor = 'background: #dcfce7; padding: 4px 8px; border-radius: 4px;';
+    } else if (gpPercentage >= 0) {
+        colorClass = 'color: #ea580c; font-weight: 600;'; // Orange/yellow for low margin
+        bgColor = 'background: #fed7aa; padding: 4px 8px; border-radius: 4px;';
+    } else {
+        colorClass = 'color: #dc2626; font-weight: 600;'; // Red for negative margin
+        bgColor = 'background: #fecaca; padding: 4px 8px; border-radius: 4px;';
+    }
+    
+    return `<span style="${colorClass} ${bgColor}">${gpPercentage.toFixed(2)}%</span>`;
+}
+
+// Edit Mode Controller
+let editState = {
+    isEditing: false,
+    originalValues: {},
+    modifiedFields: {},
+    validationErrors: {}
+};
+
+function enableEditMode(platform) {
+    editState.isEditing = true;
+    editState.originalValues = {};
+    editState.modifiedFields = {};
+    editState.validationErrors = {};
+    
+    // Toggle button visibility
+    document.getElementById(`${platform}-edit-btn`).style.display = 'none';
+    document.getElementById(`${platform}-save-btn`).style.display = 'inline-flex';
+    document.getElementById(`${platform}-cancel-btn`).style.display = 'inline-flex';
+    
+    // Convert editable cells to input fields
+    const editableCells = document.querySelectorAll('.editable-cell');
+    editableCells.forEach(cell => {
+        const field = cell.dataset.field;
+        const originalValue = cell.dataset.original;
+        const promoId = cell.closest('tr').dataset.promoId;
+        
+        // Store original value
+        if (!editState.originalValues[promoId]) {
+            editState.originalValues[promoId] = {};
+        }
+        editState.originalValues[promoId][field] = originalValue;
+        
+        // Create input field
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.step = '0.01';
+        input.min = '0';
+        input.value = originalValue;
+        input.className = 'edit-input';
+        input.style.cssText = 'width: 80px; padding: 4px 8px; border: 2px solid #e2e8f0; border-radius: 4px; font-size: 12px;';
+        
+        // Add real-time validation and GP% calculation
+        input.addEventListener('input', function() {
+            validateInput(this, promoId, field);
+            if (field === 'converted_promo') {
+                updateGPPercentage(promoId);
+            }
+        });
+        
+        // Replace cell content with input
+        cell.innerHTML = '';
+        cell.appendChild(input);
+        cell.classList.add('editing');
+    });
+    
+    showAlert('Edit mode enabled. Modify Selling Price and C.Promo fields, then click Save.', 'info');
+}
+
+function disableEditMode(platform) {
+    editState.isEditing = false;
+    
+    // Toggle button visibility
+    document.getElementById(`${platform}-edit-btn`).style.display = 'inline-flex';
+    document.getElementById(`${platform}-save-btn`).style.display = 'none';
+    document.getElementById(`${platform}-cancel-btn`).style.display = 'none';
+    
+    // Reload promotions to restore original display
+    loadActivePromotions(platform);
+}
+
+function cancelEditMode(platform) {
+    showConfirm('Are you sure you want to cancel editing? All unsaved changes will be lost.', function() {
+        disableEditMode(platform);
+    });
+}
+
+function validateInput(input, promoId, field) {
+    const value = parseFloat(input.value);
+    const isValid = !isNaN(value) && value >= 0;
+    
+    // Update input styling based on validation
+    if (isValid) {
+        input.style.borderColor = '#10b981';
+        input.style.backgroundColor = '#f0fdf4';
+        
+        // Store modified value
+        if (!editState.modifiedFields[promoId]) {
+            editState.modifiedFields[promoId] = {};
+        }
+        editState.modifiedFields[promoId][field] = value;
+        
+        // Remove validation error
+        if (editState.validationErrors[promoId]) {
+            delete editState.validationErrors[promoId][field];
+        }
+    } else {
+        input.style.borderColor = '#ef4444';
+        input.style.backgroundColor = '#fef2f2';
+        
+        // Store validation error
+        if (!editState.validationErrors[promoId]) {
+            editState.validationErrors[promoId] = {};
+        }
+        editState.validationErrors[promoId][field] = 'Please enter a valid positive number';
+    }
+}
+
+function updateGPPercentage(promoId) {
+    const row = document.querySelector(`tr[data-promo-id="${promoId}"]`);
+    const cPromoCell = row.querySelector('.editable-cell[data-field="converted_promo"]');
+    const gpCell = row.querySelector('.gp-cell');
+    const cCost = parseFloat(cPromoCell.dataset.cost) || 0;
+    
+    // Get current C.Promo value from input
+    const cPromoInput = cPromoCell.querySelector('input');
+    const cPromo = parseFloat(cPromoInput.value) || 0;
+    
+    // Update GP% display
+    gpCell.innerHTML = renderGPPercentage(cPromo, cCost);
+}
+
+function saveChanges(platform) {
+    // Check for validation errors
+    const hasErrors = Object.keys(editState.validationErrors).some(promoId => 
+        Object.keys(editState.validationErrors[promoId] || {}).length > 0
+    );
+    
+    if (hasErrors) {
+        showAlert('Please fix validation errors before saving.', 'error');
         return;
     }
     
-    // Filter promotions based on search query
-    const filtered = allPromotions[platform].filter(promo => {
-        return (
-            promo.item_code.toLowerCase().includes(query) ||
-            promo.units.toLowerCase().includes(query) ||
-            (promo.sku && promo.sku.toLowerCase().includes(query)) ||
-            (promo.mrp && promo.mrp.toString().includes(query)) ||
-            (promo.selling_price && promo.selling_price.toString().includes(query))
-        );
+    // Check if there are any changes
+    if (Object.keys(editState.modifiedFields).length === 0) {
+        showAlert('No changes to save.', 'info');
+        return;
+    }
+    
+    // Prepare update data
+    const updates = [];
+    Object.keys(editState.modifiedFields).forEach(promoId => {
+        const changes = editState.modifiedFields[promoId];
+        if (Object.keys(changes).length > 0) {
+            updates.push({
+                id: parseInt(promoId),
+                ...changes
+            });
+        }
     });
     
-    displayFilteredPromotions(platform, filtered);
+    if (updates.length === 0) {
+        showAlert('No changes to save.', 'info');
+        return;
+    }
+    
+    // Show loading state
+    const saveBtn = document.getElementById(`${platform}-save-btn`);
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Saving...';
+    saveBtn.disabled = true;
+    
+    // Send update request
+    fetch('/integration/api/promotion/inline-update/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({
+            platform: platform,
+            updates: updates
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(`Successfully updated ${updates.length} promotion(s).`, 'success');
+            disableEditMode(platform);
+        } else {
+            showAlert(data.message || 'Error saving changes.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Save error:', error);
+        showAlert('Network error occurred while saving.', 'error');
+    })
+    .finally(() => {
+        saveBtn.innerHTML = originalText;
+        saveBtn.disabled = false;
+    });
 }
 
 // Display filtered promotions (no pagination for search results)
 function displayFilteredPromotions(platform, promotions) {
     const container = document.getElementById(`${platform}-promotions`);
     
-    if (!promotions || promotions.length === 0) {
+    try {
+        if (!promotions || promotions.length === 0) {
+            const isSearching = searchQueries[platform].length > 0;
+            const hasFilters = Object.keys(activeFilters[platform] || {}).length > 0;
+            
+            let message = 'No active promotions';
+            if (isSearching) {
+                message = `No promotions found matching "${searchQueries[platform]}"`;
+            } else if (hasFilters) {
+                message = 'No promotions match the current filters';
+            }
+            
+            container.innerHTML = `
+                ${hasFilters ? createFilterSummary(platform) : ''}
+                <div class="empty-state">
+                    <i class="bx ${isSearching ? 'bx-search-alt' : hasFilters ? 'bx-filter-alt' : 'bx-package'}"></i>
+                    <p>${message}</p>
+                    ${isSearching ? '<p style="font-size: 12px; color: #9ca3af;">Try different search terms</p>' : ''}
+                    ${hasFilters ? '<p style="font-size: 12px; color: #9ca3af;">Try adjusting your filters</p>' : ''}
+                </div>
+            `;
+            return;
+        }
+        
+        // Reset selected promotions
+        selectedPromotions[platform] = [];
+        
+        const outletId = document.getElementById(`${platform}-outlet`).value;
         const isSearching = searchQueries[platform].length > 0;
-        const message = isSearching ? 
-            `No promotions found matching "${searchQueries[platform]}"` : 
-            `No active promotions for ${platform === 'pasons' ? 'Pasons' : 'Talabat'}`;
+        const hasFilters = Object.keys(activeFilters[platform] || {}).length > 0;
         
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="bx ${isSearching ? 'bx-search-alt' : 'bx-package'}"></i>
-                <p>${message}</p>
-                ${isSearching ? '<p style="font-size: 12px; color: #9ca3af;">Try different search terms</p>' : ''}
-            </div>
-        `;
-        return;
-    }
-    
-    // Reset selected promotions
-    selectedPromotions[platform] = [];
-    
-    const outletId = document.getElementById(`${platform}-outlet`).value;
-    const isSearching = searchQueries[platform].length > 0;
-    
-    let html = `
-        <div class="promo-toolbar">
-            <div class="promo-info">
-                <span class="total-count">
-                    ${isSearching ? 'Found' : 'Total'}: <strong>${promotions.length}</strong> promotions
-                    ${isSearching ? ` (filtered from ${allPromotions[platform].length})` : ''}
-                </span>
-            </div>
-            <div class="promo-actions">
-                <button class="btn-bulk-cancel" onclick="bulkCancelPromotions('${platform}')" id="${platform}-bulk-cancel-btn" disabled>
-                    <i class="bx bx-trash"></i> Remove Selected (<span id="${platform}-selected-count">0</span>)
-                </button>
-                ${!isSearching ? `<button class="btn-delete-all" onclick="cancelAllPromotions('${platform}', ${outletId})">
-                    <i class="bx bx-trash-alt"></i> Delete All (${promotions.length})
-                </button>` : ''}
-            </div>
-        </div>
-        <div class="table-responsive">
-        <table class="promo-table">
-            <thead>
-                <tr>
-                    <th style="width: 40px;"><input type="checkbox" id="${platform}-select-all" onchange="toggleSelectAll('${platform}')"></th>
-                    <th>Item Code</th>
-                    <th>Units</th>
-                    <th>SKU</th>
-                    <th>MRP</th>
-                    <th>Selling</th>
-                    <th>Cost</th>
-                    <th>C.Cost</th>                 
-                    <th>Promo</th>
-                    <th>C.Promo</th>
-                    <th>Stock</th>
-                    <th>Status</th>
-                    <th>Start</th>
-                    <th>End</th>
-                    <th>Days</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
-    
-    promotions.forEach(promo => {
-        const statusBadge = promo.is_active ? '<span class="badge badge-active">Active</span>' : '<span class="badge badge-inactive">Disabled</span>';
-        const daysBadge = promo.days_remaining > 0 ? 'badge-active' : (promo.days_remaining === 0 ? 'badge-warning' : 'badge-danger');
+        let html = '';
         
-        // Highlight search terms
-        let itemCode = promo.item_code;
-        let units = promo.units;
-        let sku = promo.sku || '-';
-        
-        if (isSearching && searchQueries[platform]) {
-            const query = searchQueries[platform];
-            itemCode = highlightSearchTerm(itemCode, query);
-            units = highlightSearchTerm(units, query);
-            if (sku !== '-') sku = highlightSearchTerm(sku, query);
+        // Add filter summary if filters are active
+        if (hasFilters) {
+            html += createFilterSummary(platform);
         }
         
         html += `
-            <tr>
-                <td><input type="checkbox" class="promo-checkbox" data-id="${promo.id}" data-platform="${platform}" onchange="updateSelectedCount('${platform}')"></td>
-                <td><strong>${itemCode}</strong></td>
-                <td>${units}</td>
-                <td style="font-size: 11px;">${sku}</td>
-                <td>${promo.mrp || '-'}</td>
-                <td>${promo.selling_price || '-'}</td>
-                <td><strong style="color: #059669;">${promo.cost || '-'}</strong></td>
-                <td><strong style="color: #0891b2;">${promo.converted_cost || '-'}</strong></td>             
-                <td><strong style="color: #16a34a;">${promo.promo_price || '-'}</strong></td>
-                <td><strong style="color: #0066CC;">${promo.converted_promo || '-'}</strong></td>
-                <td>${promo.stock}</td>
-                <td>${statusBadge}</td>
-                <td style="font-size: 11px;">${promo.start_date || '-'}</td>
-                <td style="font-size: 11px;">${promo.end_date || '-'}</td>
-                <td><span class="badge ${daysBadge}">${promo.days_remaining}d</span></td>
-                <td>
-                    <button class="btn-cancel-sm" onclick="cancelPromotion(${promo.id}, '${platform}')">
-                        <i class="bx bx-x"></i>
+            <div class="promo-toolbar">
+                <div class="promo-info">
+                    <span class="total-count">
+                        ${isSearching || hasFilters ? 'Showing' : 'Total'}: <strong>${promotions.length}</strong> promotions
+                        ${isSearching || hasFilters ? ` (filtered from ${allPromotions[platform].length})` : ''}
+                    </span>
+                </div>
+                <div class="promo-actions">
+                    <button id="${platform}-edit-btn" class="btn-edit" onclick="enableEditMode('${platform}')" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: linear-gradient(135deg, #0066CC, #0052A3); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; margin-right: 8px;">
+                        <i class="bx bx-edit"></i> Edit
                     </button>
-                </td>
-            </tr>
+                    <button id="${platform}-save-btn" class="btn-save" onclick="saveChanges('${platform}')" style="display: none; align-items: center; gap: 6px; padding: 8px 16px; background: linear-gradient(135deg, #16a34a, #15803d); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; margin-right: 8px;">
+                        <i class="bx bx-check"></i> Save
+                    </button>
+                    <button id="${platform}-cancel-btn" class="btn-cancel-edit" onclick="cancelEditMode('${platform}')" style="display: none; align-items: center; gap: 6px; padding: 8px 16px; background: linear-gradient(135deg, #dc2626, #b91c1c); color: white; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; margin-right: 8px;">
+                        <i class="bx bx-x"></i> Cancel
+                    </button>
+                    <button class="btn-bulk-cancel" onclick="bulkCancelPromotions('${platform}')" id="${platform}-bulk-cancel-btn" disabled>
+                        <i class="bx bx-trash"></i> Remove Selected (<span id="${platform}-selected-count">0</span>)
+                    </button>
+                    ${!isSearching && !hasFilters ? `<button class="btn-delete-all" onclick="cancelAllPromotions('${platform}', '${outletId}')">
+                        <i class="bx bx-trash-alt"></i> Delete All (${promotions.length})
+                    </button>` : ''}
+                </div>
+            </div>
+            <div class="table-responsive">
+            <table class="promo-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="${platform}-select-all" onchange="toggleSelectAll('${platform}')"></th>
+                        <th>${createColumnHeader('item_code', 'Item Code')}</th>
+                        <th>${createColumnHeader('units', 'Units')}</th>
+                        <th>${createColumnHeader('sku', 'SKU')}</th>
+                        <th>${createColumnHeader('selling_price', 'Selling')}</th>
+                        <th>${createColumnHeader('converted_cost', 'C.Cost')}</th>                 
+                        <th>${createColumnHeader('promo_price', 'Promo')}</th>
+                        <th>${createColumnHeader('converted_promo', 'C.Promo')}</th>
+                        <th>${createColumnHeader('gp_percentage', 'GP%')}</th>
+                        <th>${createColumnHeader('stock', 'Stock')}</th>
+                        <th>${createColumnHeader('status', 'Status')}</th>
+                        <th>${createColumnHeader('start_date', 'Start')}</th>
+                        <th>${createColumnHeader('end_date', 'End')}</th>
+                        <th>${createColumnHeader('days_remaining', 'Days')}</th>
+                        <th style="width: 60px;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
         `;
-    });
-    
-    html += '</tbody></table></div>';
-    
-    // Add search info if searching
-    if (isSearching) {
-        html += `
-            <div style="text-align: center; padding: 16px; color: #64748b; font-size: 13px;">
-                <i class="bx bx-info-circle"></i> 
-                Showing search results for "${searchQueries[platform]}" - 
-                <button onclick="clearSearch('${platform}')" style="color: #0066CC; background: none; border: none; cursor: pointer; text-decoration: underline;">
-                    Clear search
-                </button>
+        
+        promotions.forEach(promo => {
+            // Debug: Log the promo data to see what's being received
+            console.log('Promo data:', {
+                item_code: promo.item_code,
+                converted_cost: promo.converted_cost,
+                cost: promo.cost,
+                wrap: promo.wrap
+            });
+            
+            const statusBadge = promo.is_active ? '<span class="badge badge-active">Active</span>' : '<span class="badge badge-inactive">Disabled</span>';
+            const daysBadge = promo.days_remaining > 0 ? 'badge-active' : (promo.days_remaining === 0 ? 'badge-warning' : 'badge-danger');
+            
+            // Highlight search terms
+            let itemCode = promo.item_code;
+            let units = promo.units;
+            let sku = promo.sku || '-';
+            
+            if (isSearching && searchQueries[platform]) {
+                const query = searchQueries[platform];
+                itemCode = highlightSearchTerm(itemCode, query);
+                units = highlightSearchTerm(units, query);
+                if (sku !== '-') sku = highlightSearchTerm(sku, query);
+            }
+            
+            html += `
+                <tr data-promo-id="${promo.id}">
+                    <td><input type="checkbox" class="promo-checkbox" data-id="${promo.id}" data-platform="${platform}" onchange="updateSelectedCount('${platform}')"></td>
+                    <td><strong>${itemCode}</strong></td>
+                    <td>${units}</td>
+                    <td style="font-size: 11px;">${sku}</td>
+                    <td class="editable-cell" data-field="selling_price" data-original="${promo.selling_price || ''}">${promo.selling_price || '-'}</td>
+                    <td><strong style="color: #0891b2;">${promo.converted_cost ? parseFloat(promo.converted_cost).toFixed(3) : '-'}</strong></td>             
+                    <td><strong style="color: #16a34a;">${promo.promo_price || '-'}</strong></td>
+                    <td class="editable-cell" data-field="converted_promo" data-original="${promo.converted_promo || ''}" data-cost="${promo.converted_cost || 0}"><strong style="color: #0066CC;">${promo.converted_promo || '-'}</strong></td>
+                    <td class="gp-cell">${renderGPPercentage(promo.converted_promo, promo.converted_cost)}</td>
+                    <td>${promo.stock}</td>
+                    <td>${statusBadge}</td>
+                    <td style="font-size: 11px;">${promo.start_date || '-'}</td>
+                    <td style="font-size: 11px;">${promo.end_date || '-'}</td>
+                    <td><span class="badge ${daysBadge}">${promo.days_remaining}d</span></td>
+                    <td>
+                        <button class="btn-cancel-sm" onclick="cancelPromotion('${promo.id}', '${platform}')">
+                            <i class="bx bx-x"></i>
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += '</tbody></table></div>';
+        
+        // Add search info if searching
+        if (isSearching) {
+            html += `
+                <div style="text-align: center; padding: 16px; color: #64748b; font-size: 13px;">
+                    <i class="bx bx-info-circle"></i> 
+                    Showing search results for "${searchQueries[platform]}" - 
+                    <button onclick="clearSearch('${platform}')" style="color: #0066CC; background: none; border: none; cursor: pointer; text-decoration: underline;">
+                        Clear search
+                    </button>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+        
+    } catch (error) {
+        console.error('Error in displayFilteredPromotions:', error);
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="bx bx-error"></i>
+                <p>Error displaying promotions</p>
+                <p style="font-size: 12px; color: #dc2626;">${error.message}</p>
             </div>
         `;
     }
-    
-    container.innerHTML = html;
 }
 
 // Highlight search terms in text
@@ -1241,7 +2461,9 @@ function highlightSearchTerm(text, query) {
 function clearSearch(platform) {
     document.getElementById(`${platform}-search`).value = '';
     searchQueries[platform] = '';
-    displayFilteredPromotions(platform, allPromotions[platform]);
+    
+    // Reapply only column filters (not search)
+    applyAllFilters(platform);
 }
 
 // Load active promotions with outlet filter (load ALL for search functionality)
@@ -1273,24 +2495,36 @@ function loadActivePromotions(platform, page = 1) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Store all promotions for search
-                allPromotions[platform] = data.promotions || [];
+                // Store all promotions for search and filtering
+                const promotions = data.promotions || [];
                 
-                // Clear search when loading new data
+                // Calculate GP% for each promotion
+                promotions.forEach(promo => {
+                    promo.gp_percentage = calculateGP(promo.converted_promo, promo.converted_cost);
+                });
+                
+                allPromotions[platform] = promotions;
+                filteredPromotions[platform] = [...allPromotions[platform]];
+                
+                // Clear search and filters when loading new data
                 document.getElementById(`${platform}-search`).value = '';
                 searchQueries[platform] = '';
+                activeFilters[platform] = {};
+                sortState[platform] = {};
                 
                 // Display all promotions
-                displayFilteredPromotions(platform, allPromotions[platform]);
+                displayFilteredPromotions(platform, filteredPromotions[platform]);
             } else {
                 displayEmptyState(platform, 'No active promotions');
                 allPromotions[platform] = [];
+                filteredPromotions[platform] = [];
             }
         })
         .catch(error => {
             console.error('Load promotions error:', error);
             displayEmptyState(platform, 'Error loading promotions');
             allPromotions[platform] = [];
+            filteredPromotions[platform] = [];
         });
 }
 
@@ -1304,6 +2538,9 @@ function displaySelectOutletMessage(platform) {
         </div>
     `;
     allPromotions[platform] = [];
+    filteredPromotions[platform] = [];
+    activeFilters[platform] = {};
+    sortState[platform] = {};
 }
 
 // Toggle select all checkboxes
@@ -1489,10 +2726,45 @@ function exportTalabatPromotionsXlsx() {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Promotion Integration: DOM loaded, initializing...');
+    
+    // Initialize tab switching after DOM is ready
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            console.log('Tab clicked:', this.dataset.platform);
+            const platform = this.dataset.platform;
+            
+            if (!platform) {
+                console.error('No platform data found on tab button');
+                return;
+            }
+            
+            // Update active tab
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update content
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            const targetContent = document.getElementById(`${platform}-content`);
+            if (targetContent) {
+                targetContent.classList.add('active');
+                console.log('Switched to platform:', platform);
+            } else {
+                console.error('Target content not found:', `${platform}-content`);
+            }
+            
+            currentPlatform = platform;
+        });
+    });
+    
     loadOutlets('pasons');
     loadOutlets('talabat');
     loadActivePromotions('pasons');
     loadActivePromotions('talabat');
+    console.log('Promotion Integration: Initialization complete');
 });
 </script>
 {% endblock %}

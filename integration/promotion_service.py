@@ -8,12 +8,15 @@ Handles promotional pricing logic including:
 - Promotion activation/deactivation
 """
 
+import logging
 from decimal import Decimal
 from datetime import date, datetime
 from typing import Dict, List, Optional
 from django.db.models import Q
 from django.utils import timezone
 from .models import Item, ItemOutlet, Outlet
+
+logger = logging.getLogger(__name__)
 
 
 class PromotionService:
@@ -435,15 +438,18 @@ class PromotionService:
         result = []
         for io in promotions:
             # Calculate converted cost based on wrap type
-            # wrap=9900: converted_cost = outlet_cost / wdf
-            # wrap=10000: converted_cost = outlet_cost (no conversion)
+            # wrap=9900: converted_cost = outlet_cost / wdf (3 decimals)
+            # wrap=10000: converted_cost = outlet_cost (2 decimals)
             is_wrap_9900 = io.item.wrap == '9900'
             outlet_cost = io.outlet_cost
             
             if is_wrap_9900 and outlet_cost and io.item.weight_division_factor and io.item.weight_division_factor > 0:
-                converted_cost = (outlet_cost / io.item.weight_division_factor).quantize(Decimal('0.01'))
+                converted_cost = (outlet_cost / io.item.weight_division_factor).quantize(Decimal('0.001'))
             else:
-                converted_cost = outlet_cost
+                converted_cost = outlet_cost.quantize(Decimal('0.01')) if outlet_cost else None
+            
+            # Debug logging
+            logger.debug(f"Item {io.item.item_code}: wrap={io.item.wrap}, outlet_cost={outlet_cost}, wdf={io.item.weight_division_factor}, converted_cost={converted_cost}")
             
             result.append({
                 'id': io.id,

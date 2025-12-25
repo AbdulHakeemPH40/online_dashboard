@@ -802,6 +802,125 @@ def promotion_erp_export_api(request):
 
 
 @login_required
+def promotion_inline_update_api(request):
+    """
+    API endpoint for inline editing updates
+    POST /api/promotion/inline-update/
+    Body: {platform: 'talabat', updates: [{id: 123, selling_price: 26.00, converted_promo: 19.50}]}
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'POST request required'})
+    
+    try:
+        data = json.loads(request.body)
+        platform = data.get('platform')
+        updates = data.get('updates', [])
+        
+        if not platform or not updates:
+            return JsonResponse({
+                'success': False,
+                'message': 'Platform and updates are required'
+            })
+        
+        success_count = 0
+        error_count = 0
+        errors = []
+        
+        for update in updates:
+            try:
+                promo_id = update.get('id')
+                selling_price = update.get('selling_price')
+                converted_promo = update.get('converted_promo')
+                
+                if not promo_id:
+                    errors.append('Missing promotion ID')
+                    error_count += 1
+                    continue
+                
+                # Get the ItemOutlet record
+                item_outlet = ItemOutlet.objects.filter(
+                    id=promo_id,
+                    item__platform=platform,
+                    is_on_promotion=True
+                ).select_related('item').first()
+                
+                if not item_outlet:
+                    errors.append(f'Promotion {promo_id} not found')
+                    error_count += 1
+                    continue
+                
+                # Update fields if provided
+                updated = False
+                
+                if selling_price is not None:
+                    try:
+                        selling_price_decimal = Decimal(str(selling_price))
+                        if selling_price_decimal < 0:
+                            errors.append(f'Promotion {promo_id}: Selling price must be positive')
+                            error_count += 1
+                            continue
+                        item_outlet.outlet_selling_price = selling_price_decimal
+                        updated = True
+                    except (ValueError, InvalidOperation):
+                        errors.append(f'Promotion {promo_id}: Invalid selling price format')
+                        error_count += 1
+                        continue
+                
+                if converted_promo is not None:
+                    try:
+                        converted_promo_decimal = Decimal(str(converted_promo))
+                        if converted_promo_decimal < 0:
+                            errors.append(f'Promotion {promo_id}: C.Promo must be positive')
+                            error_count += 1
+                            continue
+                        item_outlet.converted_promo = converted_promo_decimal
+                        updated = True
+                    except (ValueError, InvalidOperation):
+                        errors.append(f'Promotion {promo_id}: Invalid C.Promo format')
+                        error_count += 1
+                        continue
+                
+                if updated:
+                    item_outlet.save()
+                    success_count += 1
+                else:
+                    errors.append(f'Promotion {promo_id}: No valid updates provided')
+                    error_count += 1
+                    
+            except Exception as e:
+                logger.error(f"Error updating promotion {update.get('id', 'unknown')}: {e}")
+                errors.append(f'Promotion {update.get("id", "unknown")}: {str(e)}')
+                error_count += 1
+        
+        # Build response message
+        message_parts = []
+        if success_count > 0:
+            message_parts.append(f'{success_count} promotion(s) updated successfully')
+        if error_count > 0:
+            message_parts.append(f'{error_count} error(s) occurred')
+        
+        return JsonResponse({
+            'success': success_count > 0,
+            'message': '. '.join(message_parts) if message_parts else 'No updates processed',
+            'success_count': success_count,
+            'error_count': error_count,
+            'errors': errors[:10]  # Limit errors to first 10
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON format'
+        })
+    except Exception as e:
+        logger.error(f"Inline update error: {e}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'message': f'Error processing updates: {str(e)}'
+        })
+
+
+@login_required
 def talabat_promotions_xlsx_export(request):
     """
     Export Talabat active promotions to XLSX format

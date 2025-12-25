@@ -17,7 +17,7 @@ from .promotion_views import (
     promotion_update, promotion_search_api, promotion_calculate_api,
     promotion_save_api, promotion_active_api, promotion_cancel_api, promotion_bulk_cancel_api, promotion_cancel_all_api,
     bulk_promotion_update, bulk_promotion_preview_api, bulk_promotion_upload_api,
-    promotion_export_api, promotion_erp_export_api, talabat_promotions_xlsx_export
+    promotion_export_api, promotion_erp_export_api, talabat_promotions_xlsx_export, promotion_inline_update_api
 )
 
 # Define app namespace
@@ -69,6 +69,7 @@ urlpatterns = [
     path('api/promotion/calculate/', promotion_calculate_api, name='promotion_calculate_api'),
     path('api/promotion/save/', promotion_save_api, name='promotion_save_api'),
     path('api/promotion/active/', promotion_active_api, name='promotion_active_api'),
+    path('api/promotion/inline-update/', promotion_inline_update_api, name='promotion_inline_update_api'),
     path('api/promotion/<int:promo_id>/cancel/', promotion_cancel_api, name='promotion_cancel_api'),
     path('api/promotion/bulk-cancel/', promotion_bulk_cancel_api, name='promotion_bulk_cancel_api'),
     path('api/promotion/cancel-all/', promotion_cancel_all_api, name='promotion_cancel_all_api'),
