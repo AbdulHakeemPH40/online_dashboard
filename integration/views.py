@@ -5431,11 +5431,11 @@ def cost_finder_data_api(request):
             gp_threshold = Decimal('0')
         
         # Build base query with platform and outlet isolation
+        # NOTE: Include both active and inactive items to show their status
         queryset = ItemOutlet.objects.filter(
             outlet=outlet,
             item__platform=platform,
             item__is_active=True,
-            is_active_in_outlet=True,
             outlet_selling_price__isnull=False,
             outlet_selling_price__gt=0,
             outlet_cost__isnull=False,
@@ -5525,9 +5525,10 @@ def cost_finder_data_api(request):
             elif gp_percentage < gp_threshold:
                 low_gp_count += 1
             
-            # Get stock status based only on is_active_in_outlet boolean field
-            # True = "Active", False = "Disabled"
-            stock_status = "Active" if item_outlet.is_active_in_outlet else "Disabled"
+            # Get stock status using existing business logic
+            # Use the same calculate_outlet_enabled_status function used throughout the project
+            stock_status_bool = calculate_outlet_enabled_status(item, item_outlet.outlet_stock)
+            stock_status = "Active" if stock_status_bool else "Disabled"
             
             rows.append([
                 item.item_code,
@@ -5539,7 +5540,7 @@ def cost_finder_data_api(request):
                 f"AED {float(outlet_cost):.2f}",
                 f"AED {float(converted_cost):.2f}",
                 f"{float(gp_percentage):.2f}%",
-                stock_status  # "Active" or "Disabled"
+                stock_status  # Uses existing business logic
             ])
         
         # Calculate pagination info
@@ -5635,11 +5636,11 @@ def export_cost_finder_api(request):
             gp_threshold = Decimal('0')
         
         # Build query (same as data API)
+        # NOTE: Include both active and inactive items to show their status
         queryset = ItemOutlet.objects.filter(
             outlet=outlet,
             item__platform=platform,
             item__is_active=True,
-            is_active_in_outlet=True,
             outlet_selling_price__isnull=False,
             outlet_selling_price__gt=0,
             outlet_cost__isnull=False,
@@ -5729,9 +5730,10 @@ def export_cost_finder_api(request):
                     gp_amount = Decimal('0')
                     gp_percentage = Decimal('0')
                 
-                # Get stock status based only on is_active_in_outlet boolean field
-                # True = "Active", False = "Disabled"
-                stock_status = "Active" if item_outlet.is_active_in_outlet else "Disabled"
+                # Get stock status using existing business logic
+                # Use the same calculate_outlet_enabled_status function used throughout the project
+                stock_status_bool = calculate_outlet_enabled_status(item, item_outlet.outlet_stock)
+                stock_status = "Active" if stock_status_bool else "Disabled"
                 
                 # Add row data - simplified for middleware ERP
                 ws.cell(row=row_num, column=1, value=item.item_code)
@@ -5817,9 +5819,10 @@ def export_cost_finder_api(request):
                     gp_amount = Decimal('0')
                     gp_percentage = Decimal('0')
                 
-                # Get stock status based only on is_active_in_outlet boolean field
-                # True = "Active", False = "Disabled"
-                stock_status = "Active" if item_outlet.is_active_in_outlet else "Disabled"
+                # Get stock status using existing business logic
+                # Use the same calculate_outlet_enabled_status function used throughout the project
+                stock_status_bool = calculate_outlet_enabled_status(item, item_outlet.outlet_stock)
+                stock_status = "Active" if stock_status_bool else "Disabled"
                 
                 writer.writerow([
                     item.item_code,
