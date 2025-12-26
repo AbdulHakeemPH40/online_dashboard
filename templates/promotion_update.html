@@ -740,6 +740,74 @@
     border-bottom: none;
 }
 
+/* SKU Cell with Hover Tooltip */
+.sku-cell {
+    cursor: help;
+    position: relative;
+    border-bottom: 1px dotted #9ca3af !important;
+}
+
+.sku-cell:hover {
+    background-color: #f3f4f6 !important;
+    color: #1f2937 !important;
+}
+
+/* Status Summary Cards */
+.status-summary {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.status-card {
+    flex: 1;
+    text-align: center;
+    padding: 12px;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.status-card:hover {
+    transform: translateY(-2px);
+}
+
+.status-card.upcoming {
+    border-left: 4px solid #3b82f6;
+}
+
+.status-card.running {
+    border-left: 4px solid #10b981;
+}
+
+.status-card.expired {
+    border-left: 4px solid #ef4444;
+}
+
+.status-card.total {
+    border-left: 4px solid #6366f1;
+}
+
+.status-count {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 4px;
+}
+
+.status-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 /* Badge Styles */
 .badge {
     display: inline-flex;
@@ -751,6 +819,10 @@
     font-weight: 600;
 }
 
+.badge i {
+    font-size: 12px;
+}
+
 .badge-active {
     background: #dcfce7;
     color: #166534;
@@ -759,6 +831,32 @@
 .badge-upcoming {
     background: #dbeafe;
     color: #1e40af;
+}
+
+.badge-running {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.badge-expired {
+    background: #fee2e2;
+    color: #991b1b;
+    display: none; /* Hide expired badges completely */
+}
+
+.badge-inactive {
+    background: #f1f5f9;
+    color: #64748b;
+}
+
+.badge-warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-danger {
+    background: #fee2e2;
+    color: #991b1b;
 }
 
 /* Cancel Button */
@@ -1298,6 +1396,22 @@
                 <i class="bx bx-list-ul"></i> Active Promotions (Pasons)
             </div>
             
+            <!-- Status Summary for Pasons -->
+            <div id="pasons-status-summary" class="status-summary" style="display: none;">
+                <div class="status-card upcoming">
+                    <div class="status-count" id="pasons-upcoming-count">0</div>
+                    <div class="status-label">Upcoming</div>
+                </div>
+                <div class="status-card running">
+                    <div class="status-count" id="pasons-running-count">0</div>
+                    <div class="status-label">Running</div>
+                </div>
+                <div class="status-card total">
+                    <div class="status-count" id="pasons-total-count">0</div>
+                    <div class="status-label">Total Active</div>
+                </div>
+            </div>
+            
             <!-- Search Box for Pasons -->
             <div style="margin-bottom: 16px; display: flex; justify-content: center;">
                 <div style="position: relative; max-width: 500px; width: 100%; display: flex; gap: 8px;">
@@ -1359,6 +1473,22 @@
                 <button type="button" class="btn-export-xlsx" onclick="exportTalabatPromotionsXlsx()" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
                     <i class="bx bx-download"></i> Export XLSX
                 </button>
+            </div>
+            
+            <!-- Status Summary for Talabat -->
+            <div id="talabat-status-summary" class="status-summary" style="display: none;">
+                <div class="status-card upcoming">
+                    <div class="status-count" id="talabat-upcoming-count">0</div>
+                    <div class="status-label">Upcoming</div>
+                </div>
+                <div class="status-card running">
+                    <div class="status-count" id="talabat-running-count">0</div>
+                    <div class="status-label">Running</div>
+                </div>
+                <div class="status-card total">
+                    <div class="status-count" id="talabat-total-count">0</div>
+                    <div class="status-label">Total Active</div>
+                </div>
             </div>
             
             <!-- Search Box for Talabat -->
@@ -1533,7 +1663,7 @@ let filteredPromotions = { pasons: [], talabat: [] }; // Store filtered promotio
 let activeFilters = { pasons: {}, talabat: {} }; // Store active filters
 let sortState = { pasons: {}, talabat: {} }; // Store sort state
 
-// Column definitions for filtering
+// Column definitions for filtering (updated to exclude expired status)
 const columnDefinitions = {
     item_code: { type: 'text', title: 'Item Code' },
     units: { type: 'text', title: 'Units' },
@@ -1545,7 +1675,7 @@ const columnDefinitions = {
     gp_percentage: { type: 'number', title: 'GP%' },
     variance: { type: 'number', title: 'Var' },
     stock: { type: 'number', title: 'Stock' },
-    status: { type: 'select', title: 'Status', options: ['Active', 'Disabled'] },
+    status: { type: 'select', title: 'Status', options: ['Upcoming', 'Running'] }, // ONLY upcoming and running
     days_remaining: { type: 'number', title: 'Days' }
 };
 
@@ -2410,8 +2540,20 @@ function displayFilteredPromotions(platform, promotions) {
                 wrap: promo.wrap
             });
             
-            const statusBadge = promo.is_active ? '<span class="badge badge-active">Active</span>' : '<span class="badge badge-inactive">Disabled</span>';
-            const daysBadge = promo.days_remaining > 0 ? 'badge-active' : (promo.days_remaining === 0 ? 'badge-warning' : 'badge-danger');
+            // Create status badge based on promotion status (only upcoming and running)
+            let statusBadge, daysBadge;
+            
+            if (promo.status === 'upcoming') {
+                statusBadge = `<span class="badge badge-upcoming"><i class="bx bx-time-five"></i> ${promo.status_text}</span>`;
+                daysBadge = 'badge-upcoming';
+            } else if (promo.status === 'running') {
+                statusBadge = `<span class="badge badge-running"><i class="bx bx-play-circle"></i> ${promo.status_text}</span>`;
+                daysBadge = 'badge-running';
+            } else {
+                // This should NEVER happen since expired promotions are excluded at database level
+                console.warn('Unexpected promotion status:', promo.status, 'for item:', promo.item_code);
+                return; // Skip this promotion entirely
+            }
             
             // Highlight search terms
             let itemCode = promo.item_code;
@@ -2430,7 +2572,7 @@ function displayFilteredPromotions(platform, promotions) {
                     <td><input type="checkbox" class="promo-checkbox" data-id="${promo.id}" data-platform="${platform}" onchange="updateSelectedCount('${platform}')"></td>
                     <td><strong>${itemCode}</strong></td>
                     <td>${units}</td>
-                    <td style="font-size: 11px;">${sku}</td>
+                    <td style="font-size: 11px;" title="${promo.description || 'No description available'}" class="sku-cell">${sku}</td>
                     <td class="editable-cell" data-field="selling_price" data-original="${promo.selling_price || ''}">${promo.selling_price || '-'}</td>
                     <td><strong style="color: #0891b2;">${promo.converted_cost ? parseFloat(promo.converted_cost).toFixed(3) : '-'}</strong></td>             
                     <td><strong style="color: #16a34a;">${promo.promo_price || '-'}</strong></td>
@@ -2439,7 +2581,15 @@ function displayFilteredPromotions(platform, promotions) {
                     <td class="variance-cell">${renderVariance(promo.selling_price, promo.converted_promo)}</td>
                     <td>${promo.stock}</td>
                     <td>${statusBadge}</td>
-                    <td><span class="badge ${daysBadge}">${promo.days_remaining}d</span></td>
+                    <td>
+                        <div style="display: flex; flex-direction: column; gap: 2px;">
+                            <span class="badge ${daysBadge}" style="font-size: 10px;">${promo.days_text}</span>
+                            ${promo.status === 'upcoming' ? 
+                                `<small style="color: #64748b; font-size: 9px;">Start: ${promo.start_date || promo.start_date_raw}</small>` : 
+                                `<small style="color: #64748b; font-size: 9px;">End: ${promo.end_date || promo.end_date_raw}</small>`
+                            }
+                        </div>
+                    </td>
                     <td>
                         <button class="btn-cancel-sm" onclick="cancelPromotion('${promo.id}', '${platform}')">
                             <i class="bx bx-x"></i>
@@ -2538,6 +2688,11 @@ function loadActivePromotions(platform, page = 1) {
                 allPromotions[platform] = promotions;
                 filteredPromotions[platform] = [...allPromotions[platform]];
                 
+                // Update status summary if available
+                if (data.status_summary) {
+                    updateStatusSummary(platform, data.status_summary);
+                }
+                
                 // Clear search and filters when loading new data
                 document.getElementById(`${platform}-search`).value = '';
                 searchQueries[platform] = '';
@@ -2550,6 +2705,7 @@ function loadActivePromotions(platform, page = 1) {
                 displayEmptyState(platform, 'No active promotions');
                 allPromotions[platform] = [];
                 filteredPromotions[platform] = [];
+                hideStatusSummary(platform);
             }
         })
         .catch(error => {
@@ -2668,6 +2824,35 @@ function displayEmptyState(platform, message) {
             <p>${message}</p>
         </div>
     `;
+}
+
+// Update status summary cards
+function updateStatusSummary(platform, statusSummary) {
+    const summaryContainer = document.getElementById(`${platform}-status-summary`);
+    
+    if (!statusSummary || !summaryContainer) {
+        return;
+    }
+    
+    // Update counts in the status cards (no expired count anymore)
+    document.getElementById(`${platform}-upcoming-count`).textContent = statusSummary.upcoming_count || 0;
+    document.getElementById(`${platform}-running-count`).textContent = statusSummary.running_count || 0;
+    document.getElementById(`${platform}-total-count`).textContent = statusSummary.total_visible || 0;
+    
+    // Show the summary container if there are any active promotions (upcoming or running)
+    if (statusSummary.total_visible > 0) {
+        summaryContainer.style.display = 'flex';
+    } else {
+        summaryContainer.style.display = 'none';
+    }
+}
+
+// Hide status summary
+function hideStatusSummary(platform) {
+    const summaryContainer = document.getElementById(`${platform}-status-summary`);
+    if (summaryContainer) {
+        summaryContainer.style.display = 'none';
+    }
 }
 
 // Cancel promotion

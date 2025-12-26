@@ -1236,7 +1236,7 @@ def product_update(request):
             # NEW: Track actual business operations (not individual field changes)
             actual_database_changes = 0     # Count of ItemOutlet records that were modified
             actual_field_changes = 0        # Count of individual field changes
-            actual_business_operations = 0  # Count of logical business operations (MRP update, Cost update, Stock update)
+            actual_business_operations = 0  # Count of actual business operations performed
             
             # Track Item model changes (for converted_cost updates)
             items_to_update_set = set()
@@ -1245,9 +1245,9 @@ def product_update(request):
             not_found_items = []
             errors = []
             
-            # Initialize counting variables (legacy compatibility)
-            updated_count = 0
+            # Initialize counting variables for compatibility
             protected_count = 0
+            updated_count = 0
             no_change_count = 0
             
             # BATCH PROCESSING: Process CSV rows in batches to reduce database lock time
@@ -1719,7 +1719,7 @@ def rules_update_price(request):
                                 item_outlet.item.weight_division_factor,
                                 item_outlet.item.wrap  # ← Pass actual wrap type
                             )
-                            # Calculate new selling price with updated margin
+                            # Calculate new selling price with updated margin - handle 0% margin case
                             new_selling_price, _ = PricingCalculator.calculate_talabat_price(
                                 base_price,
                                 item_outlet.item.talabat_margin,
@@ -2414,7 +2414,7 @@ def item_outlets_api(request):
                 # wrap=9900: Use WDF for conversion
                 # wrap=10000: No conversion needed
                 if io.outlet_cost is not None and item.wrap == '9900':
-                    # Only validate WDF for wrap=9900 items
+                    # Use centralized validation for wrap=9900 items
                     wdf = validate_wdf_for_division(
                         item.weight_division_factor,
                         str(item.item_code),
@@ -3729,12 +3729,12 @@ def export_feed_api(request):
         export_history.file_name = filename
         export_history.save(update_fields=['file_name'])
         
-        # Create CSV response for immediate download
+        # Create CSV response for immediate download using same format
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = f'attachment; filename="{filename}"'
         
+        writer = csv.writer(response)  # Use comma delimiter for Excel compatibility
         if platform == 'talabat':
-            writer = csv.writer(response)  # Use comma delimiter for Excel compatibility
             # Talabat format
             writer.writerow(['barcode', 'sku', 'reason', 'start_date', 'end_date', 'campaign_status', 'discounted_price', 'max_no_of_orders', 'price', 'active'])
             for row in export_data:
@@ -3751,7 +3751,6 @@ def export_feed_api(request):
                     row['stock_status']
                 ])
         else:
-            writer = csv.writer(response)
             # Pasons format
             writer.writerow(['sku', 'selling_price', 'stock_status', 'availability_status'])
             for row in export_data:
@@ -3861,11 +3860,11 @@ def erp_export_api(request):
             created_by=request.user if request.user.is_authenticated else None
         )
         
-        # Get items for this outlet
+        # Get items for this outlet - FIXED: Export ALL items regardless of stock status
         item_outlets = ItemOutlet.objects.filter(
             outlet=outlet,
-            item__platform='talabat',
-            is_active_in_outlet=True
+            item__platform='talabat'
+            # REMOVED: is_active_in_outlet=True filter - ERP should export ALL items
         ).select_related('item')
         
         # Filter out promotion items if requested
@@ -4544,11 +4543,23 @@ def report_data_api(request):
                 row.append('Active' if item.is_active else 'Inactive')
                 rows.append(row)
         
-        # Get stats
-        total_items = Item.objects.count()
-        active_items = Item.objects.filter(is_active=True).count()
-        outlets_count = Outlet.objects.filter(is_active=True).count()
-        linked_items = ItemOutlet.objects.values('item_id').distinct().count()
+        # Get stats - FIXED: Platform isolated stats
+        if report_type == 'outlet' and outlet_id:
+            # Outlet-specific stats
+            outlet = Outlet.objects.get(id=outlet_id)
+            total_items = ItemOutlet.objects.filter(outlet=outlet).count()
+            active_items = ItemOutlet.objects.filter(outlet=outlet, is_active_in_outlet=True).count()
+            outlets_count = 1  # Single outlet
+            linked_items = total_items  # All items are linked in outlet report
+        else:
+            # Platform-specific stats
+            total_items = Item.objects.filter(platform=platform).count()
+            active_items = Item.objects.filter(platform=platform, is_active=True).count()
+            outlets_count = Outlet.objects.filter(platforms=platform, is_active=True).count()
+            linked_items = ItemOutlet.objects.filter(
+                item__platform=platform,
+                outlet__platforms=platform
+            ).values('item_id').distinct().count()
         
         return JsonResponse({
             'success': True,

@@ -11,10 +11,16 @@ Business Context:
 - Provides audit trail through OutletResetLog model
 
 Reset Types:
-1. Reset Prices Only - Clear MRP, selling_price, cost, converted_cost
-2. Reset Stock Only - Clear outlet_stock and set appropriate stock status  
-3. Complete Reset - Reset all outlet-specific data to zero/null
-4. Unassign Items - Set is_active_in_outlet = False for all items
+1. Reset Prices Only - Clear MRP, selling_price, cost to NULL (cleaner than 0.00)
+2. Reset Stock Only - Clear outlet_stock and unassign from outlet
+3. Complete Reset - Reset all outlet-specific data to NULL/default values
+4. Unassign Items - Set is_active_in_outlet = False and clear export tracking
+
+Key Improvements:
+- Price fields set to NULL instead of 0.00 for cleaner data
+- Preserves CLS (Central Locking System) item-level locks
+- Only resets BLS (Branch Locking System) outlet-level locks
+- Complete outlet assignment cleanup with export tracking reset
 """
 
 from django.db import transaction
@@ -76,10 +82,10 @@ class OutletResetEngine:
                 'total_stock_value': int
             }
         """
-        # Get all ItemOutlet records for this outlet
+        # Get all ItemOutlet records for this outlet with platform isolation
         queryset = ItemOutlet.objects.filter(
             outlet=self.outlet,
-            outlet__platforms=self.platform  # Platform isolation
+            item__platform=self.platform  # FIXED: Ensure platform isolation
         ).select_related('item')
         
         total_count = queryset.count()
@@ -139,10 +145,10 @@ class OutletResetEngine:
         
         try:
             with transaction.atomic():
-                # Get all affected items
+                # Get all affected items for this specific outlet
                 queryset = ItemOutlet.objects.filter(
                     outlet=self.outlet,
-                    outlet__platforms=self.platform  # Platform isolation
+                    item__platform=self.platform  # FIXED: Ensure platform isolation
                 ).select_related('item')
                 
                 total_items = queryset.count()
@@ -236,10 +242,18 @@ class OutletResetEngine:
         return total
     
     def _reset_prices_only(self, item_outlet):
-        """Reset only price-related fields to zero"""
-        item_outlet.outlet_mrp = Decimal('0.00')
-        item_outlet.outlet_selling_price = Decimal('0.00')
-        item_outlet.outlet_cost = Decimal('0.00')
+        """Reset only price-related fields to NULL (better than 0.00)"""
+        # Set price fields to NULL instead of 0.00 for cleaner data
+        item_outlet.outlet_mrp = None
+        item_outlet.outlet_selling_price = None
+        item_outlet.outlet_cost = None
+        
+        # IMPORTANT: When outlet_cost is reset, also reset Item.converted_cost
+        # This ensures reports show clean data after outlet reset
+        if hasattr(item_outlet.item, 'converted_cost'):
+            item_outlet.item.converted_cost = None
+            item_outlet.item.save(update_fields=['converted_cost'])
+        
         # Clear promotion pricing as well
         item_outlet.promo_price = None
         item_outlet.converted_promo = None
@@ -250,26 +264,26 @@ class OutletResetEngine:
         item_outlet.erp_export_price = None
     
     def _reset_stock_only(self, item_outlet):
-        """Reset only stock-related fields"""
-        item_outlet.outlet_stock = 0
-        # Update stock status based on zero stock
-        item_outlet.is_active_in_outlet = False  # Zero stock = inactive
+        """Reset only stock-related fields and outlet assignment"""
+        item_outlet.outlet_stock = 0  # Stock remains 0 (not NULL for counting)
+        # Reset outlet assignment - make item unassigned from outlet
+        item_outlet.is_active_in_outlet = False  # Unassign from outlet
         # Clear export tracking for stock
         item_outlet.export_stock_status = None
     
     def _reset_complete(self, item_outlet):
-        """Reset all outlet-specific data to default values"""
-        # Reset prices
+        """Reset all outlet-specific data to NULL/default values (complete cleanup)"""
+        # Reset prices to NULL (cleaner than 0.00)
         self._reset_prices_only(item_outlet)
-        # Reset stock
+        # Reset stock and outlet assignment
         self._reset_stock_only(item_outlet)
-        # Reset promotion dates
+        # Reset promotion dates to NULL
         item_outlet.promo_start_date = None
         item_outlet.promo_end_date = None
-        # Reset locks (outlet-level only, preserve item-level locks)
+        # Reset BLS locks (outlet-level only, preserve CLS item-level locks)
         item_outlet.price_locked = False
         item_outlet.status_locked = False
-        # Clear all export tracking
+        # Clear all export tracking to NULL
         item_outlet.export_selling_price = None
         item_outlet.export_stock_status = None
         item_outlet.erp_export_price = None
@@ -277,9 +291,10 @@ class OutletResetEngine:
         item_outlet.data_hash = None
     
     def _unassign_items(self, item_outlet):
-        """Unassign items from outlet (set inactive but preserve data)"""
+        """Unassign items from outlet (set inactive and clear export tracking)"""
+        # Unassign from outlet
         item_outlet.is_active_in_outlet = False
-        # Clear export tracking since item is no longer active
+        # Clear export tracking since item is no longer assigned to outlet
         item_outlet.export_selling_price = None
         item_outlet.export_stock_status = None
         item_outlet.erp_export_price = None

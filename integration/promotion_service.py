@@ -405,7 +405,7 @@ class PromotionService:
     @staticmethod
     def get_active_promotions(platform: Optional[str] = None, outlet_id: Optional[int] = None, page: int = 1, page_size: int = 20) -> Dict:
         """
-        Get list of active promotions with pagination
+        Get list of active promotions with pagination and status categorization
         
         Args:
             platform: Optional platform filter
@@ -414,12 +414,25 @@ class PromotionService:
             page_size: Items per page
             
         Returns:
-            Dict with promotions list and pagination info
+            Dict with promotions list, pagination info, and status summary
         """
+        from django.utils import timezone
+        from datetime import datetime
+        
         # First, auto-expire any ended promotions
         expired_count = PromotionService.expire_ended_promotions()
         
-        query = Q(is_on_promotion=True)
+        # Get current time for status calculation
+        now = timezone.now()
+        
+        # CRITICAL: Only get promotions that are NOT expired (end_date >= now)
+        # This ensures expired promotions are COMPLETELY excluded from the query
+        query = Q(
+            promo_start_date__isnull=False,
+            promo_end_date__isnull=False,
+            promo_price__isnull=False,
+            promo_end_date__gte=now  # EXCLUDE expired promotions at database level
+        )
         
         if platform:
             query &= Q(item__platform=platform)
@@ -427,16 +440,60 @@ class PromotionService:
         if outlet_id:
             query &= Q(outlet_id=outlet_id)
         
-        total_count = ItemOutlet.objects.filter(query).count()
+        # Get only NON-EXPIRED promotions (upcoming and running only)
+        all_promotions = ItemOutlet.objects.filter(query).select_related('item', 'outlet').order_by('-promo_start_date')
+        
+        # Categorize promotions by status - ONLY upcoming and running (no expired possible)
+        upcoming_promotions = []
+        running_promotions = []
+        
+        for io in all_promotions:
+            if io.promo_start_date > now:
+                # Upcoming promotion
+                upcoming_promotions.append(io)
+            elif io.promo_start_date <= now <= io.promo_end_date:
+                # Currently running promotion
+                running_promotions.append(io)
+            # Note: No else clause for expired - they're already excluded by query
+        
+        # Combine ONLY visible promotions (upcoming + running) - NO expired promotions possible
+        visible_promotions = upcoming_promotions + running_promotions
+        
+        # Apply pagination
+        total_count = len(visible_promotions)
         total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 1
         
         # Calculate offset
         offset = (page - 1) * page_size
-        
-        promotions = ItemOutlet.objects.filter(query).select_related('item', 'outlet').order_by('-promo_start_date')[offset:offset + page_size]
+        page_promotions = visible_promotions[offset:offset + page_size]
         
         result = []
-        for io in promotions:
+        for io in page_promotions:
+            # Calculate promotion status - ONLY show upcoming and running
+            if io.promo_start_date > now:
+                status = 'upcoming'
+                status_text = 'Upcoming'
+                days_info = (io.promo_start_date.date() - now.date()).days
+                if days_info == 0:
+                    days_text = "Starts today"
+                elif days_info == 1:
+                    days_text = "Starts tomorrow"
+                else:
+                    days_text = f"Starts in {days_info}d"
+            elif io.promo_start_date <= now <= io.promo_end_date:
+                status = 'running'
+                status_text = 'Running'
+                days_info = (io.promo_end_date.date() - now.date()).days
+                if days_info == 0:
+                    days_text = "Ends today"
+                elif days_info == 1:
+                    days_text = "Ends tomorrow"
+                else:
+                    days_text = f"{days_info}d remaining"
+            else:
+                # This should NEVER happen since we exclude expired promotions at database level
+                continue
+            
             # Calculate converted cost based on wrap type
             # wrap=9900: converted_cost = outlet_cost / wdf (3 decimals)
             # wrap=10000: converted_cost = outlet_cost (2 decimals)
@@ -450,6 +507,10 @@ class PromotionService:
             
             # Debug logging
             logger.debug(f"Item {io.item.item_code}: wrap={io.item.wrap}, outlet_cost={outlet_cost}, wdf={io.item.weight_division_factor}, converted_cost={converted_cost}")
+            
+            # Format dates with better readability
+            start_date_formatted = timezone.localtime(io.promo_start_date).strftime('%d %b %Y, %I:%M %p') if io.promo_start_date else None
+            end_date_formatted = timezone.localtime(io.promo_end_date).strftime('%d %b %Y, %I:%M %p') if io.promo_end_date else None
             
             result.append({
                 'id': io.id,
@@ -470,9 +531,17 @@ class PromotionService:
                 'original_selling_price': str(io.original_selling_price) if io.original_selling_price else None,
                 'stock': io.outlet_stock,
                 'is_active': io.is_active_in_outlet,
-                'start_date': timezone.localtime(io.promo_start_date).strftime('%d/%m/%Y %I:%M %p') if io.promo_start_date else None,
-                'end_date': timezone.localtime(io.promo_end_date).strftime('%d/%m/%Y %I:%M %p') if io.promo_end_date else None,
-                'days_remaining': (timezone.localtime(io.promo_end_date).date() - date.today()).days if io.promo_end_date else None
+                'start_date': start_date_formatted,
+                'end_date': end_date_formatted,
+                'start_date_raw': timezone.localtime(io.promo_start_date).strftime('%d/%m/%Y %I:%M %p') if io.promo_start_date else None,
+                'end_date_raw': timezone.localtime(io.promo_end_date).strftime('%d/%m/%Y %I:%M %p') if io.promo_end_date else None,
+                'days_remaining': days_info,
+                'days_text': days_text,
+                'status': status,
+                'status_text': status_text,
+                'is_upcoming': status == 'upcoming',
+                'is_running': status == 'running',
+                'is_expired': False  # Never show expired promotions
             })
         
         return {
@@ -482,7 +551,12 @@ class PromotionService:
             'page_size': page_size,
             'total_pages': total_pages,
             'has_next': page < total_pages,
-            'has_prev': page > 1
+            'has_prev': page > 1,
+            'status_summary': {
+                'upcoming_count': len(upcoming_promotions),
+                'running_count': len(running_promotions),
+                'total_visible': len(visible_promotions)  # Only visible promotions (no expired)
+            }
         }
     
     @staticmethod

@@ -29,10 +29,10 @@ def set_default_wdf_for_wrap10000(sender, instance, **kwargs):
     - Item updates via API
     - Any item.save() call
     """
-    # Only process wrap=10000 items
+    # Only process wrap=10000 items and only if creating new item or WDF is explicitly None
     if instance.wrap == '10000':
-        # If WDF is None or 0, set to 1
-        if instance.weight_division_factor is None or instance.weight_division_factor == 0:
+        # If WDF is None, set to 1 (but preserve intentional 0 values during updates)
+        if instance.weight_division_factor is None:
             instance.weight_division_factor = Decimal('1')
             logger.info(
                 f"Auto-set WDF=1 for wrap=10000 item: {instance.item_code} "
@@ -49,18 +49,19 @@ def validate_wrap9900_has_wdf(sender, instance, **kwargs):
     - wrap=9900 (weight-based items): MUST have WDF for price calculations
     - WDF determines how to divide price (e.g., WDF=4 means price÷4)
     
-    RAISES:
-    - ValueError if wrap=9900 item has no WDF or WDF <= 0
+    SOFT VALIDATION: Uses warnings instead of hard errors to prevent bulk operation failures
+    This complements the strict validation in utils.py validate_wdf_for_division()
     """
     # Only validate wrap=9900 items
     if instance.wrap == '9900':
-        if instance.weight_division_factor is None:
-            raise ValueError(
-                f"wrap=9900 item {instance.item_code} requires weight_division_factor. "
-                f"Cannot save without WDF. Please set WDF based on product specifications."
+        if instance.weight_division_factor is None or instance.weight_division_factor <= 0:
+            # SOFT VALIDATION: Log warning instead of raising ValueError
+            # This prevents bulk CSV operations from failing due to data quality issues
+            logger.warning(
+                f"SOFT VALIDATION: wrap=9900 item {instance.item_code} has invalid WDF: {instance.weight_division_factor}. "
+                f"This may cause pricing calculation errors. Please set valid WDF > 0."
             )
-        if instance.weight_division_factor <= 0:
-            raise ValueError(
-                f"wrap=9900 item {instance.item_code} has invalid WDF: {instance.weight_division_factor}. "
-                f"WDF must be greater than 0."
-            )
+            # Set default WDF=1 to prevent crashes (can be corrected later)
+            if instance.weight_division_factor is None:
+                instance.weight_division_factor = Decimal('1')
+                logger.info(f"Auto-corrected WDF=1 for wrap=9900 item {instance.item_code} to prevent runtime crashes")

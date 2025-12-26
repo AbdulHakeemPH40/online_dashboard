@@ -21,6 +21,20 @@ from typing import Dict, Tuple, Optional, Union
 
 logger = logging.getLogger(__name__)
 
+# =============================================================================
+# PRODUCTION CONSTANTS - CENTRALIZED PRECISION AND PLATFORM DEFINITIONS
+# =============================================================================
+
+# Precision constants for consistent decimal handling
+PRICE_PRECISION = Decimal('0.01')      # 2 decimal places for prices
+COST_PRECISION = Decimal('0.001')      # 3 decimal places for costs
+MARGIN_PRECISION = Decimal('0.01')     # 2 decimal places for margins
+
+# Platform constants for type safety
+PLATFORM_PASONS = 'pasons'
+PLATFORM_TALABAT = 'talabat'
+VALID_PLATFORMS = {PLATFORM_PASONS, PLATFORM_TALABAT}
+
 # Smart rounding targets
 SMART_ROUNDING_TARGETS = [Decimal('0.00'), Decimal('0.25'), Decimal('0.49'), Decimal('0.75'), Decimal('0.99')]
 
@@ -270,14 +284,6 @@ class PricingCalculator:
             result = Decimal(str(whole - 1)) + Decimal('0.99')
         
         return result
-        result = Decimal(str(whole)) + ceiling_target
-        
-        # PSYCHOLOGICAL PRICING: Convert .00 endings to .99
-        # Example: 25.00 → 24.99 (looks cheaper to customers)
-        if ceiling_target == Decimal('0.00') and whole > 0:
-            result = Decimal(str(whole - 1)) + Decimal('0.99')
-        
-        return result
     
     @staticmethod
     def calculate_base_price(item_code: str, erp_price: Decimal, weight_division_factor: Decimal = None, wrap: str = None) -> Decimal:
@@ -303,17 +309,15 @@ class PricingCalculator:
             is_wrap = PricingCalculator.is_wrap_item(item_code)
         
         if is_wrap:
-            # Wrap items (wrap=9900): MRP ÷ WDF
-            if weight_division_factor and weight_division_factor > 0:
-                base = erp_price / weight_division_factor
-            else:
-                raise ValueError(f"Invalid WDF for wrap item {item_code}: {weight_division_factor}")
+            # Wrap items (wrap=9900): MRP ÷ WDF - use centralized validator
+            wdf = validate_wdf_for_division(weight_division_factor, item_code, "base price calculation")
+            base = erp_price / wdf
         else:
             # Regular items (wrap=10000): MRP as-is
             base = erp_price
         
-        # Round to 2 decimal places
-        return base.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        # Round to 2 decimal places using constant
+        return base.quantize(PRICE_PRECISION, rounding=ROUND_HALF_UP)
     
     @staticmethod
     def calculate_pasons_price(base_price: Decimal) -> Decimal:
@@ -367,7 +371,7 @@ class PricingCalculator:
         
         # Calculate margin amount
         margin_amount = (base_price * margin / Decimal('100')).quantize(
-            Decimal('0.01'), rounding=ROUND_HALF_UP
+            PRICE_PRECISION, rounding=ROUND_HALF_UP
         )
         
         # Add margin
@@ -376,7 +380,7 @@ class PricingCalculator:
         # ZERO MARGIN LOGIC: Skip ALL rounding for 0% margin
         if margin == Decimal('0.00'):
             # For 0% margin: return exact price with standard 2-decimal rounding only
-            final_price = price_with_margin.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            final_price = price_with_margin.quantize(PRICE_PRECISION, rounding=ROUND_HALF_UP)
         else:
             # Apply smart ceiling rounding with psychological pricing for non-zero margins
             final_price = PricingCalculator.smart_ceiling(price_with_margin)
@@ -442,7 +446,7 @@ class PricingCalculator:
                 margin_percentage = PricingCalculator.get_default_talabat_margin(item_code)
             
             margin_amount = (base_price * margin_percentage / Decimal('100')).quantize(
-                Decimal('0.01'), rounding=ROUND_HALF_UP
+                PRICE_PRECISION, rounding=ROUND_HALF_UP
             )
             price_before_rounding = base_price + margin_amount
             final_price = PricingCalculator.smart_ceiling(price_before_rounding)
@@ -747,13 +751,13 @@ def compute_data_hash(mrp, cost, stock) -> str:
     if mrp is None:
         mrp_val = Decimal('0.00')
     else:
-        mrp_val = Decimal(str(mrp)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        mrp_val = Decimal(str(mrp)).quantize(PRICE_PRECISION, rounding=ROUND_HALF_UP)
     
     # Normalize Cost to 3 decimal places (matches outlet_cost precision)
     if cost is None:
         cost_val = Decimal('0.000')
     else:
-        cost_val = Decimal(str(cost)).quantize(Decimal('0.001'), rounding=ROUND_HALF_UP)
+        cost_val = Decimal(str(cost)).quantize(COST_PRECISION, rounding=ROUND_HALF_UP)
     
     # Normalize Stock to integer
     if stock is None:
@@ -814,7 +818,11 @@ def compute_hash_from_csv_row(row: dict) -> str:
     cost = cost_str.replace(',', '') if cost_str else None
     stock = stock_str.replace(',', '') if stock_str else None
     
-    return compute_data_hash(mrp=mrp, cost=cost, stock=stock)
+    # DEBUG: Log hash computation for troubleshooting
+    hash_result = compute_data_hash(mrp=mrp, cost=cost, stock=stock)
+    logger.debug(f"CDC Hash computed: mrp={mrp}, cost={cost}, stock={stock} → {hash_result}")
+    
+    return hash_result
 
 
 def update_item_outlet_hash(item_outlet) -> None:
@@ -923,7 +931,7 @@ def calculate_item_selling_price(
                 )
             else:
                 # Child: MRP/WDF first, then margin (FIXED: no more division by zero)
-                base_price = (mrp / wdf).quantize(Decimal('0.01'))
+                base_price = (mrp / wdf).quantize(PRICE_PRECISION)
                 selling_price, _ = PricingCalculator.calculate_talabat_price(
                     base_price,
                     margin_percentage=item.effective_talabat_margin
@@ -934,7 +942,7 @@ def calculate_item_selling_price(
                 selling_price = mrp
             else:
                 # Child: divide MRP by WDF (FIXED: no more division by zero)
-                selling_price = (mrp / wdf).quantize(Decimal('0.01'))
+                selling_price = (mrp / wdf).quantize(PRICE_PRECISION)
     else:
         # Regular items (wrap=10000 or no wrap)
         if platform == 'talabat':
@@ -976,7 +984,7 @@ def calculate_item_converted_cost(
             str(item.item_code), 
             'converted cost calculation'
         )
-        return (cost / wdf).quantize(Decimal('0.001'))
+        return (cost / wdf).quantize(COST_PRECISION)
     else:
         # Regular items: converted_cost = cost (no division)
         return cost
@@ -1062,33 +1070,51 @@ def should_protect_selling_price(platform: str, item_outlet) -> bool:
         >>> should_protect_selling_price('pasons', pasons_promo_item)
         False  # Pasons item - always normal update regardless of promotion
     """
-    # Input validation
-    if not platform or not item_outlet:
-        logger.warning(f"Invalid inputs for selling price protection check: platform={platform}, item_outlet={item_outlet}")
+    # EXPLICIT VALIDATION: Input validation with detailed logging
+    if not platform:
+        logger.error(f"PROTECTION VALIDATION: Invalid platform parameter: {platform}")
         return False
     
-    # Normalize platform name
+    if not item_outlet:
+        logger.error(f"PROTECTION VALIDATION: Invalid item_outlet parameter: {item_outlet}")
+        return False
+    
+    # Normalize platform name with validation
     platform_lower = str(platform).lower().strip()
+    if platform_lower not in VALID_PLATFORMS:
+        logger.warning(f"PROTECTION VALIDATION: Unknown platform '{platform_lower}', valid platforms: {VALID_PLATFORMS}")
+        return False
     
     # Only Talabat platform can have protection
-    if platform_lower != 'talabat':
+    if platform_lower != PLATFORM_TALABAT:
+        logger.debug(f"PROTECTION VALIDATION: Platform '{platform_lower}' does not support promotion protection")
         return False
     
-    # Check promotion status for Talabat items
+    # Check promotion status for Talabat items with explicit validation
     try:
         is_promotion = getattr(item_outlet, 'is_on_promotion', False)
         
+        # EXPLICIT VALIDATION: Ensure is_on_promotion is boolean
+        if not isinstance(is_promotion, bool):
+            logger.warning(f"PROTECTION VALIDATION: is_on_promotion is not boolean for item {item_outlet.item.item_code}: {type(is_promotion)} = {is_promotion}")
+            is_promotion = bool(is_promotion)  # Convert to boolean
+        
         # Talabat + promotion = PROTECT
         if is_promotion:
-            logger.debug(f"Protecting selling price for Talabat promotion item: {item_outlet.item.item_code}")
+            logger.debug(f"PROTECTION ACTIVE: Protecting selling price for Talabat promotion item: {item_outlet.item.item_code}")
             return True
         
         # Talabat + no promotion = NO PROTECTION
+        logger.debug(f"PROTECTION INACTIVE: Normal update for Talabat non-promotion item: {item_outlet.item.item_code}")
         return False
         
+    except AttributeError as e:
+        logger.error(f"PROTECTION VALIDATION: Missing attribute on item_outlet {item_outlet}: {str(e)}")
+        # On attribute error, default to no protection (safer for business operations)
+        return False
     except Exception as e:
-        logger.error(f"Error checking promotion status for item {item_outlet}: {str(e)}")
-        # On error, default to no protection (safer for business operations)
+        logger.error(f"PROTECTION VALIDATION: Unexpected error checking promotion status for item {item_outlet}: {str(e)}")
+        # On any other error, default to no protection (safer for business operations)
         return False
 
 
