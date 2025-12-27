@@ -32,6 +32,30 @@ class Outlet(models.Model):
         help_text="Platform where this outlet is available"
     )
     is_active = models.BooleanField(default=True)
+    
+    # API Push Integration fields
+    api_endpoint = models.URLField(
+        blank=True, 
+        null=True, 
+        help_text="E-commerce API URL for pushing product data"
+    )
+    api_key = models.CharField(
+        max_length=255, 
+        blank=True, 
+        null=True, 
+        help_text="API Key/Token for authentication"
+    )
+    push_enabled = models.BooleanField(
+        default=False, 
+        help_text="Enable API push for this outlet"
+    )
+    pasons_live_store_id = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Store ID for pasons.live e-commerce platform"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

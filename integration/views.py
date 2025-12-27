@@ -3076,6 +3076,201 @@ def shop_integration(request):
 
 
 @login_required
+def api_push_integration(request):
+    """
+    API Push Integration page with three categories: Incoming, Middleware, Outgoing
+    Focus on Pasons platform for pushing SKU and selling_price to pasons.live
+    """
+    from .models import Outlet
+    
+    # Get outlets for each platform with their store IDs
+    pasons_outlets = Outlet.objects.filter(platforms='pasons', is_active=True).order_by('name')
+    talabat_outlets = Outlet.objects.filter(platforms='talabat', is_active=True).order_by('name')
+    
+    # TODO: Add PushHistory model and get push history
+    # push_history = PushHistory.objects.all().order_by('-push_timestamp')[:50]
+    
+    context = {
+        'page_title': 'API Push Integration',
+        'active_page': 'api_push_integration',
+        'pasons_outlets': pasons_outlets,
+        'talabat_outlets': talabat_outlets,
+        # 'push_history': push_history,
+    }
+    return render(request, 'api_push_integration.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def save_store_id_api(request):
+    """
+    API endpoint to save Pasons.live Store ID for an outlet
+    
+    Expected POST data:
+    - outlet_id: ID of the outlet
+    - store_id: Pasons.live store ID to save
+    """
+    try:
+        outlet_id = request.POST.get('outlet_id')
+        store_id = request.POST.get('store_id', '').strip()
+        
+        if not outlet_id:
+            return JsonResponse({
+                'success': False,
+                'message': 'Outlet ID is required'
+            })
+        
+        # Get outlet and validate it's a Pasons outlet
+        try:
+            outlet = Outlet.objects.get(id=outlet_id, platforms='pasons', is_active=True)
+        except Outlet.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'message': 'Outlet not found or not a Pasons outlet'
+            })
+        
+        # Save the store ID (can be empty to clear it)
+        outlet.pasons_live_store_id = store_id if store_id else None
+        outlet.save(update_fields=['pasons_live_store_id'])
+        
+        logger.info(f"Store ID updated for outlet {outlet.name}: '{store_id}'")
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Store ID {"saved" if store_id else "cleared"} successfully',
+            'outlet_name': outlet.name,
+            'store_id': store_id
+        })
+        
+    except Exception as e:
+        logger.error(f"Error saving store ID: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Error saving store ID: {str(e)}'
+        })
+
+
+@login_required
+@require_http_methods(["POST"])
+def test_connection_api(request):
+    """
+    API endpoint to test connection to pasons.live for an outlet
+    
+    Expected POST data:
+    - outlet_id: ID of the outlet
+    """
+    try:
+        outlet_id = request.POST.get('outlet_id')
+        
+        if not outlet_id:
+            return JsonResponse({
+                'success': False,
+                'message': 'Outlet ID is required'
+            })
+        
+        # Get outlet and validate it's a Pasons outlet
+        try:
+            outlet = Outlet.objects.get(id=outlet_id, platforms='pasons', is_active=True)
+        except Outlet.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'message': 'Outlet not found or not a Pasons outlet'
+            })
+        
+        # Get push service and test connection
+        from .push_service import get_push_service
+        push_service = get_push_service(outlet)
+        
+        if not push_service:
+            return JsonResponse({
+                'success': False,
+                'message': 'Push service not available for this outlet'
+            })
+        
+        # Test connection
+        result = push_service.test_connection()
+        
+        logger.info(f"Connection test for outlet {outlet.name}: {result['message']}")
+        
+        return JsonResponse(result)
+        
+    except Exception as e:
+        logger.error(f"Error testing connection: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Error testing connection: {str(e)}'
+        })
+
+
+@login_required
+@require_http_methods(["POST"])
+def push_data_api(request):
+    """
+    API endpoint to push product data to pasons.live for an outlet
+    
+    Expected POST data:
+    - outlet_id: ID of the outlet
+    - push_type: 'full' or 'partial'
+    - push_mode: 'normal' or 'offer' (optional, defaults to 'normal')
+    """
+    try:
+        outlet_id = request.POST.get('outlet_id')
+        push_type = request.POST.get('push_type', 'partial')
+        push_mode = request.POST.get('push_mode', 'normal')
+        
+        if not outlet_id:
+            return JsonResponse({
+                'success': False,
+                'message': 'Outlet ID is required'
+            })
+        
+        if push_type not in ['full', 'partial']:
+            return JsonResponse({
+                'success': False,
+                'message': 'Push type must be "full" or "partial"'
+            })
+        
+        if push_mode not in ['normal', 'offer']:
+            return JsonResponse({
+                'success': False,
+                'message': 'Push mode must be "normal" or "offer"'
+            })
+        
+        # Get outlet and validate it's a Pasons outlet
+        try:
+            outlet = Outlet.objects.get(id=outlet_id, platforms='pasons', is_active=True)
+        except Outlet.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'message': 'Outlet not found or not a Pasons outlet'
+            })
+        
+        # Get push service and push data
+        from .push_service import get_push_service
+        push_service = get_push_service(outlet)
+        
+        if not push_service:
+            return JsonResponse({
+                'success': False,
+                'message': 'Push service not available for this outlet'
+            })
+        
+        # Push data with specified mode
+        result = push_service.push_to_pasons_live(push_type, push_mode)
+        
+        logger.info(f"Data push for outlet {outlet.name} ({push_type}, {push_mode}): {result['message']}")
+        
+        return JsonResponse(result)
+        
+    except Exception as e:
+        logger.error(f"Error pushing data: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Error pushing data: {str(e)}'
+        })
+
+
+@login_required
 def preview_csv_api(request):
     """
     API endpoint to preview CSV data before creating items or updating products
@@ -3914,23 +4109,29 @@ def erp_export_api(request):
         
         # Build export data
         raw_export_data = []
+        item_outlet_map = {}  # Track ItemOutlet ID for each row
+        
         for io in item_outlets:
             item = io.item
             # Calculate converted price based on wrap type
             converted_price = calculate_erp_price(io, item)
             
-            raw_export_data.append({
+            row_data = {
                 'party': 'DT0072',
                 'item_code': item.item_code,
                 'location': '',  # Placeholder
                 'unit': item.units,
                 'price': converted_price,
-                'wrap': str(item.wrap)
-            })
+                'wrap': str(item.wrap),
+                'item_outlet_id': io.id  # Track ItemOutlet ID
+            }
+            raw_export_data.append(row_data)
+            item_outlet_map[io.id] = io  # Store ItemOutlet reference
         
         # Remove duplicates for wrap=9900: same item_code + units → keep LOWEST price
         # wrap=10000 items: include all (no duplicates expected)
         export_data = []
+        exported_item_outlet_ids = []  # Track which ItemOutlets were actually exported
         seen_keys = {}  # key = (item_code, unit) → lowest price row
         
         for row in raw_export_data:
@@ -3942,14 +4143,17 @@ def erp_export_api(request):
             else:
                 # wrap=10000 or other: include all
                 export_data.append(row)
+                exported_item_outlet_ids.append(row['item_outlet_id'])
         
-        # Add deduplicated wrap=9900 items
+        # Add deduplicated wrap=9900 items and track their IDs
         for row in seen_keys.values():
             export_data.append(row)
+            exported_item_outlet_ids.append(row['item_outlet_id'])
         
-        # Remove 'wrap' key from final export (not needed in CSV)
+        # Remove 'wrap' and 'item_outlet_id' keys from final export (not needed in CSV)
         for row in export_data:
             row.pop('wrap', None)
+            row.pop('item_outlet_id', None)
         
         # Update export history
         erp_export.item_count = len(export_data)
@@ -3998,15 +4202,11 @@ def erp_export_api(request):
         erp_export.save()
         
         # Update tracking fields for partial export (OPTIMIZED)
-        # Only update items that were actually exported, not all items
+        # Only update items that were actually exported (after deduplication)
         if export_type == 'partial' and len(export_data) > 0:
-            # Get the item_outlets that were actually exported
-            exported_item_codes = [row['item_code'] for row in export_data]
+            # Use the tracked ItemOutlet IDs (after deduplication)
             item_outlets_to_update = ItemOutlet.objects.filter(
-                outlet=outlet,
-                item__platform='talabat',
-                item__item_code__in=exported_item_codes,
-                is_active_in_outlet=True
+                id__in=exported_item_outlet_ids
             ).select_related('item')
             
             # Batch update with calculated prices
@@ -4021,13 +4221,14 @@ def erp_export_api(request):
                     ['erp_export_price'],
                     batch_size=500
                 )
-                logger.info(f"Updated tracking for {len(updates)} exported items")
+                logger.info(f"Updated tracking for {len(updates)} exported items (after deduplication)")
         elif export_type == 'full':
-            # For full export, update all active items
+            # For full export, update all items (including inactive)
             item_outlets_to_update = ItemOutlet.objects.filter(
                 outlet=outlet,
-                item__platform='talabat',
-                is_active_in_outlet=True
+                item__platform='talabat'
+                # REMOVED: is_active_in_outlet=True filter
+                # Must update ALL items to maintain accurate tracking
             ).select_related('item')
             
             updates = []

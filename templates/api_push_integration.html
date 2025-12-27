@@ -1,0 +1,1510 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load tz %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+{% csrf_token %}
+<style>
+/* API Push Integration Styles - Modern Enhanced Design */
+.api-integration-container {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: 24px;
+    animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Statistics Dashboard */
+.stat-card {
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
+    border: 1px solid rgba(0,0,0,0.04);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.07), 0 8px 20px rgba(0,0,0,0.08);
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.stat-content {
+    flex: 1;
+}
+
+.stat-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+/* Main Section Tabs */
+.main-section-tabs {
+    display: flex;
+    gap: 8px;
+    background: linear-gradient(145deg, #f3f4f6, #e5e7eb);
+    border-radius: 16px;
+    padding: 8px;
+    margin-bottom: 24px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.main-section-tab {
+    flex: 1;
+    padding: 16px 24px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 600;
+    color: #6b7280;
+    border-radius: 12px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.main-section-tab:hover {
+    color: #374151;
+    background: rgba(255,255,255,0.5);
+}
+
+.main-section-tab.active {
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    color: #1976D2;
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2), 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.main-section-tab i {
+    font-size: 20px;
+}
+
+/* Section Content */
+.section-content {
+    display: none;
+}
+
+.section-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+.category-card {
+    background: linear-gradient(180deg, #ffffff, #fafbfc);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 8px 24px rgba(0,0,0,0.04);
+    border: 1px solid rgba(0,0,0,0.04);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.category-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, rgba(0,0,0,0.05), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.category-card:hover::before {
+    opacity: 1;
+}
+
+.category-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0,0,0,0.07), 0 12px 32px rgba(0,0,0,0.08);
+}
+
+/* Outlet Grid - Responsive and Scrollable */
+.outlet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* Custom Scrollbar */
+.outlet-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.outlet-grid::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.outlet-grid::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.outlet-grid::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.category-header i {
+    font-size: 24px;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.category-header h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+}
+
+/* Category-specific colors */
+.category-card.incoming .category-header i {
+    background: linear-gradient(135deg, #e0f2fe, #dbeafe);
+    color: #0369a1;
+}
+
+.category-card.middleware .category-header i {
+    background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+    color: #166534;
+}
+
+.category-card.outgoing .category-header i {
+    background: linear-gradient(135deg, #ffedd5, #fed7aa);
+    color: #c2410c;
+}
+
+/* Platform Tabs within Middleware */
+.platform-tabs {
+    display: flex;
+    gap: 4px;
+    background: linear-gradient(145deg, #f3f4f6, #e5e7eb);
+    border-radius: 12px;
+    padding: 6px;
+    margin-bottom: 20px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.platform-tab-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    border-radius: 8px;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.platform-tab-btn:hover {
+    color: #374151;
+    background: rgba(255,255,255,0.6);
+}
+
+.platform-tab-btn.active.pasons {
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    color: #1976D2;
+    box-shadow: 0 4px 12px rgba(25, 118, 210, 0.25), 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.platform-tab-btn.active.talabat {
+    background: linear-gradient(135deg, #ffffff, #fffbf5);
+    color: #ea580c;
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.25), 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* Platform Content */
+.platform-content {
+    display: none;
+}
+
+.platform-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Outlet Cards */
+.outlet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+/* Custom Scrollbar */
+.outlet-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.outlet-grid::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 4px;
+}
+
+.outlet-grid::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+.outlet-grid::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.outlet-card {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+}
+
+.outlet-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(25, 118, 210, 0.05), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.outlet-card:hover {
+    box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+    transform: translateY(-2px);
+    border-color: #cbd5e1;
+}
+
+.outlet-card:hover::after {
+    opacity: 1;
+}
+
+.outlet-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.outlet-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.outlet-id {
+    font-size: 12px;
+    color: #6b7280;
+    font-family: 'SF Mono', 'Monaco', monospace;
+}
+
+.outlet-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    position: relative;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.status-dot::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 50%;
+    background: inherit;
+    opacity: 0.3;
+    animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+@keyframes ping {
+    75%, 100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+.status-dot.active {
+    background: #10b981;
+}
+
+.status-dot.inactive {
+    background: #ef4444;
+    animation: none;
+}
+
+.status-dot.inactive::before {
+    animation: none;
+}
+
+/* Store ID Configuration */
+.store-id-section {
+    margin-top: 16px;
+}
+
+.store-id-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #374151;
+    background: white;
+    transition: all 0.15s ease;
+}
+
+.store-id-input:focus {
+    outline: none;
+    border-color: #1976D2;
+    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+}
+
+.store-id-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 6px;
+}
+
+/* Push Buttons */
+.push-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.push-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+.push-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.6s, height 0.6s;
+}
+
+.push-btn:active::before {
+    width: 300px;
+    height: 300px;
+}
+
+.push-btn.primary {
+    background: linear-gradient(135deg, #1976D2, #1565C0);
+    color: white;
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
+}
+
+.push-btn.primary:hover {
+    background: linear-gradient(135deg, #1565C0, #0D47A1);
+    box-shadow: 0 6px 16px rgba(25, 118, 210, 0.4);
+    transform: translateY(-1px);
+}
+
+.push-btn.primary:disabled {
+    background: linear-gradient(135deg, #94a3b8, #64748b);
+    cursor: not-allowed;
+    transform: none;
+}
+
+.push-btn.secondary {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.push-btn.secondary:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.push-btn.secondary:disabled {
+    background: #f3f4f6;
+    color: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.push-btn i.bx-loader-alt {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Placeholder Content */
+.placeholder-content {
+    text-align: center;
+    padding: 60px 20px;
+    color: #9ca3af;
+}
+
+.placeholder-content i {
+    font-size: 48px;
+    margin-bottom: 16px;
+    display: block;
+    color: #d1d5db;
+}
+
+.placeholder-content h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 8px;
+}
+
+.placeholder-content p {
+    font-size: 14px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.status-badge.pending {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #92400e;
+    border: 1px solid rgba(146, 64, 14, 0.1);
+}
+
+/* Push History Table */
+.history-table-wrapper {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.history-table thead {
+    background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+}
+
+.history-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+    border-bottom: 2px solid #e5e7eb;
+    white-space: nowrap;
+}
+
+.history-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #6b7280;
+}
+
+.history-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.history-table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+.history-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.history-status.success {
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    color: #065f46;
+}
+
+.history-status.error {
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
+    color: #991b1b;
+}
+
+.history-status.pending {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #92400e;
+}
+
+.platform-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.platform-badge.pasons {
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    color: #1e40af;
+}
+
+.platform-badge.talabat {
+    background: linear-gradient(135deg, #fed7aa, #fdba74);
+    color: #c2410c;
+}
+
+
+/* Responsive Design */
+@media (max-width: 1400px) {
+    .outlet-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+}
+
+@media (max-width: 1200px) {
+    .outlet-grid {
+        grid-template-columns: repeat(auto-fill, minmax(100%, 1fr));
+        max-height: 500px;
+    }
+}
+
+@media (max-width: 768px) {
+    .api-integration-container {
+        padding: 16px;
+    }
+    
+    .category-card {
+        padding: 16px;
+    }
+    
+    .main-section-tab {
+        padding: 12px 16px;
+        font-size: 13px;
+    }
+    
+    .outlet-grid {
+        max-height: 400px;
+    }
+}
+</style>
+
+<div class="api-integration-container">
+    <!-- Page Header -->
+    <div style="margin-bottom: 32px;">
+        <h1 style="font-size: 28px; font-weight: 700; color: #1f2937; margin: 0 0 8px 0;">API Push Integration</h1>
+        <p style="font-size: 16px; color: #6b7280; margin: 0;">Push product data to external e-commerce platforms via API endpoints</p>
+    </div>
+
+    <!-- Statistics Dashboard -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px;">
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af;">
+                <i class="bx bx-store"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Pasons Outlets</div>
+                <div class="stat-value">{{ pasons_outlets|length }}</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #fed7aa, #fdba74); color: #c2410c;">
+                <i class="bx bx-restaurant"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Talabat Outlets</div>
+                <div class="stat-value">{{ talabat_outlets|length }}</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #bbf7d0, #86efac); color: #166534;">
+                <i class="bx bx-check-circle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Active Connections</div>
+                <div class="stat-value" id="active-connections">0</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background: linear-gradient(135deg, #e9d5ff, #d8b4fe); color: #7e22ce;">
+                <i class="bx bx-time"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-label">Last Push</div>
+                <div class="stat-value" style="font-size: 14px;" id="last-push-time">Never</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Section Tabs -->
+    <div class="main-section-tabs">
+        <button class="main-section-tab" data-section="incoming">
+            <i class="bx bx-import"></i>
+            Incoming
+        </button>
+        <button class="main-section-tab" data-section="middleware">
+            <i class="bx bx-cog"></i>
+            Middleware
+        </button>
+        <button class="main-section-tab active" data-section="outgoing">
+            <i class="bx bx-export"></i>
+            Outgoing
+        </button>
+    </div>
+
+    <!-- Incoming Section -->
+    <div class="section-content" id="section-incoming">
+        <div class="category-card">
+            <div class="category-header" style="border-bottom-color: #bfdbfe;">
+                <i class="bx bx-import" style="background: linear-gradient(135deg, #e0f2fe, #dbeafe); color: #0369a1;"></i>
+                <h3>Incoming Data Processing</h3>
+            </div>
+            <div class="placeholder-content">
+                <i class="bx bx-cloud-download"></i>
+                <h4>Incoming Data Processing</h4>
+                <p>Receive and process data from external sources</p>
+                <div style="margin-top: 20px;">
+                    <span class="status-badge pending">Coming Soon</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Middleware Section -->
+    <div class="section-content" id="section-middleware">
+        <div class="category-card">
+            <div class="category-header" style="border-bottom-color: #bbf7d0;">
+                <i class="bx bx-cog" style="background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #166534;"></i>
+                <h3>Middleware Processing</h3>
+            </div>
+            
+            <!-- Platform Tabs -->
+            <div class="platform-tabs">
+                <button class="platform-tab-btn active pasons" data-platform="pasons" data-section="middleware">
+                    <i class="bx bx-store"></i>
+                    Pasons
+                </button>
+                <button class="platform-tab-btn" data-platform="talabat" data-section="middleware">
+                    <i class="bx bx-restaurant"></i>
+                    Talabat
+                </button>
+            </div>
+
+            <!-- Pasons Platform Content -->
+            <div class="platform-content active" id="middleware-pasons">
+                <div class="outlet-grid">
+                    {% for outlet in pasons_outlets %}
+                    <div class="outlet-card">
+                        <div class="outlet-info">
+                            <div class="outlet-name">{{ outlet.name }}</div>
+                            <div class="outlet-id">ID: {{ outlet.store_id }}</div>
+                        </div>
+                        <div class="outlet-status">
+                            <span class="status-dot {% if outlet.is_active %}active{% else %}inactive{% endif %}"></span>
+                            <span>{% if outlet.is_active %}Active{% else %}Inactive{% endif %}</span>
+                            <span style="margin-left: auto; font-size: 11px; color: #9ca3af;">Auto Processing</span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="placeholder-content" style="padding: 40px 20px;">
+                        <i class="bx bx-store" style="font-size: 32px;"></i>
+                        <p style="font-size: 13px;">No Pasons outlets found</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Talabat Platform Content -->
+            <div class="platform-content" id="middleware-talabat">
+                <div class="outlet-grid">
+                    {% for outlet in talabat_outlets %}
+                    <div class="outlet-card">
+                        <div class="outlet-info">
+                            <div class="outlet-name">{{ outlet.name }}</div>
+                            <div class="outlet-id">ID: {{ outlet.store_id }}</div>
+                        </div>
+                        <div class="outlet-status">
+                            <span class="status-dot {% if outlet.is_active %}active{% else %}inactive{% endif %}"></span>
+                            <span>{% if outlet.is_active %}Active{% else %}Inactive{% endif %}</span>
+                            <span style="margin-left: auto; font-size: 11px; color: #9ca3af;">Auto Processing</span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="placeholder-content" style="padding: 40px 20px;">
+                        <i class="bx bx-restaurant" style="font-size: 32px;"></i>
+                        <p style="font-size: 13px;">No Talabat outlets found</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Outgoing Section -->
+    <div class="section-content active" id="section-outgoing">
+        <div class="category-card">
+            <div class="category-header" style="border-bottom-color: #fed7aa;">
+                <i class="bx bx-export" style="background: linear-gradient(135deg, #ffedd5, #fed7aa); color: #c2410c;"></i>
+                <h3>Outgoing Data Push</h3>
+                <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+                    <span style="font-size: 12px; color: #6b7280; font-weight: 500;">
+                        <span id="outlet-count">{{ pasons_outlets|length }}</span> Outlets
+                    </span>
+                </div>
+            </div>
+            
+            <!-- Platform Tabs for Outgoing -->
+            <div class="platform-tabs">
+                <button class="platform-tab-btn active pasons" data-platform="pasons" data-section="outgoing">
+                    <i class="bx bx-store"></i>
+                    Pasons
+                </button>
+                <button class="platform-tab-btn" data-platform="talabat" data-section="outgoing">
+                    <i class="bx bx-restaurant"></i>
+                    Talabat
+                </button>
+            </div>
+
+            <!-- Pasons Platform Content -->
+            <div class="platform-content active" id="outgoing-pasons">
+                <div class="outlet-grid">
+                    {% for outlet in pasons_outlets %}
+                    <div class="outlet-card">
+                        <div class="outlet-info">
+                            <div class="outlet-name">{{ outlet.name }}</div>
+                            <div class="outlet-id">ID: {{ outlet.store_id }}</div>
+                        </div>
+                        
+                        <!-- Store ID Configuration for pasons.live -->
+                        <div class="store-id-section">
+                            <label class="store-id-label">
+                                Pasons.live Store ID
+                                {% if outlet.pasons_live_store_id %}
+                                    <span style="color: #10b981; font-size: 11px; margin-left: 4px;">✓ Configured</span>
+                                {% else %}
+                                    <span style="color: #f59e0b; font-size: 11px; margin-left: 4px;">⚠ Not Set</span>
+                                {% endif %}
+                            </label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="text" class="store-id-input" placeholder="Enter store ID for pasons.live" 
+                                       data-outlet-id="{{ outlet.id }}" value="{{ outlet.pasons_live_store_id|default:'' }}" style="flex: 1;">
+                                <button class="save-store-id-btn" data-outlet-id="{{ outlet.id }}" 
+                                        style="padding: 8px 12px; background: #10b981; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">
+                                    💾 Save
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Status Info -->
+                        <div style="margin: 12px 0; padding: 8px; background: #fef3c7; border-radius: 6px; font-size: 11px; color: #92400e;">
+                            <strong>⚠ API Status:</strong> pasons.live API returns 404 (not implemented yet). Middleware is ready and will work once their API is available.
+                        </div>
+                        
+                        <!-- Push Actions -->
+                        <div class="push-actions">
+                            <button class="push-btn secondary" onclick="testConnection({{ outlet.id }})">
+                                <i class="bx bx-wifi"></i>
+                                Test
+                            </button>
+                            <button class="push-btn primary" onclick="pushData({{ outlet.id }}, 'full', 'normal')">
+                                <i class="bx bx-upload"></i>
+                                Normal Prices
+                            </button>
+                            <button class="push-btn primary" onclick="pushData({{ outlet.id }}, 'full', 'offer')" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                                <i class="bx bx-gift"></i>
+                                Offer Prices
+                            </button>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="placeholder-content" style="padding: 40px 20px;">
+                        <i class="bx bx-store" style="font-size: 32px;"></i>
+                        <p style="font-size: 13px;">No Pasons outlets found</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Talabat Platform Content -->
+            <div class="platform-content" id="outgoing-talabat">
+                <div class="placeholder-content">
+                    <i class="bx bx-restaurant"></i>
+                    <h4>Talabat API Push Integration</h4>
+                    <p>Push product data to Talabat platform via API endpoints</p>
+                    <div style="margin-top: 20px;">
+                        <span class="status-badge pending">Coming Soon</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Push History Section -->
+    <div class="category-card" style="margin-top: 24px;">
+        <div class="category-header">
+            <i class="bx bx-history"></i>
+            <h3>Push History</h3>
+            <div style="margin-left: auto; display: flex; gap: 8px;">
+                <button onclick="refreshHistory()" class="push-btn secondary" style="padding: 6px 12px;">
+                    <i class="bx bx-refresh"></i>
+                    Refresh
+                </button>
+            </div>
+        </div>
+        
+        <div id="push-history-container">
+            <div class="history-table-wrapper">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Outlet</th>
+                            <th>Platform</th>
+                            <th>Mode</th>
+                            <th>Items</th>
+                            <th>Status</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-tbody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af;">
+                                <i class="bx bx-time" style="font-size: 48px; display: block; margin-bottom: 12px;"></i>
+                                <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 4px;">No Push History Yet</div>
+                                <div style="font-size: 13px;">Push operations will appear here</div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Main section tab switching
+document.querySelectorAll('.main-section-tab').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const section = this.dataset.section;
+        
+        // Update button states
+        document.querySelectorAll('.main-section-tab').forEach(b => {
+            b.classList.remove('active');
+        });
+        this.classList.add('active');
+        
+        // Update section visibility
+        document.querySelectorAll('.section-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        const targetSection = document.getElementById(`section-${section}`);
+        if (targetSection) {
+            targetSection.classList.add('active');
+        }
+    });
+});
+
+// Platform tab switching for both middleware and outgoing
+document.querySelectorAll('.platform-tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const section = this.dataset.section || 'middleware'; // Default to middleware for backward compatibility
+        const platform = this.dataset.platform;
+        
+        // Update button states within the same section
+        const parentCard = this.closest('.category-card');
+        parentCard.querySelectorAll('.platform-tab-btn').forEach(b => {
+            b.classList.remove('active', 'pasons', 'talabat');
+        });
+        this.classList.add('active');
+        
+        // Add platform-specific styling
+        if (platform === 'pasons') {
+            this.classList.add('pasons');
+        } else if (platform === 'talabat') {
+            this.classList.add('talabat');
+        }
+        
+        // Update content visibility within the same section
+        parentCard.querySelectorAll('.platform-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        const targetContent = document.getElementById(`${section}-${platform}`);
+        if (targetContent) {
+            targetContent.classList.add('active');
+        }
+    });
+});
+
+// Store ID input handling
+document.querySelectorAll('.store-id-input').forEach(input => {
+    input.addEventListener('change', function() {
+        const outletId = this.dataset.outletId;
+        const storeId = this.value.trim();
+        
+        // Save store ID to database via API
+        saveStoreId(outletId, storeId, this);
+    });
+});
+
+// Save button handling
+document.querySelectorAll('.save-store-id-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        const outletId = this.dataset.outletId;
+        const input = document.querySelector(`input[data-outlet-id="${outletId}"]`);
+        const storeId = input.value.trim();
+        
+        // Save store ID to database via API
+        saveStoreId(outletId, storeId, input);
+    });
+});
+
+// Function to save store ID via API
+function saveStoreId(outletId, storeId, inputElement) {
+    // Show loading state
+    inputElement.style.borderColor = '#f59e0b';
+    inputElement.style.backgroundColor = '#fffbeb';
+    
+    // Update save button state
+    const saveButton = document.querySelector(`button[data-outlet-id="${outletId}"]`);
+    if (saveButton) {
+        saveButton.textContent = '⏳ Saving...';
+        saveButton.disabled = true;
+    }
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('outlet_id', outletId);
+    formData.append('store_id', storeId);
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    if (csrfToken) {
+        formData.append('csrfmiddlewaretoken', csrfToken);
+    }
+    
+    // Make API call
+    fetch('/integration/api/save-store-id/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Success feedback
+            inputElement.style.borderColor = '#10b981';
+            inputElement.style.backgroundColor = '#f0fdf4';
+            
+            // Update save button
+            if (saveButton) {
+                saveButton.textContent = '✅ Saved';
+                saveButton.style.background = '#10b981';
+                setTimeout(() => {
+                    saveButton.textContent = '💾 Save';
+                    saveButton.disabled = false;
+                }, 2000);
+            }
+            
+            // Show success message briefly
+            showNotification(`Store ID ${storeId ? 'saved' : 'cleared'} for ${data.outlet_name}`, 'success');
+        } else {
+            // Error feedback
+            inputElement.style.borderColor = '#ef4444';
+            inputElement.style.backgroundColor = '#fef2f2';
+            
+            // Update save button
+            if (saveButton) {
+                saveButton.textContent = '❌ Error';
+                saveButton.style.background = '#ef4444';
+                setTimeout(() => {
+                    saveButton.textContent = '💾 Save';
+                    saveButton.style.background = '#10b981';
+                    saveButton.disabled = false;
+                }, 2000);
+            }
+            
+            // Show error message
+            showNotification(`Error: ${data.message}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving store ID:', error);
+        
+        // Error feedback
+        inputElement.style.borderColor = '#ef4444';
+        inputElement.style.backgroundColor = '#fef2f2';
+        
+        // Update save button
+        if (saveButton) {
+            saveButton.textContent = '❌ Error';
+            saveButton.style.background = '#ef4444';
+            setTimeout(() => {
+                saveButton.textContent = '💾 Save';
+                saveButton.style.background = '#10b981';
+                saveButton.disabled = false;
+            }, 2000);
+        }
+        
+        // Show error message
+        showNotification('Network error while saving store ID', 'error');
+    });
+}
+
+// Simple notification function
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        color: white;
+        font-weight: 600;
+        font-size: 14px;
+        z-index: 10000;
+        max-width: 300px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        transition: all 0.3s ease;
+    `;
+    
+    // Set background color based on type
+    if (type === 'success') {
+        notification.style.backgroundColor = '#10b981';
+    } else if (type === 'error') {
+        notification.style.backgroundColor = '#ef4444';
+    } else {
+        notification.style.backgroundColor = '#3b82f6';
+    }
+    
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
+}
+
+// Test connection function
+function testConnection(outletId) {
+    // Show loading state
+    const testButton = event.target;
+    const originalText = testButton.innerHTML;
+    testButton.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Testing...';
+    testButton.disabled = true;
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('outlet_id', outletId);
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    if (csrfToken) {
+        formData.append('csrfmiddlewaretoken', csrfToken);
+    }
+    
+    // Make API call
+    fetch('/integration/api/test-connection/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`✅ ${data.message}`, 'success');
+        } else {
+            // Check if this is an expected error (like 404 from pasons.live)
+            if (data.expected_error) {
+                showNotification(`ℹ️ ${data.message}`, 'info');
+            } else {
+                showNotification(`❌ ${data.message}`, 'error');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error testing connection:', error);
+        showNotification('Network error while testing connection', 'error');
+    })
+    .finally(() => {
+        // Restore button state
+        testButton.innerHTML = originalText;
+        testButton.disabled = false;
+    });
+}
+
+// Push data function
+function pushData(outletId, pushType, pushMode) {
+    // Show loading state
+    const pushButton = event.target;
+    const originalText = pushButton.innerHTML;
+    pushButton.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Pushing...';
+    pushButton.disabled = true;
+    
+    // Record start time
+    const startTime = Date.now();
+    
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('outlet_id', outletId);
+    formData.append('push_type', pushType);
+    formData.append('push_mode', pushMode);
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    if (csrfToken) {
+        formData.append('csrfmiddlewaretoken', csrfToken);
+    }
+    
+    // Make API call
+    fetch('/integration/api/push-data/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        
+        if (data.success) {
+            const modeText = pushMode === 'offer' ? 'offer prices' : 'normal prices';
+            showNotification(`✅ Successfully pushed ${data.item_count} ${modeText}`, 'success');
+            
+            // Add to history
+            addToHistory({
+                outlet_id: outletId,
+                platform: 'pasons',
+                mode: pushMode,
+                item_count: data.item_count,
+                status: 'success',
+                duration: duration
+            });
+            
+            // Show additional details if available
+            if (data.item_count > 0) {
+                console.log('Push details:', data);
+                if (data.response_data) {
+                    console.log('API response:', data.response_data);
+                }
+            }
+        } else {
+            // Check if this is an expected error (like 404 from pasons.live)
+            if (data.expected_error) {
+                showNotification(`ℹ️ ${data.message}`, 'info');
+            } else {
+                showNotification(`❌ ${data.message}`, 'error');
+            }
+            
+            // Add to history as error
+            addToHistory({
+                outlet_id: outletId,
+                platform: 'pasons',
+                mode: pushMode,
+                item_count: 0,
+                status: 'error',
+                duration: duration
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error pushing data:', error);
+        showNotification('Network error while pushing data', 'error');
+        
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        addToHistory({
+            outlet_id: outletId,
+            platform: 'pasons',
+            mode: pushMode,
+            item_count: 0,
+            status: 'error',
+            duration: duration
+        });
+    })
+    .finally(() => {
+        // Restore button state
+        pushButton.innerHTML = originalText;
+        pushButton.disabled = false;
+    });
+}
+
+// Add to history function
+function addToHistory(data) {
+    // Get outlet name
+    const outletCard = document.querySelector(`[data-outlet-id="${data.outlet_id}"]`)?.closest('.outlet-card');
+    const outletName = outletCard?.querySelector('.outlet-name')?.textContent || 'Unknown';
+    
+    // Create history entry
+    const history = {
+        timestamp: new Date().toISOString(),
+        outlet: outletName,
+        platform: data.platform,
+        mode: data.mode,
+        item_count: data.item_count,
+        status: data.status,
+        duration: data.duration
+    };
+    
+    // Get existing history from localStorage
+    let historyList = JSON.parse(localStorage.getItem('push_history') || '[]');
+    
+    // Add new entry at the beginning
+    historyList.unshift(history);
+    
+    // Keep only last 50 entries
+    historyList = historyList.slice(0, 50);
+    
+    // Save back to localStorage
+    localStorage.setItem('push_history', JSON.stringify(historyList));
+    
+    // Update display
+    displayHistory();
+    
+    // Update last push time
+    updateLastPushTime();
+}
+
+// Display history function
+function displayHistory() {
+    const historyList = JSON.parse(localStorage.getItem('push_history') || '[]');
+    const tbody = document.getElementById('history-tbody');
+    
+    if (historyList.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af;">
+                    <i class="bx bx-time" style="font-size: 48px; display: block; margin-bottom: 12px;"></i>
+                    <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 4px;">No Push History Yet</div>
+                    <div style="font-size: 13px;">Push operations will appear here</div>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = historyList.slice(0, 20).map(entry => {
+        const date = new Date(entry.timestamp);
+        const timeStr = date.toLocaleString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const statusClass = entry.status === 'success' ? 'success' : 'error';
+        const statusIcon = entry.status === 'success' ? 'bx-check-circle' : 'bx-x-circle';
+        
+        return `
+            <tr>
+                <td style="font-weight: 500; color: #374151;">${timeStr}</td>
+                <td>${entry.outlet}</td>
+                <td><span class="platform-badge ${entry.platform}">${entry.platform}</span></td>
+                <td style="text-transform: capitalize;">${entry.mode}</td>
+                <td style="font-weight: 600; color: #374151;">${entry.item_count}</td>
+                <td>
+                    <span class="history-status ${statusClass}">
+                        <i class="bx ${statusIcon}"></i>
+                        ${entry.status}
+                    </span>
+                </td>
+                <td style="font-family: 'SF Mono', monospace;">${entry.duration}s</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Refresh history function
+function refreshHistory() {
+    displayHistory();
+    showNotification('History refreshed', 'info');
+}
+
+// Update last push time
+function updateLastPushTime() {
+    const historyList = JSON.parse(localStorage.getItem('push_history') || '[]');
+    const lastPushElement = document.getElementById('last-push-time');
+    
+    if (historyList.length > 0) {
+        const lastPush = new Date(historyList[0].timestamp);
+        const now = new Date();
+        const diffMs = now - lastPush;
+        const diffMins = Math.floor(diffMs / 60000);
+        
+        if (diffMins < 1) {
+            lastPushElement.textContent = 'Just now';
+        } else if (diffMins < 60) {
+            lastPushElement.textContent = `${diffMins}m ago`;
+        } else {
+            const diffHours = Math.floor(diffMins / 60);
+            lastPushElement.textContent = `${diffHours}h ago`;
+        }
+    } else {
+        lastPushElement.textContent = 'Never';
+    }
+}
+
+// Update active connections count
+function updateActiveConnections() {
+    const configuredOutlets = document.querySelectorAll('.store-id-input').length;
+    const filledOutlets = Array.from(document.querySelectorAll('.store-id-input')).filter(input => input.value.trim()).length;
+    document.getElementById('active-connections').textContent = filledOutlets;
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    displayHistory();
+    updateLastPushTime();
+    updateActiveConnections();
+    
+    // Update last push time every minute
+    setInterval(updateLastPushTime, 60000);
+});
+</script>
+{% endblock %}
