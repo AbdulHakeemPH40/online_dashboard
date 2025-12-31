@@ -661,7 +661,7 @@ function populateProductForm(item) {
     // Map API response fields to form fields
     const platform = getPlatform();
     setVal('item_code', item.item_code);
-    setVal('name', item.description);  // API: description → form: name
+    setVal('description', item.description);  // Form field: description
     setVal('pack_description', item.pack_description);
     setVal('sku', item.sku);
     setVal('barcode', item.barcode);

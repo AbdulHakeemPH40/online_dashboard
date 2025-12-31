@@ -486,21 +486,6 @@
                     </p>
                 </div>
                 
-                <!-- Row 3: Promotion Filter -->
-                <div class="form-group">
-                    <label>Promotion Items</label>
-                    <div class="export-type-cards">
-                        <div class="export-type-card selected" data-promo="include" onclick="selectERPPromoFilter(this)">
-                            <h5><span class="radio-dot"></span> Include Promotions</h5>
-                            <p>Export all items including promotions</p>
-                        </div>
-                        <div class="export-type-card" data-promo="exclude" onclick="selectERPPromoFilter(this)">
-                            <h5><span class="radio-dot"></span> Exclude Promotions</h5>
-                            <p>Export only non-promotion items</p>
-                        </div>
-                    </div>
-                </div>
-                
                 <!-- Export Fields Preview -->
                 <div class="export-preview">
                     <h5>Export Fields</h5>
@@ -604,23 +589,10 @@ function selectERPExportType(card) {
     card.classList.add('selected');
 }
 
-// ERP Promotion Filter Selection
-function selectERPPromoFilter(card) {
-    const container = card.parentElement;
-    container.querySelectorAll('.export-type-card').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
-}
-
 // Get selected export type
 function getSelectedERPExportType() {
     const selected = document.querySelector('.export-type-card.selected[data-type]');
     return selected ? selected.dataset.type : 'full';
-}
-
-// Get selected promotion filter
-function getSelectedERPPromoFilter() {
-    const selected = document.querySelector('.export-type-card.selected[data-promo]');
-    return selected ? selected.dataset.promo : 'include';
 }
 
 // Generate ERP Export
@@ -639,14 +611,9 @@ function generateERPExport(event) {
     }
     
     const exportType = getSelectedERPExportType();
-    const promoFilter = getSelectedERPPromoFilter();
     
+    // Note: Promotion items are ALWAYS excluded on backend (is_on_promotion=True items are filtered out)
     let url = `/integration/api/erp-export/?outlet_id=${outletId}&export_type=${exportType}`;
-    
-    // Add promotion filter parameter
-    if (promoFilter === 'exclude') {
-        url += '&exclude_promotions=true';
-    }
     
     // Show loading state
     const btn = event.target.closest('button');

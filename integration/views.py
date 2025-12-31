@@ -4016,8 +4016,12 @@ def erp_export_api(request):
     - Location: Placeholder (empty)
     - Unit: item.units
     - Price: Converted selling price
-        - wrap=9900: selling_price * WDF (weight_division_factor)
-        - wrap=10000: selling_price (no conversion)
+        - wrap=9900: outlet_selling_price * WDF (weight_division_factor)
+        - wrap=10000: outlet_selling_price (no conversion)
+    
+    PROMOTION HANDLING:
+    - Items on promotion (is_on_promotion=True) are ALWAYS EXCLUDED
+    - Before export, auto-expire ended promotions to restore outlet_selling_price
     
     Supports full and partial export with delta tracking.
     """
@@ -4028,12 +4032,12 @@ def erp_export_api(request):
     from django.utils import timezone
     from decimal import Decimal
     from .models import ERPExportHistory
+    from .promotion_service import PromotionService
     
     try:
         # Get parameters
         outlet_id = request.GET.get('outlet_id', '').strip()
         export_type = request.GET.get('export_type', 'full').strip()
-        exclude_promotions = request.GET.get('exclude_promotions', '').strip().lower() in ('true', '1', 'yes')
         
         if not outlet_id:
             return JsonResponse({'success': False, 'message': 'outlet_id is required'})
@@ -4047,6 +4051,13 @@ def erp_export_api(request):
         except Outlet.DoesNotExist:
             return JsonResponse({'success': False, 'message': 'Outlet not found or not a Talabat outlet'})
         
+        # STEP 1: Auto-expire ended promotions BEFORE export
+        # This restores original_selling_price → outlet_selling_price for expired promotions
+        expire_result = PromotionService.deactivate_promotions()
+        expired_count = expire_result.get('deactivated', 0)
+        if expired_count > 0:
+            logger.info(f"ERP Export: Auto-expired {expired_count} promotion(s) before export")
+        
         # Create export history record
         erp_export = ERPExportHistory.objects.create(
             outlet=outlet,
@@ -4055,17 +4066,15 @@ def erp_export_api(request):
             created_by=request.user if request.user.is_authenticated else None
         )
         
-        # Get items for this outlet - FIXED: Export ALL items regardless of stock status
+        # STEP 2: Get items for this outlet
+        # ALWAYS EXCLUDE items on promotion (is_on_promotion=False filter)
         item_outlets = ItemOutlet.objects.filter(
             outlet=outlet,
-            item__platform='talabat'
-            # REMOVED: is_active_in_outlet=True filter - ERP should export ALL items
+            item__platform='talabat',
+            is_on_promotion=False  # ALWAYS exclude items currently on promotion
         ).select_related('item')
         
-        # Filter out promotion items if requested
-        if exclude_promotions:
-            item_outlets = item_outlets.filter(is_on_promotion=False)
-            logger.info(f"ERP Export: Excluding promotion items")
+        logger.info(f"ERP Export: Exporting non-promotion items only (is_on_promotion=False)")
         
         # For partial export, compare with last export
         if export_type == 'partial':
