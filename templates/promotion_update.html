@@ -2227,8 +2227,8 @@ function renderVariance(sellingPrice, cPromo) {
     let colorClass = '';
     let bgColor = '';
     
-    if (variance > 2) {
-        colorClass = 'color: #16a34a; font-weight: 600;'; // Green for good variance (>2 AED)
+    if (variance >= 2) {
+        colorClass = 'color: #16a34a; font-weight: 600;'; // Green for good variance (>=2 AED)
         bgColor = 'background: #dcfce7; padding: 4px 8px; border-radius: 4px;';
     } else if (variance >= 0) {
         colorClass = 'color: #ea580c; font-weight: 600;'; // Orange for low variance (0-2 AED)

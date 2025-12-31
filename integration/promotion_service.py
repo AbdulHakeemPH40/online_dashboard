@@ -88,9 +88,9 @@ class PromotionService:
             # Calculate GP% = ((C.Promo - C.Cost) / C.Promo) * 100
             gp_percent = ((converted_promo - converted_cost) / converted_promo * Decimal('100')) if converted_promo > 0 else Decimal('0')
             
-            # If GP% < 20%, adjust C.Promo = C.Cost * 1.25
+            # If GP% < 20%, adjust C.Promo = C.Cost * 1.35 (~26% margin)
             if gp_percent < Decimal('20'):
-                adjusted_promo = converted_cost * Decimal('1.25')
+                adjusted_promo = converted_cost * Decimal('1.35')
                 adjusted_promo = PricingCalculator.smart_round(adjusted_promo)
                 promo_adjusted = True
                 margin_warning = f"Promo price adjusted from {converted_promo} to {adjusted_promo} AED to meet 20% GP margin"
@@ -276,7 +276,7 @@ class PromotionService:
                             
                             if gp_percent < Decimal('20'):
                                 # Adjust to meet 20% margin
-                                item_converted_promo = converted_cost * Decimal('1.25')
+                                item_converted_promo = converted_cost * Decimal('1.35')
                                 item_converted_promo = PricingCalculator.smart_round(item_converted_promo)
                     else:
                         item_converted_promo = base_converted.quantize(Decimal('0.01'))
