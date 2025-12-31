@@ -2221,7 +2221,8 @@ function renderVariance(sellingPrice, cPromo) {
     // Calculate variance: Selling Price - C.Promo
     const selling = parseFloat(sellingPrice) || 0;
     const promo = parseFloat(cPromo) || 0;
-    const variance = selling - promo;
+    // Round to 2 decimals to avoid floating-point precision issues (e.g., 16.99-14.99=1.999999)
+    const variance = Math.round((selling - promo) * 100) / 100;
     
     // Determine color based on variance (positive = good, negative = bad)
     let colorClass = '';
