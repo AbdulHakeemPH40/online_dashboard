@@ -670,12 +670,14 @@ class PromotionService:
         Returns:
             Dict with count of activated promotions
         """
-        today = date.today()
+        # Ensure we use Dubai date for comparison
+        now_local = timezone.localtime(timezone.now())
+        today = now_local.date()
         
         # Find promotions that should be active but aren't yet
         promotions = ItemOutlet.objects.filter(
-            promo_start_date__lte=today,
-            promo_end_date__gte=today,
+            promo_start_date__lte=now_local,
+            promo_end_date__gte=now_local,
             is_on_promotion=False,
             promo_price__isnull=False
         )
@@ -700,11 +702,12 @@ class PromotionService:
         Returns:
             Dict with count of deactivated promotions
         """
-        today = date.today()
+        # Ensure we use Dubai time for comparison
+        now_local = timezone.localtime(timezone.now())
         
         # Find expired promotions
         promotions = ItemOutlet.objects.filter(
-            promo_end_date__lt=today,
+            promo_end_date__lt=now_local,
             is_on_promotion=True
         )
         

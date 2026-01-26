@@ -1092,8 +1092,15 @@ def product_update(request):
             messages.error(request, "Please select a CSV file.")
             return redirect('integration:product_update')
         
+        from .promotion_service import PromotionService
+        
         try:
             outlet = Outlet.objects.get(id=outlet_id)
+            
+            # CRITICAL: Auto-expire ended promotions before update
+            # This ensures items that just ended are "unlocked" and can receive new prices
+            expire_result = PromotionService.deactivate_promotions()
+            PromotionService.activate_promotions() # Activate those starting today
             
             # CRITICAL: Validate outlet matches platform
             if outlet.platforms != platform:
