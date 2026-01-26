@@ -5453,6 +5453,79 @@ def outlet_reset(request):
 
 
 @login_required
+def data_cleaning(request):
+    """
+    Dedicated Data Cleaning page for bulk updates via .xlsx file.
+    No specific outlet or platform selection required.
+    """
+    if request.method == 'POST' and request.FILES.get('cleaning_file'):
+        import os
+        from django.conf import settings
+        from .data_cleaning import process_cleaning
+        from pathlib import Path
+        import uuid
+
+        cleaning_type = request.POST.get('cleaning_type', 'regular')
+        
+        if cleaning_type == 'promo':
+            return JsonResponse({
+                'success': False,
+                'message': 'Promo Data Cleaning is coming soon! script is under development.'
+            })
+
+        uploaded_file = request.FILES['cleaning_file']
+        original_name = uploaded_file.name
+        
+        # Create temp directory if not exists
+        temp_dir = Path(settings.MEDIA_ROOT) / 'temp_cleaning'
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save uploaded file
+        input_path = temp_dir / f"{uuid.uuid4()}_{original_name}"
+        with open(input_path, 'wb+') as destination:
+            for chunk in uploaded_file.chunks():
+                destination.write(chunk)
+        
+        # Define output path with datetime and .csv extension
+        from datetime import datetime
+        output_basename = os.path.splitext(original_name)[0]
+        timestamp = datetime.now().strftime('%d%m%Y%H%M')
+        output_filename = f"{output_basename}_{timestamp}_cleaned.csv"
+            
+        output_path = temp_dir / output_filename
+        
+        try:
+            # Process using the utility script
+            process_cleaning(input_path, output_path)
+            
+            # Return download URL
+            relative_path = os.path.join('media', 'temp_cleaning', output_filename)
+            download_url = f"{settings.MEDIA_URL}temp_cleaning/{output_filename}"
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'File cleaned successfully!',
+                'download_url': download_url,
+                'filename': output_filename
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': f'Cleaning failed: {str(e)}'
+            })
+        finally:
+            # Optionally delete input file, but keep output for download
+            if input_path.exists():
+                os.remove(input_path)
+
+    context = {
+        'page_title': 'Data Cleaning System',
+        'active_nav': 'data_cleaning',
+    }
+    return render(request, 'data_cleaning.html', context)
+
+
+@login_required
 def outlet_reset_preview_api(request):
     """
     API endpoint to preview data that will be affected by complete outlet reset operation.

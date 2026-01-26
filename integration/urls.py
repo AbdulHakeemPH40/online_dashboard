@@ -12,7 +12,7 @@ from .views import (
     reports_page, locked_products_report, cost_finder_report, export_all_items, export_platform_items, export_outlet_items,
     report_data_api, report_stats_api, locked_products_data_api, export_locked_products_api, cost_finder_data_api, export_cost_finder_api,
     item_search_api, item_inline_edit_api,
-    outlet_reset, outlet_reset_preview_api, outlet_reset_execute_api,
+    outlet_reset, data_cleaning, outlet_reset_preview_api, outlet_reset_execute_api,
 )
 from .promotion_views import (
     promotion_update, promotion_search_api, promotion_calculate_api,
@@ -101,6 +101,7 @@ urlpatterns = [
     path('api/report-stats/', report_stats_api, name='report_stats_api'),
     # Outlet Reset System
     path('outlet-reset/', outlet_reset, name='outlet_reset'),
+    path('data-cleaning/', data_cleaning, name='data_cleaning'),
     path('api/outlet-reset/preview/', outlet_reset_preview_api, name='outlet_reset_preview_api'),
     path('api/outlet-reset/execute/', outlet_reset_execute_api, name='outlet_reset_execute_api'),
 ]
