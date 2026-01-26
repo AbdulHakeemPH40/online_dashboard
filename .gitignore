@@ -29,6 +29,7 @@ backups/
 
 # Media exports (generated files)
 media/exports/
+media/temp_cleaning/
 
 # IDE
 .vscode/

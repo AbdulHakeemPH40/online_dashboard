@@ -54,6 +54,7 @@ urlpatterns = [
     path('api/outlets-by-platform/', get_outlets_by_platform, name='get_outlets_by_platform'),
     path('api/delete-items/', delete_items_api, name='delete_items_api'),
     path('api/preview-csv/', preview_csv_api, name='preview_csv_api'),
+    path('data-cleaning/', data_cleaning, name='data_cleaning'),
     path('product-update/', product_update, name='product_update'),
     path('rules-update-price/', rules_update_price, name='rules_update_price'),
     path('rules-update-stock/', rules_update_stock, name='rules_update_stock'),
@@ -101,7 +102,6 @@ urlpatterns = [
     path('api/report-stats/', report_stats_api, name='report_stats_api'),
     # Outlet Reset System
     path('outlet-reset/', outlet_reset, name='outlet_reset'),
-    path('data-cleaning/', data_cleaning, name='data_cleaning'),
     path('api/outlet-reset/preview/', outlet_reset_preview_api, name='outlet_reset_preview_api'),
     path('api/outlet-reset/execute/', outlet_reset_execute_api, name='outlet_reset_execute_api'),
 ]

@@ -255,7 +255,7 @@
                 <label for="cleaningType" style="display: block; font-weight: 700; color: #334155; margin-bottom: 8px;">Select Cleaning Type</label>
                 <select id="cleaningType" class="form-control" style="width: 100%; padding: 12px; border-radius: 12px; border: 2px solid #e2e8f0; background: white; font-weight: 600; color: #475569; transition: var(--transition); cursor: pointer; outline: none;">
                     <option value="regular">Regular Data Cleaning </option>
-                    <option value="promo">Promo Data Cleaning (Coming Soon)</option>
+                    <option value="promo">Promo Data Cleaning</option>
                 </select>
                 <style>
                     #cleaningType:focus { border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1); }
@@ -264,22 +264,32 @@
 
             <!-- Upload Area -->
             <div class="upload-zone" id="dropZone">
-                <input type="file" id="fileInput" accept=".xlsx">
+                <input type="file" id="fileInput" accept=".xlsx" multiple>
                 <i class="bx bx-spreadsheet upload-icon"></i>
                 <div class="upload-text">Select Data Cleaning File</div>
                 <div class="upload-subtext">Drop your .xlsx file here or click to browse</div>
             </div>
 
-            <!-- Selected File Display -->
-            <div class="file-display" id="fileDisplay">
-                <i class="bx bxs-file-export file-info-icon"></i>
-                <div class="file-meta">
-                    <span class="file-name" id="displayFileName">data_cleaning_v1.xlsx</span>
-                    <span class="file-size" id="displayFileSize">2.4 MB</span>
+            <!-- Selected File Display (Container for multiple files) -->
+            <div id="fileDisplayContainer" style="margin-top: 25px; display: none; flex-direction: column; gap: 10px;">
+                <!-- Template for a single file item -->
+                <div id="fileItemTemplate" style="display: none;">
+                    <div class="file-display" style="display: flex; padding: 12px 15px; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; align-items: center; gap: 15px;">
+                        <i class="bx bxs-file-export file-info-icon" style="font-size: 1.5rem; color: #0284c7;"></i>
+                        <div class="file-meta" style="flex-grow: 1;">
+                            <span class="file-name" style="font-weight: 700; color: #0c4a6e; display: block; font-size: 0.9rem;"></span>
+                            <span class="file-size" style="font-size: 0.75rem; color: #0369a1;"></span>
+                        </div>
+                    </div>
                 </div>
-                <button class="remove-btn" id="removeFile">
-                    <i class="bx bx-trash"></i>
-                </button>
+                <div id="fileList"></div>
+                
+                <div id="fileSummary" style="padding: 10px; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 700; color: #475569; font-size: 0.9rem;" id="totalFileCount"></span>
+                    <button class="remove-btn" id="removeFile" style="padding: 5px 10px; display: flex; align-items: center; gap: 5px;">
+                        <i class="bx bx-trash"></i> Clear All
+                    </button>
+                </div>
             </div>
 
             <!-- Instruction Card -->
@@ -316,13 +326,15 @@
 document.addEventListener('DOMContentLoaded', function() {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
-    const fileDisplay = document.getElementById('fileDisplay');
-    const fileName = document.getElementById('displayFileName');
-    const fileSize = document.getElementById('displayFileSize');
+    const fileDisplayContainer = document.getElementById('fileDisplayContainer');
+    const fileList = document.getElementById('fileList');
+    const fileItemTemplate = document.getElementById('fileItemTemplate');
+    const totalFileCount = document.getElementById('totalFileCount');
     const removeBtn = document.getElementById('removeFile');
     const processBtn = document.getElementById('processBtn');
     const downloadBtn = document.getElementById('downloadBtn');
     const toast = document.getElementById('toast');
+    let uploadedFiles = []; // Persistent storage for files
 
     function showToast(message) {
         toast.textContent = message;
@@ -330,22 +342,83 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    function handleFile(file) {
-        if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
-            dropZone.style.display = 'none';
-            fileDisplay.style.display = 'flex';
-            fileName.textContent = file.name;
-            fileSize.textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+    const cleaningTypeSelect = document.getElementById('cleaningType');
+
+    function updateUI() {
+        const cleaningType = cleaningTypeSelect.value;
+        
+        // Clear current list
+        fileList.innerHTML = '';
+        
+        if (uploadedFiles.length > 0) {
+            fileDisplayContainer.style.display = 'flex';
+            
+            uploadedFiles.forEach(file => {
+                const clone = fileItemTemplate.cloneNode(true);
+                clone.style.display = 'block';
+                clone.removeAttribute('id');
+                clone.querySelector('.file-name').textContent = file.name;
+                clone.querySelector('.file-size').textContent = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+                fileList.appendChild(clone);
+            });
+
+            if (cleaningType === 'regular') {
+                dropZone.style.display = 'none';
+                totalFileCount.textContent = '1 File Selected';
+            } else {
+                dropZone.style.display = 'block';
+                totalFileCount.textContent = `${uploadedFiles.length} Files Selected for Merging`;
+            }
+            
             processBtn.disabled = false;
             processBtn.style.display = 'flex';
             downloadBtn.style.display = 'none';
         } else {
-            showToast('Invalid file format. Please upload .xlsx, .xls or .csv');
+            fileDisplayContainer.style.display = 'none';
+            dropZone.style.display = 'block';
+            processBtn.disabled = true;
         }
     }
 
+    function handleFile(files) {
+        if (!files || files.length === 0) return;
+        
+        const cleaningType = cleaningTypeSelect.value;
+        const newFiles = Array.from(files);
+        
+        const isValid = newFiles.every(file => 
+            file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv')
+        );
+
+        if (!isValid) {
+            showToast('Invalid file format. Please use .xlsx, .xls or .csv');
+            return;
+        }
+
+        if (cleaningType === 'regular') {
+            // Only keep the most recent single file
+            uploadedFiles = [newFiles[0]];
+        } else {
+            // Append new files to existing list
+            uploadedFiles = [...uploadedFiles, ...newFiles];
+        }
+        
+        updateUI();
+    }
+
+    cleaningTypeSelect.onchange = function() {
+        if (uploadedFiles.length > 0) {
+            if (this.value === 'regular') {
+                uploadedFiles = [uploadedFiles[0]];
+            }
+            updateUI();
+        }
+    };
+
     fileInput.onchange = function(e) {
-        handleFile(e.target.files[0]);
+        handleFile(e.target.files);
+        // Important: clear input so the same file selection triggers change again if needed
+        e.target.value = '';
     };
 
     dropZone.ondragover = (e) => {
@@ -360,25 +433,22 @@ document.addEventListener('DOMContentLoaded', function() {
     dropZone.ondrop = (e) => {
         e.preventDefault();
         dropZone.classList.remove('dragover');
-        handleFile(e.dataTransfer.files[0]);
+        handleFile(e.dataTransfer.files);
     };
 
     removeBtn.onclick = () => {
-        fileInput.value = '';
-        fileDisplay.style.display = 'none';
-        dropZone.style.display = 'block';
-        processBtn.disabled = true;
-        processBtn.style.display = 'flex';
-        downloadBtn.style.display = 'none';
+        uploadedFiles = [];
+        updateUI();
     };
 
     processBtn.onclick = () => {
-        const file = fileInput.files[0];
-        const cleaningType = document.getElementById('cleaningType').value;
-        if (!file) return;
+        const cleaningType = cleaningTypeSelect.value;
+        if (uploadedFiles.length === 0) return;
 
         const formData = new FormData();
-        formData.append('cleaning_file', file);
+        uploadedFiles.forEach(file => {
+            formData.append('cleaning_file', file);
+        });
         formData.append('cleaning_type', cleaningType);
         formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 

@@ -5456,65 +5456,88 @@ def outlet_reset(request):
 def data_cleaning(request):
     """
     Dedicated Data Cleaning page for bulk updates via .xlsx file.
-    No specific outlet or platform selection required.
+    Supports multiple file uploads with automated merging.
     """
-    if request.method == 'POST' and request.FILES.get('cleaning_file'):
+    if request.method == 'POST' and request.FILES.getlist('cleaning_file'):
         import os
+        import pandas as pd
         from django.conf import settings
         from .data_cleaning import process_cleaning
+        from .promo_clening import clean_erp_mixed
         from pathlib import Path
         import uuid
+        from datetime import datetime
 
         cleaning_type = request.POST.get('cleaning_type', 'regular')
-        
-        if cleaning_type == 'promo':
-            return JsonResponse({
-                'success': False,
-                'message': 'Promo Data Cleaning is coming soon! script is under development.'
-            })
-
-        uploaded_file = request.FILES['cleaning_file']
-        original_name = uploaded_file.name
+        files = request.FILES.getlist('cleaning_file')
         
         # Create temp directory if not exists
         temp_dir = Path(settings.MEDIA_ROOT) / 'temp_cleaning'
         temp_dir.mkdir(parents=True, exist_ok=True)
         
-        # Save uploaded file
-        input_path = temp_dir / f"{uuid.uuid4()}_{original_name}"
-        with open(input_path, 'wb+') as destination:
-            for chunk in uploaded_file.chunks():
-                destination.write(chunk)
-        
-        # Define output path with datetime and .csv extension
-        from datetime import datetime
-        output_basename = os.path.splitext(original_name)[0]
+        # Use first file name for output base
+        first_file = files[0]
+        output_basename = os.path.splitext(first_file.name)[0]
         timestamp = datetime.now().strftime('%d%m%Y%H%M')
-        output_filename = f"{output_basename}_{timestamp}_cleaned.csv"
-            
-        output_path = temp_dir / output_filename
+        
+        input_path = temp_dir / f"merged_{uuid.uuid4()}.xlsx"
         
         try:
-            # Process using the utility script
-            process_cleaning(input_path, output_path)
+            if cleaning_type == 'promo' and len(files) > 1:
+                # Merge multiple files ONLY for promo
+                df_list = []
+                for f in files:
+                    try:
+                        df_temp = pd.read_excel(f)
+                        if not df_temp.empty:
+                            df_list.append(df_temp)
+                    except Exception as e:
+                        import sys
+                        print(f"Error reading file {f.name}: {e}", file=sys.stderr)
+                
+                if not df_list:
+                    return JsonResponse({'success': False, 'message': 'No valid data found in uploaded files'})
+                
+                # Combined appending
+                merged_df = pd.concat(df_list, ignore_index=True)
+                merged_df.to_excel(input_path, index=False)
+            else:
+                # Single file save (Regular mode or single Promo file)
+                with open(input_path, 'wb+') as destination:
+                    for chunk in first_file.chunks():
+                        destination.write(chunk)
+            
+            # Choose export format and script based on cleaning_type
+            if cleaning_type == 'promo':
+                output_filename = f"{output_basename}_{timestamp}_promo_cleaned.csv"
+                output_path = temp_dir / output_filename
+                process_func = clean_erp_mixed
+            else:
+                output_filename = f"{output_basename}_{timestamp}_cleaned.csv"
+                output_path = temp_dir / output_filename
+                process_func = process_cleaning
+            
+            # Process using the selected script
+            process_func(input_path, output_path)
             
             # Return download URL
-            relative_path = os.path.join('media', 'temp_cleaning', output_filename)
             download_url = f"{settings.MEDIA_URL}temp_cleaning/{output_filename}"
             
             return JsonResponse({
                 'success': True,
-                'message': 'File cleaned successfully!',
+                'message': f'{"Promo" if cleaning_type == "promo" else "Regular"} file(s) merged and cleaned successfully!',
                 'download_url': download_url,
                 'filename': output_filename
             })
         except Exception as e:
+            import traceback
+            print(traceback.format_exc())
             return JsonResponse({
                 'success': False,
                 'message': f'Cleaning failed: {str(e)}'
             })
         finally:
-            # Optionally delete input file, but keep output for download
+            # Delete input file, but keep output for download
             if input_path.exists():
                 os.remove(input_path)
 
