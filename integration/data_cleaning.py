@@ -125,6 +125,11 @@ def clean_price_keep_zero_stock(df: pd.DataFrame) -> pd.DataFrame:
         needed["stock"]: "stock"
     })
 
+    # ----- 5️⃣  Convert item_code to integer (remove .00) -----
+    item_code_col = "item_code"
+    df[item_code_col] = pd.to_numeric(df[item_code_col], errors="coerce")
+    df[item_code_col] = df[item_code_col].fillna(0).astype(int)
+
     return df
 
 

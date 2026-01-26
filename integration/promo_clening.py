@@ -112,6 +112,12 @@ def clean_erp_mixed(
     df.columns = [mapping[c] for c in final_order_clean]  # rename to final titles
 
     # -------------------------------------------------
+    # 4.5️⃣ Convert item_code to integer (remove .00)
+    # -------------------------------------------------
+    df['item_code'] = pd.to_numeric(df['item_code'], errors='coerce')
+    df['item_code'] = df['item_code'].fillna(0).astype(int)
+
+    # -------------------------------------------------
     # 5️⃣ Write cleaned workbook
     # -------------------------------------------------
     if output_path.suffix.lower() == ".csv":

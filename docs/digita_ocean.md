@@ -29,8 +29,9 @@ cd /var/www/myproject
 git pull
 
 
+
 sudo systemctl restart gunicorn
-sudo systemctl reload nginx
+sudo systemctl restart nginx
 
 sudo systemctl daemon-reload
 sudo systemctl start gunicorn
@@ -268,6 +269,20 @@ sudo nano /etc/nginx/sites-available/myproject
 sudo nginx -t
 sudo systemctl reload nginx
 ```
+Manual Cleanup (Run now)
+find /var/www/myproject/media/temp_cleaning/ -type f -mtime +0 -delete
+
+3. **Auto-Cleanup (Every 24 Hours)**:
+To prevent the server from filling up with temporary cleaned files, set up a "cron job" to delete files older than 24 hours:
+
+```bash
+# Open crontab editor
+crontab -e
+
+# Add this line at the bottom of the file:
+0 0 * * * find /var/www/myproject/media/temp_cleaning/ -type f -mtime +0 -delete
+```
+*Note: This runs every night at 12:00 AM and deletes files that were created more than 24 hours ago.*
 
 ### Test Renewal (Optional)
 ```bash
