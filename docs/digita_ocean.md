@@ -139,9 +139,7 @@ sudo nano /etc/nginx/sites-available/myproject
 Paste this content:
 ```nginx
 server {
-    listen 80;
-    server_name 159.89.133.6 erp.pasons.group;
-
+    listen 800
     client_max_body_size 20M;  # Allow large CSV uploads
 
     # Static files (CSS, JavaScript, Images)
