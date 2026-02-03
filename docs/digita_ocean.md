@@ -15,8 +15,6 @@
 
 ## STEP 1: SSH to Server
 ```bash
-ssh root@159.89.133.6
-winDOws@10a
 ```
 
 ---
