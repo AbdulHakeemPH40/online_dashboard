@@ -26,9 +26,8 @@ SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Environment detection: local=SQLite, pythonanywhere=MySQL, digitalocean=SQLite
-ENVIRONMENT = os.environ.get('DJANGO_ENV', 'local')  # 'local', 'pythonanywhere', 'digitalocean'
-
-DEBUG = ENVIRONMENT == 'local'
+ENVIRONMENT = os.environ.get('DJANGO_ENV', 'digitalocean') 
+DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = [
     'localhost', 
