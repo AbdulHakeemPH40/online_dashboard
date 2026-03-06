@@ -35,6 +35,17 @@ ALLOWED_HOSTS = [
     '.pythonanywhere.com',
     '159.89.133.6',  # DigitalOcean IP
     'erp.pasons.group',  # Production domain
+    '.ngrok-free.app',   # ngrok free tunnels
+    '.ngrok-free.dev',   # ngrok free tunnels (dev)
+    '.ngrok.io',         # ngrok legacy tunnels
+]
+
+# Allow ngrok HTTPS origins for CSRF
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.ngrok-free.app',
+    'https://*.ngrok-free.dev',
+    'https://*.ngrok.io',
+    'https://erp.pasons.group',
 ]
 
 

@@ -56,6 +56,35 @@ class Outlet(models.Model):
         help_text="Store ID for pasons.live e-commerce platform"
     )
     
+    # OAuth2 fields for pasons.live API integration
+    pasons_client_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="OAuth2 Client ID for pasons.live API"
+    )
+    pasons_client_secret = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        help_text="OAuth2 Client Secret for pasons.live API (encrypted)"
+    )
+    pasons_access_token = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Current OAuth2 access token (JWT)"
+    )
+    pasons_refresh_token = models.TextField(
+        blank=True,
+        null=True,
+        help_text="OAuth2 refresh token for token renewal"
+    )
+    pasons_token_expires_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Timestamp when access token expires"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
@@ -934,3 +963,75 @@ class OutletResetLog(models.Model):
         if self.items_affected > 0:
             return (self.items_success / self.items_affected) * 100
         return 0
+
+
+class PushHistory(models.Model):
+    """
+    Track push history for Pasons API integrations.
+    Stores push operations to external e-commerce platforms.
+    """
+    
+    PUSH_TYPE_CHOICES = [
+        ('full', 'Full Push'),
+        ('partial', 'Partial Push - Delta sync'),
+    ]
+    
+    PUSH_MODE_CHOICES = [
+        ('normal', 'Normal Prices'),
+        ('offer', 'Offer Prices'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('success', 'Success'),
+        ('error', 'Error'),
+        ('pending', 'Pending'),
+    ]
+    
+    outlet = models.ForeignKey(
+        Outlet, 
+        on_delete=models.CASCADE, 
+        related_name='push_histories'
+    )
+    platform = models.CharField(max_length=20, default='pasons')
+    push_type = models.CharField(max_length=10, choices=PUSH_TYPE_CHOICES, default='full')
+    push_mode = models.CharField(max_length=10, choices=PUSH_MODE_CHOICES, default='normal')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    
+    item_count = models.IntegerField(default=0)
+    success_count = models.IntegerField(default=0)
+    failed_count = models.IntegerField(default=0)
+    
+    batch_id = models.CharField(max_length=100, blank=True, null=True)
+    error_message = models.TextField(blank=True, null=True)
+    
+    duration_seconds = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    push_timestamp = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(blank=True, null=True)
+    
+    class Meta:
+        ordering = ['-push_timestamp']
+        verbose_name = 'Push History'
+        verbose_name_plural = 'Push Histories'
+        indexes = [
+            models.Index(fields=['outlet', '-push_timestamp']),
+            models.Index(fields=['status', '-push_timestamp']),
+            models.Index(fields=['platform', '-push_timestamp']),
+        ]
+    
+    def __str__(self):
+        return f"{self.outlet.name} - {self.push_type} {self.push_mode} - {self.status} at {self.push_timestamp}"
+    
+    def mark_completed(self, status='success', item_count=0, success_count=0, failed_count=0, error_message=None, batch_id=None):
+        """Mark push as completed"""
+        from decimal import Decimal
+        self.status = status
+        self.item_count = item_count
+        self.success_count = success_count
+        self.failed_count = failed_count
+        self.error_message = error_message
+        self.batch_id = batch_id
+        self.completed_at = timezone.now()
+        duration = (self.completed_at - self.push_timestamp).total_seconds()
+        self.duration_seconds = Decimal(str(duration)) if duration else Decimal('0')
+        self.save(update_fields=['status', 'item_count', 'success_count', 'failed_count', 'error_message', 'batch_id', 'completed_at', 'duration_seconds'])

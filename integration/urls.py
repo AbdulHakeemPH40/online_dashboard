@@ -13,6 +13,8 @@ from .views import (
     report_data_api, report_stats_api, locked_products_data_api, export_locked_products_api, cost_finder_data_api, export_cost_finder_api,
     item_search_api, item_inline_edit_api,
     outlet_reset, data_cleaning, outlet_reset_preview_api, outlet_reset_execute_api,
+    get_push_history_api,
+    get_export_history_api,
 )
 from .promotion_views import (
     promotion_update, promotion_search_api, promotion_calculate_api,
@@ -64,6 +66,8 @@ urlpatterns = [
     path('api/save-store-id/', save_store_id_api, name='save_store_id_api'),
     path('api/test-connection/', test_connection_api, name='test_connection_api'),
     path('api/push-data/', push_data_api, name='push_data_api'),
+    path('api/push-history/', get_push_history_api, name='get_push_history_api'),
+    path('api/export-history/', get_export_history_api, name='get_export_history_api'),
     path('api/export-feed/', export_feed_api, name='export_feed_api'),
     path('api/download-export/', download_export_file, name='download_export_file'),
     path('api/erp-export/', erp_export_api, name='erp_export_api'),

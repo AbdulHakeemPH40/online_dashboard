@@ -929,6 +929,9 @@
                                 <button class="export-btn primary" onclick="generateExport('pasons')">
                                     <i class="bx bx-download"></i> Generate Export
                                 </button>
+                                <button class="export-btn" style="background: linear-gradient(135deg, #10b981, #059669); color: white;" onclick="pushToPasons('pasons')">
+                                    <i class="bx bx-upload"></i> Push to Pasons
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1519,6 +1522,308 @@ function generateExport(platform) {
     
     // Trigger download
     window.location.href = url;
+}
+
+// Beautiful Modal System
+function showPushModal(options) {
+    const {
+        type = 'loading',
+        title = '',
+        message = '',
+        confirmText = 'Confirm',
+        cancelText = 'Cancel',
+        onConfirm = null,
+        details = {},
+        failedItems = '',
+        csvFilename = null
+    } = options;
+
+    // Remove existing modal
+    const existingModal = document.getElementById('push-modal-overlay');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'push-modal-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        animation: fadeIn 0.3s ease;
+    `;
+
+    // Icon based on type
+    const icons = {
+        loading: '<div class="bx bx-loader-alt bx-spin" style="font-size: 48px; color: #1976D2;"></div>',
+        success: '<div class="bx bx-check-circle" style="font-size: 48px; color: #10b981;"></div>',
+        error: '<div class="bx bx-x-circle" style="font-size: 48px; color: #ef4444;"></div>',
+        confirm: '<div class="bx bx-question-mark-circle" style="font-size: 48px; color: #f59e0b;"></div>'
+    };
+
+    // Build details HTML
+    let detailsHtml = '';
+    if (Object.keys(details).length > 0) {
+        detailsHtml = '<div style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px; max-height: 150px; overflow-y: auto;">';
+        for (const [key, value] of Object.entries(details)) {
+            detailsHtml += `<div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #e2e8f0;">
+                <span style="color: #64748b; font-size: 13px;">${key}:</span>
+                <span style="color: #1e293b; font-size: 13px; font-weight: 600;">${value}</span>
+            </div>`;
+        }
+        detailsHtml += '</div>';
+    }
+
+    // Buttons
+    let buttonsHtml = '';
+    if (type === 'loading') {
+        buttonsHtml = '';
+    } else if (type === 'confirm') {
+        buttonsHtml = `
+            <button onclick="closePushModal()" style="padding: 10px 20px; border: 1px solid #d1d5db; background: white; border-radius: 8px; cursor: pointer; font-weight: 600; color: #374151;">${cancelText}</button>
+            <button id="modal-confirm-btn" style="padding: 10px 20px; border: none; background: #1976D2; border-radius: 8px; cursor: pointer; font-weight: 600; color: white;">${confirmText}</button>
+        `;
+    } else {
+        buttonsHtml = `<button onclick="closePushModal()" style="padding: 10px 24px; border: none; background: ${type === 'success' ? '#10b981' : '#ef4444'}; border-radius: 8px; cursor: pointer; font-weight: 600; color: white;">OK</button>`;
+    }
+    
+    // Add download button if CSV filename provided
+    let downloadButtonHtml = '';
+    if (csvFilename) {
+        downloadButtonHtml = `
+            <a href="/integration/api/download-export/${csvFilename}" 
+               style="display: inline-block; margin-top: 16px; padding: 10px 20px; background: #1976D2; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
+                <i class="bx bx-download"></i> Download CSV
+            </a>
+        `;
+    }
+    
+    overlay.innerHTML = `
+        <div style="background: white; border-radius: 16px; padding: 32px; max-width: 500px; width: 90%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: slideUp 0.3s ease;">
+            <div style="text-align: center;">
+                ${icons[type] || ''}
+                <h3 style="margin: 16px 0 8px; font-size: 20px; font-weight: 700; color: #1f2937;">${title}</h3>
+                <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.5;">${message}</p>
+                ${detailsHtml}
+                ${failedItems}
+                ${downloadButtonHtml}
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: center; margin-top: 24px;">
+                ${buttonsHtml}
+            </div>
+        </div>
+        <style>
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+            @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            .bx-spin { animation: spin 1s linear infinite; }
+        </style>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Handle confirm button
+    if (type === 'confirm' && onConfirm) {
+        document.getElementById('modal-confirm-btn').addEventListener('click', () => {
+            closePushModal();
+            onConfirm();
+        });
+    }
+
+    return overlay;
+}
+
+function closePushModal() {
+    const overlay = document.getElementById('push-modal-overlay');
+    if (overlay) {
+        overlay.style.animation = 'fadeOut 0.2s ease';
+        setTimeout(() => overlay.remove(), 200);
+    }
+}
+
+// Push to Pasons API
+function pushToPasons(platform) {
+    const outletSelect = document.getElementById(`${platform}-export-outlet`);
+    const outletId = outletSelect.value;
+    const outletName = outletSelect.options[outletSelect.selectedIndex]?.text || '';
+    
+    if (!outletId) {
+        showPushModal({
+            type: 'error',
+            title: 'Select Outlet',
+            message: 'Please select an outlet first.'
+        });
+        return;
+    }
+    
+    // Get selected export type (full or partial)
+    const formContainer = document.getElementById(`${platform}-export-form`);
+    const selectedTypeCard = formContainer.querySelector('.export-type-card.selected[data-type]');
+    const exportType = selectedTypeCard?.dataset.type || 'full';
+    
+    const pushType = exportType; // full or partial
+    
+    // Show confirmation modal
+    showPushModal({
+        type: 'confirm',
+        title: 'Confirm Push to Pasons',
+        message: `Push ${pushType.toUpperCase()} data to Pasons for "${outletName}"?`,
+        confirmText: 'Push Now',
+        cancelText: 'Cancel',
+        onConfirm: () => executePushToPasons(platform, outletId, outletName, pushType)
+    });
+}
+
+function executePushToPasons(platform, outletId, outletName, pushType) {
+    // Show loading modal
+    showPushModal({
+        type: 'loading',
+        title: 'Pushing to Pasons',
+        message: `Sending ${pushType.toUpperCase()} data for "${outletName}"...<br>Please wait.`
+    });
+
+    // Prepare form data
+    const formData = new FormData();
+    formData.append('outlet_id', outletId);
+    formData.append('push_type', pushType);
+    formData.append('push_mode', 'normal');
+    
+    // Get CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                     document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    if (csrfToken) {
+        formData.append('csrfmiddlewaretoken', csrfToken);
+    }
+    
+    const startTime = Date.now();
+    
+    // Make API call
+    fetch('/integration/api/push-data/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Push response:', data); // Debug log
+        
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        
+        if (data.success) {
+            // Build details object
+            const details = {
+                'Items Pushed': data.item_count || 0,
+                'Push Type': pushType.toUpperCase(),
+                'Duration': duration + 's',
+                'Success': data.success_count || data.item_count || 0,
+                'Failed': data.failed_count || 0
+            };
+            
+            // Try to get failed items from different possible sources
+            let failedItemsList = [];
+            
+            // Check direct failed_items
+            if (data.failed_items && data.failed_items.length > 0) {
+                failedItemsList = data.failed_items;
+                console.log('Failed items from data.failed_items:', failedItemsList);
+            }
+            // Check response_data.failed_items
+            else if (data.response_data && data.response_data.failed_items && data.response_data.failed_items.length > 0) {
+                failedItemsList = data.response_data.failed_items;
+                console.log('Failed items from response_data:', failedItemsList);
+            }
+            // Check if failed_count > 0 but no failed items list
+            else if (data.failed_count > 0) {
+                console.log('Failed count is', data.failed_count, 'but no failed items list found');
+                console.log('Full response:', data);
+            }
+            
+            let failedItemsHtml = '';
+            if (failedItemsList.length > 0) {
+                failedItemsHtml = '<div style="margin-top: 16px; max-height: 200px; overflow-y: auto; text-align: left;">';
+                failedItemsHtml += '<div style="font-weight: 600; color: #ef4444; margin-bottom: 8px;">Failed Items:</div>';
+                failedItemsList.forEach(item => {
+                    failedItemsHtml += `<div style="padding: 6px 8px; background: #fef2f2; border-radius: 4px; margin-bottom: 4px; font-size: 12px;">
+                        <span style="font-weight: 600;">SKU:</span> ${item.product_code || 'N/A'}<br>
+                        <span style="font-weight: 600;">Error:</span> ${item.error || item.error_message || 'Unknown'}
+                    </div>`;
+                });
+                failedItemsHtml += '</div>';
+            }
+            
+            showPushModal({
+                type: data.failed_count > 0 ? 'info' : 'success',
+                title: data.failed_count > 0 ? 'Push Completed with Errors' : 'Push Successful!',
+                message: data.failed_count > 0 ? `Some items failed to push` : `Successfully pushed data to Pasons`,
+                details: details,
+                failedItems: failedItemsHtml,
+                csvFilename: data.csv_filename,
+                exportHistoryId: data.export_history_id
+            });
+            
+            // Refresh export history table
+            loadExportHistory('pasons');
+            
+            // Add to history
+            addToHistory({
+                outlet_id: outletId,
+                platform: 'pasons',
+                mode: pushType,
+                item_count: data.item_count || 0,
+                status: data.failed_count > 0 ? 'partial' : 'success',
+                duration: duration
+            });
+        } else {
+            showPushModal({
+                type: 'error',
+                title: 'Push Failed',
+                message: data.message || 'An error occurred while pushing data',
+                details: {
+                    'Items Pushed': data.item_count || 0,
+                    'Error': data.message || 'Unknown error'
+                }
+            });
+            
+            addToHistory({
+                outlet_id: outletId,
+                platform: 'pasons',
+                mode: pushType,
+                item_count: 0,
+                status: 'error',
+                duration: duration
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Error pushing data:', error);
+        showPushModal({
+            type: 'error',
+            title: 'Network Error',
+            message: 'Failed to connect to the server. Please try again.',
+            details: {
+                'Error': error.message || 'Network error'
+            }
+        });
+    });
+}
+
+// Add to history - saves to database via API
+function addToHistory(data) {
+    // The history is already saved to database by the API
+    // This function can be used for any additional local tracking if needed
+    console.log('Push completed:', data);
 }
 
 // ========== EXPORT HISTORY PAGINATION ==========

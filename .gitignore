@@ -47,3 +47,11 @@ Thumbs.db
 
 # Secrets
 secrets.json
+
+# Markdown documentation files
+*.md
+
+# Root level test files
+test_*.py
+*_test.py
+tests.py

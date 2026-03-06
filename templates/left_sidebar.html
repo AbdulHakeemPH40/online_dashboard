@@ -81,7 +81,6 @@
                         <span class="nav-text">Shop Integration</span>
                     </a>
                 </li>
-                {% comment %}
                 <li class="nav-item">
                     <a href="{% url 'integration:api_push_integration' %}" 
                         class="nav-link {% if request.resolver_match.url_name == 'api_push_integration' %}active{% endif %}" 
@@ -90,7 +89,6 @@
                         <span class="nav-text">API Integration</span>
                     </a>
                 </li>
-                {% endcomment %}
                 <li class="nav-item">
                     <a href="{% url 'integration:promotion_update' %}" class="nav-link" data-tooltip="Promotion Integration">
                         <i class="nav-icon">🏷️</i>

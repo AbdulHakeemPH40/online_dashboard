@@ -3088,23 +3088,84 @@ def api_push_integration(request):
     API Push Integration page with three categories: Incoming, Middleware, Outgoing
     Focus on Pasons platform for pushing SKU and selling_price to pasons.live
     """
-    from .models import Outlet
+    from .models import Outlet, PushHistory
     
     # Get outlets for each platform with their store IDs
     pasons_outlets = Outlet.objects.filter(platforms='pasons', is_active=True).order_by('name')
     talabat_outlets = Outlet.objects.filter(platforms='talabat', is_active=True).order_by('name')
     
-    # TODO: Add PushHistory model and get push history
-    # push_history = PushHistory.objects.all().order_by('-push_timestamp')[:50]
+    # Get push history from database
+    push_history = PushHistory.objects.all().order_by('-push_timestamp')[:50]
     
     context = {
         'page_title': 'API Push Integration',
         'active_page': 'api_push_integration',
         'pasons_outlets': pasons_outlets,
         'talabat_outlets': talabat_outlets,
-        # 'push_history': push_history,
+        'push_history': push_history,
     }
     return render(request, 'api_push_integration.html', context)
+
+
+@login_required
+def get_push_history_api(request):
+    """
+    API endpoint to get push history from database
+    """
+    from .models import PushHistory
+    
+    limit = int(request.GET.get('limit', 50))
+    push_history = PushHistory.objects.all().order_by('-push_timestamp')[:limit]
+    
+    data = []
+    for h in push_history:
+        data.append({
+            'id': h.id,
+            'outlet_name': h.outlet.name,
+            'platform': h.platform,
+            'push_type': h.push_type,
+            'push_mode': h.push_mode,
+            'status': h.status,
+            'item_count': h.item_count,
+            'success_count': h.success_count,
+            'failed_count': h.failed_count,
+            'duration': float(h.duration_seconds) if h.duration_seconds else 0,
+            'timestamp': h.push_timestamp.strftime('%Y-%m-%d %H:%M:%S') if h.push_timestamp else None,
+            'error_message': h.error_message,
+            'batch_id': h.batch_id,
+        })
+    
+    return JsonResponse({'success': True, 'data': data})
+
+
+@login_required
+def get_export_history_api(request):
+    """
+    API endpoint to get export history from database
+    """
+    from .models import ExportHistory
+    
+    platform = request.GET.get('platform', 'pasons')
+    limit = int(request.GET.get('limit', 50))
+    
+    export_history = ExportHistory.objects.filter(
+        platform=platform
+    ).select_related('outlet').order_by('-export_timestamp')[:limit]
+    
+    data = []
+    for h in export_history:
+        data.append({
+            'id': h.id,
+            'outlet_name': h.outlet.name if h.outlet else 'Unknown',
+            'platform': h.platform,
+            'export_type': h.export_type,
+            'status': h.status,
+            'item_count': h.item_count,
+            'file_name': h.file_name,
+            'timestamp': h.export_timestamp.strftime('%Y-%m-%d %H:%M:%S') if h.export_timestamp else None,
+        })
+    
+    return JsonResponse({'success': True, 'data': data})
 
 
 @login_required
@@ -3252,20 +3313,98 @@ def push_data_api(request):
                 'message': 'Outlet not found or not a Pasons outlet'
             })
         
+        # Create push history record
+        from .models import PushHistory
+        push_history = PushHistory.objects.create(
+            outlet=outlet,
+            platform='pasons',
+            push_type=push_type,
+            push_mode=push_mode,
+            status='pending'
+        )
+        
         # Get push service and push data
         from .push_service import get_push_service
         push_service = get_push_service(outlet)
         
         if not push_service:
+            push_history.mark_completed(
+                status='error',
+                error_message='Push service not available for this outlet'
+            )
             return JsonResponse({
                 'success': False,
                 'message': 'Push service not available for this outlet'
             })
         
-        # Push data with specified mode
+        # FIRST: Generate CSV file (like Generate Export)
+        # Use ExportService to get the data
+        from .export_service import ExportService
+        export_service = ExportService(outlet, 'pasons')
+        export_data, export_history = export_service.export(
+            user=request.user if request.user.is_authenticated else None,
+            manual_export_type=push_type
+        )
+        
+        csv_filename = None
+        if export_data and export_history:
+            # Save CSV file to disk
+            import os
+            import csv
+            from django.conf import settings
+            from django.utils import timezone
+            
+            now = timezone.localtime(timezone.now())
+            outlet_name_clean = outlet.name.replace(' ', '-').replace('/', '-')
+            csv_filename = f"{outlet_name_clean}-pushed-{now.strftime('%Y-%m-%d-%H%M%S')}.csv"
+            
+            exports_dir = getattr(settings, 'EXPORT_FILES_DIR', settings.MEDIA_ROOT / 'exports')
+            os.makedirs(exports_dir, exist_ok=True)
+            csv_path = os.path.join(exports_dir, csv_filename)
+            
+            # Write CSV file
+            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+                file_writer = csv.writer(f)
+                # Pasons format: sku, selling_price, stock_status, availability_status
+                file_writer.writerow(['sku', 'selling_price', 'stock_status', 'availability_status'])
+                for row in export_data:
+                    file_writer.writerow([
+                        row['sku'],
+                        row['selling_price'],
+                        row['stock_status'],
+                        row['stock_status']
+                    ])
+            
+            # Update ExportHistory with filename
+            export_history.file_name = csv_filename
+            export_history.save(update_fields=['file_name'])
+        
+        # SECOND: Push data to Pasons API
         result = push_service.push_to_pasons_live(push_type, push_mode)
         
+        # Update push history with result
+        if result.get('success'):
+            push_history.mark_completed(
+                status='success',
+                item_count=result.get('item_count', 0),
+                success_count=result.get('success_count', result.get('item_count', 0)),
+                failed_count=result.get('failed_count', 0),
+                error_message=result.get('message'),
+                batch_id=result.get('batch_id')
+            )
+        else:
+            push_history.mark_completed(
+                status='error',
+                item_count=result.get('item_count', 0),
+                error_message=result.get('message', 'Unknown error')
+            )
+        
         logger.info(f"Data push for outlet {outlet.name} ({push_type}, {push_mode}): {result['message']}")
+        
+        # Include push_history_id and csv_filename in response
+        result['push_history_id'] = push_history.id
+        result['csv_filename'] = csv_filename
+        result['export_history_id'] = export_history.id if export_history else None
         
         return JsonResponse(result)
         

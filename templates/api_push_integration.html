@@ -897,7 +897,7 @@
             <div class="platform-content active" id="outgoing-pasons">
                 <div class="outlet-grid">
                     {% for outlet in pasons_outlets %}
-                    <div class="outlet-card">
+                    <div class="outlet-card" data-outlet-id="{{ outlet.id }}">
                         <div class="outlet-info">
                             <div class="outlet-name">{{ outlet.name }}</div>
                             <div class="outlet-id">ID: {{ outlet.store_id }}</div>
@@ -924,8 +924,20 @@
                         </div>
                         
                         <!-- Status Info -->
-                        <div style="margin: 12px 0; padding: 8px; background: #fef3c7; border-radius: 6px; font-size: 11px; color: #92400e;">
-                            <strong>⚠ API Status:</strong> pasons.live API returns 404 (not implemented yet). Middleware is ready and will work once their API is available.
+                        <div style="margin: 12px 0; padding: 8px; background: #d1fae5; border-radius: 6px; font-size: 11px; color: #065f46;">
+                            <strong>API Status:</strong> Connected - Pasons API integration is working
+                        </div>
+                        
+                        <!-- Push Type Selection -->
+                        <div style="margin-bottom: 12px; display: flex; gap: 8px;">
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                <input type="radio" name="push_type_{{ outlet.id }}" value="full" checked>
+                                <span style="font-size: 12px; font-weight: 600;">Full</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                <input type="radio" name="push_type_{{ outlet.id }}" value="partial">
+                                <span style="font-size: 12px; font-weight: 600;">Partial</span>
+                            </label>
                         </div>
                         
                         <!-- Push Actions -->
@@ -936,18 +948,13 @@
                             </button>
                             <button class="push-btn primary" onclick="pushData({{ outlet.id }}, 'full', 'normal')">
                                 <i class="bx bx-upload"></i>
-                                Normal Prices
+                                Normal
                             </button>
                             <button class="push-btn primary" onclick="pushData({{ outlet.id }}, 'full', 'offer')" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
                                 <i class="bx bx-gift"></i>
-                                Offer Prices
+                                Offer
                             </button>
                         </div>
-                    </div>
-                    {% empty %}
-                    <div class="placeholder-content" style="padding: 40px 20px;">
-                        <i class="bx bx-store" style="font-size: 32px;"></i>
-                        <p style="font-size: 13px;">No Pasons outlets found</p>
                     </div>
                     {% endfor %}
                 </div>
@@ -1184,9 +1191,95 @@ function saveStoreId(outletId, storeId, inputElement) {
     });
 }
 
-// Simple notification function
+// Beautiful Modal System
+function showApiPushModal(options) {
+    const {
+        type = 'loading',
+        title = '',
+        message = '',
+        details = {},
+        failedItems = '' // HTML string for failed items
+    } = options;
+
+    const existingModal = document.getElementById('api-push-modal-overlay');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'api-push-modal-overlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        animation: fadeIn 0.3s ease;
+    `;
+
+    const icons = {
+        loading: '<div class="bx bx-loader-alt bx-spin" style="font-size: 48px; color: #1976D2;"></div>',
+        success: '<div class="bx bx-check-circle" style="font-size: 48px; color: #10b981;"></div>',
+        error: '<div class="bx bx-x-circle" style="font-size: 48px; color: #ef4444;"></div>',
+        info: '<div class="bx bx-info-circle" style="font-size: 48px; color: #3b82f6;"></div>'
+    };
+
+    let detailsHtml = '';
+    if (Object.keys(details).length > 0) {
+        detailsHtml = '<div style="margin-top: 16px; padding: 12px; background: #f8fafc; border-radius: 8px; max-height: 150px; overflow-y: auto;">';
+        for (const [key, value] of Object.entries(details)) {
+            detailsHtml += `<div style="display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid #e2e8f0;">
+                <span style="color: #64748b; font-size: 13px;">${key}:</span>
+                <span style="color: #1e293b; font-size: 13px; font-weight: 600;">${value}</span>
+            </div>`;
+        }
+        detailsHtml += '</div>';
+    }
+
+    let buttonHtml = '';
+    if (type !== 'loading') {
+        buttonHtml = `<button onclick="closeApiPushModal()" style="padding: 10px 24px; border: none; background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'}; border-radius: 8px; cursor: pointer; font-weight: 600; color: white;">OK</button>`;
+    }
+
+    overlay.innerHTML = `
+        <div style="background: white; border-radius: 16px; padding: 32px; max-width: 420px; width: 90%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: slideUp 0.3s ease;">
+            <div style="text-align: center;">
+                ${icons[type] || ''}
+                <h3 style="margin: 16px 0 8px; font-size: 20px; font-weight: 700; color: #1f2937;">${title}</h3>
+                <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.5;">${message}</p>
+                ${detailsHtml}
+                ${failedItems}
+            </div>
+            <div style="display: flex; justify-content: center; margin-top: 24px;">
+                ${buttonHtml}
+            </div>
+        </div>
+        <style>
+            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        </style>
+    `;
+
+    document.body.appendChild(overlay);
+    return overlay;
+}
+
+function closeApiPushModal() {
+    const overlay = document.getElementById('api-push-modal-overlay');
+    if (overlay) {
+        overlay.style.animation = 'fadeOut 0.2s ease';
+        setTimeout(() => overlay.remove(), 200);
+    }
+}
+
+// Simple notification function (for quick toasts)
 function showNotification(message, type = 'info') {
-    // Create notification element
     const notification = document.createElement('div');
     notification.style.cssText = `
         position: fixed;
@@ -1203,7 +1296,6 @@ function showNotification(message, type = 'info') {
         transition: all 0.3s ease;
     `;
     
-    // Set background color based on type
     if (type === 'success') {
         notification.style.backgroundColor = '#10b981';
     } else if (type === 'error') {
@@ -1215,7 +1307,6 @@ function showNotification(message, type = 'info') {
     notification.textContent = message;
     document.body.appendChild(notification);
     
-    // Remove after 3 seconds
     setTimeout(() => {
         notification.style.opacity = '0';
         notification.style.transform = 'translateX(100%)';
@@ -1227,11 +1318,16 @@ function showNotification(message, type = 'info') {
 
 // Test connection function
 function testConnection(outletId) {
-    // Show loading state
-    const testButton = event.target;
-    const originalText = testButton.innerHTML;
-    testButton.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Testing...';
-    testButton.disabled = true;
+    // Get outlet name
+    const outletCard = document.querySelector(`.outlet-card[data-outlet-id="${outletId}"]`);
+    const outletName = outletCard?.querySelector('.outlet-name')?.textContent || 'this outlet';
+    
+    // Show loading modal
+    showApiPushModal({
+        type: 'loading',
+        title: 'Testing Connection',
+        message: `Connecting to Pasons API...<br>Store: ${outletName}`
+    });
     
     // Prepare form data
     const formData = new FormData();
@@ -1256,34 +1352,60 @@ function testConnection(outletId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            showNotification(`✅ ${data.message}`, 'success');
+            showApiPushModal({
+                type: 'success',
+                title: 'Connection Successful!',
+                message: data.message || 'Successfully connected to Pasons API',
+                details: {
+                    'Store': outletName,
+                    'Status': 'Connected',
+                    'Token Expires': data.expires_in ? data.expires_in + ' seconds' : 'Unknown'
+                }
+            });
         } else {
-            // Check if this is an expected error (like 404 from pasons.live)
-            if (data.expected_error) {
-                showNotification(`ℹ️ ${data.message}`, 'info');
-            } else {
-                showNotification(`❌ ${data.message}`, 'error');
-            }
+            showApiPushModal({
+                type: 'error',
+                title: 'Connection Failed',
+                message: data.message || 'Failed to connect to Pasons API',
+                details: {
+                    'Store': outletName,
+                    'Error': data.message || 'Unknown error'
+                }
+            });
         }
     })
     .catch(error => {
         console.error('Error testing connection:', error);
-        showNotification('Network error while testing connection', 'error');
-    })
-    .finally(() => {
-        // Restore button state
-        testButton.innerHTML = originalText;
-        testButton.disabled = false;
+        showApiPushModal({
+            type: 'error',
+            title: 'Network Error',
+            message: 'Failed to connect to the server',
+            details: {
+                'Error': error.message || 'Network error'
+            }
+        });
     });
 }
 
 // Push data function
-function pushData(outletId, pushType, pushMode) {
-    // Show loading state
-    const pushButton = event.target;
-    const originalText = pushButton.innerHTML;
-    pushButton.innerHTML = '<i class="bx bx-loader-alt bx-spin"></i> Pushing...';
-    pushButton.disabled = true;
+function pushData(outletId, defaultPushType, pushMode) {
+    // Get outlet name from the card
+    const outletCard = document.querySelector(`.outlet-card[data-outlet-id="${outletId}"]`);
+    const outletName = outletCard?.querySelector('.outlet-name')?.textContent || 'this outlet';
+    
+    // Get selected push type (full or partial)
+    const selectedRadio = outletCard?.querySelector(`input[name="push_type_${outletId}"]:checked`);
+    const pushType = selectedRadio?.value || defaultPushType;
+    
+    const modeText = pushMode === 'offer' ? 'Offer Prices' : 'Normal Prices';
+    const typeText = pushType === 'partial' ? 'Partial (Delta)' : 'Full';
+    
+    // Show loading modal
+    showApiPushModal({
+        type: 'loading',
+        title: 'Pushing to Pasons',
+        message: `Sending ${typeText} ${modeText} data to Pasons...<br>Store: ${outletName}<br>Please wait.`
+    });
     
     // Record start time
     const startTime = Date.now();
@@ -1312,38 +1434,82 @@ function pushData(outletId, pushType, pushMode) {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('Push response:', data); // Debug log
+        
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         
         if (data.success) {
-            const modeText = pushMode === 'offer' ? 'offer prices' : 'normal prices';
-            showNotification(`✅ Successfully pushed ${data.item_count} ${modeText}`, 'success');
+            // Build details object
+            const details = {
+                'Store': outletName,
+                'Items Pushed': data.item_count || 0,
+                'Type': typeText,
+                'Mode': modeText,
+                'Duration': duration + 's',
+                'Success': data.success_count || data.item_count || 0,
+                'Failed': data.failed_count || 0
+            };
             
-            // Add to history
+            // Try to get failed items from different possible sources
+            let failedItemsList = [];
+            
+            // Check direct failed_items
+            if (data.failed_items && data.failed_items.length > 0) {
+                failedItemsList = data.failed_items;
+                console.log('Failed items from data.failed_items:', failedItemsList);
+            }
+            // Check response_data.failed_items
+            else if (data.response_data && data.response_data.failed_items && data.response_data.failed_items.length > 0) {
+                failedItemsList = data.response_data.failed_items;
+                console.log('Failed items from response_data:', failedItemsList);
+            }
+            // Check if failed_count > 0 but no failed items list
+            else if (data.failed_count > 0) {
+                console.log('Failed count is', data.failed_count, 'but no failed items list found');
+                console.log('Full response:', data);
+            }
+            
+            let failedItemsHtml = '';
+            if (failedItemsList.length > 0) {
+                failedItemsHtml = '<div style="margin-top: 16px; max-height: 200px; overflow-y: auto; text-align: left;">';
+                failedItemsHtml += '<div style="font-weight: 600; color: #ef4444; margin-bottom: 8px;">Failed Items:</div>';
+                failedItemsList.forEach(item => {
+                    failedItemsHtml += `<div style="padding: 6px 8px; background: #fef2f2; border-radius: 4px; margin-bottom: 4px; font-size: 12px;">
+                        <span style="font-weight: 600;">SKU:</span> ${item.product_code || 'N/A'}<br>
+                        <span style="font-weight: 600;">Error:</span> ${item.error || item.error_message || 'Unknown'}
+                    </div>`;
+                });
+                failedItemsHtml += '</div>';
+            }
+            
+            showApiPushModal({
+                type: data.failed_count > 0 ? 'info' : 'success',
+                title: data.failed_count > 0 ? 'Push Completed with Errors' : 'Push Successful!',
+                message: data.failed_count > 0 ? `Some items failed to push` : `Successfully pushed data to Pasons`,
+                details: details,
+                failedItems: failedItemsHtml
+            });
+            
             addToHistory({
                 outlet_id: outletId,
                 platform: 'pasons',
                 mode: pushMode,
-                item_count: data.item_count,
-                status: 'success',
+                item_count: data.item_count || 0,
+                status: data.failed_count > 0 ? 'partial' : 'success',
                 duration: duration
             });
-            
-            // Show additional details if available
-            if (data.item_count > 0) {
-                console.log('Push details:', data);
-                if (data.response_data) {
-                    console.log('API response:', data.response_data);
-                }
-            }
         } else {
-            // Check if this is an expected error (like 404 from pasons.live)
-            if (data.expected_error) {
-                showNotification(`ℹ️ ${data.message}`, 'info');
-            } else {
-                showNotification(`❌ ${data.message}`, 'error');
-            }
+            showApiPushModal({
+                type: 'error',
+                title: 'Push Failed',
+                message: data.message || 'An error occurred while pushing data',
+                details: {
+                    'Store': outletName,
+                    'Items Pushed': data.item_count || 0,
+                    'Error': data.message || 'Unknown error'
+                }
+            });
             
-            // Add to history as error
             addToHistory({
                 outlet_id: outletId,
                 platform: 'pasons',
@@ -1356,7 +1522,14 @@ function pushData(outletId, pushType, pushMode) {
     })
     .catch(error => {
         console.error('Error pushing data:', error);
-        showNotification('Network error while pushing data', 'error');
+        showApiPushModal({
+            type: 'error',
+            title: 'Network Error',
+            message: 'Failed to connect to the server. Please try again.',
+            details: {
+                'Error': error.message || 'Network error'
+            }
+        });
         
         const duration = ((Date.now() - startTime) / 1000).toFixed(2);
         addToHistory({
@@ -1367,97 +1540,113 @@ function pushData(outletId, pushType, pushMode) {
             status: 'error',
             duration: duration
         });
-    })
-    .finally(() => {
-        // Restore button state
-        pushButton.innerHTML = originalText;
-        pushButton.disabled = false;
     });
 }
 
-// Add to history function
+// Add to history function (for api_push_integration page - history is saved to database via API)
 function addToHistory(data) {
-    // Get outlet name
-    const outletCard = document.querySelector(`[data-outlet-id="${data.outlet_id}"]`)?.closest('.outlet-card');
-    const outletName = outletCard?.querySelector('.outlet-name')?.textContent || 'Unknown';
-    
-    // Create history entry
-    const history = {
-        timestamp: new Date().toISOString(),
-        outlet: outletName,
-        platform: data.platform,
-        mode: data.mode,
-        item_count: data.item_count,
-        status: data.status,
-        duration: data.duration
-    };
-    
-    // Get existing history from localStorage
-    let historyList = JSON.parse(localStorage.getItem('push_history') || '[]');
-    
-    // Add new entry at the beginning
-    historyList.unshift(history);
-    
-    // Keep only last 50 entries
-    historyList = historyList.slice(0, 50);
-    
-    // Save back to localStorage
-    localStorage.setItem('push_history', JSON.stringify(historyList));
-    
-    // Update display
-    displayHistory();
-    
-    // Update last push time
-    updateLastPushTime();
+    // History is already saved to database by the API
+    // This function is kept for backward compatibility
+    console.log('Push completed:', data);
 }
 
-// Display history function
+// Display history function - fetch from database API
 function displayHistory() {
-    const historyList = JSON.parse(localStorage.getItem('push_history') || '[]');
     const tbody = document.getElementById('history-tbody');
     
-    if (historyList.length === 0) {
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af;">
+                <i class="bx bx-loader-alt bx-spin" style="font-size: 32px; display: block; margin-bottom: 12px;"></i>
+                <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 4px;">Loading history...</div>
+            </td>
+        </tr>
+    `;
+    
+    // Fetch from database API
+    fetch('/integration/api/push-history/')
+    .then(response => response.json())
+    .then(result => {
+        if (result.success && result.data && result.data.length > 0) {
+            const historyList = result.data;
+            tbody.innerHTML = historyList.slice(0, 20).map(entry => {
+                const date = new Date(entry.timestamp);
+                const timeStr = date.toLocaleString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                
+                const statusClass = entry.status === 'success' ? 'success' : 'error';
+                const statusIcon = entry.status === 'success' ? 'bx-check-circle' : 'bx-x-circle';
+                
+                return `
+                    <tr>
+                        <td style="font-weight: 500; color: #374151;">${timeStr}</td>
+                        <td>${entry.outlet_name}</td>
+                        <td><span class="platform-badge ${entry.platform}">${entry.platform}</span></td>
+                        <td style="text-transform: capitalize;">${entry.push_mode}</td>
+                        <td style="font-weight: 600; color: #374151;">${entry.item_count}</td>
+                        <td>
+                            <span class="history-status ${statusClass}">
+                                <i class="bx ${statusIcon}"></i>
+                                ${entry.status}
+                            </span>
+                        </td>
+                        <td style="font-family: 'SF Mono', monospace;">${entry.duration}s</td>
+                    </tr>
+                `;
+            }).join('');
+            
+            // Update last push time
+            const lastEntry = historyList[0];
+            if (lastEntry) {
+                updateLastPushTimeDisplay(lastEntry.timestamp);
+            }
+        } else {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af;">
+                        <i class="bx bx-time" style="font-size: 48px; display: block; margin-bottom: 12px;"></i>
+                        <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 4px;">No Push History Yet</div>
+                        <div style="font-size: 13px;">Push operations will appear here</div>
+                    </td>
+                </tr>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching push history:', error);
         tbody.innerHTML = `
             <tr>
-                <td colspan="7" style="text-align: center; padding: 40px; color: #9ca3af;">
-                    <i class="bx bx-time" style="font-size: 48px; display: block; margin-bottom: 12px;"></i>
-                    <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 4px;">No Push History Yet</div>
-                    <div style="font-size: 13px;">Push operations will appear here</div>
+                <td colspan="7" style="text-align: center; padding: 40px; color: #ef4444;">
+                    <i class="bx bx-error" style="font-size: 48px; display: block; margin-bottom: 12px;"></i>
+                    <div style="font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 4px;">Error loading history</div>
+                    <div style="font-size: 13px;">${error.message}</div>
                 </td>
             </tr>
         `;
-        return;
-    }
+    });
+}
+
+function updateLastPushTimeDisplay(timestamp) {
+    const lastPushElement = document.getElementById('last-push-time');
+    if (!lastPushElement || !timestamp) return;
     
-    tbody.innerHTML = historyList.slice(0, 20).map(entry => {
-        const date = new Date(entry.timestamp);
-        const timeStr = date.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        
-        const statusClass = entry.status === 'success' ? 'success' : 'error';
-        const statusIcon = entry.status === 'success' ? 'bx-check-circle' : 'bx-x-circle';
-        
-        return `
-            <tr>
-                <td style="font-weight: 500; color: #374151;">${timeStr}</td>
-                <td>${entry.outlet}</td>
-                <td><span class="platform-badge ${entry.platform}">${entry.platform}</span></td>
-                <td style="text-transform: capitalize;">${entry.mode}</td>
-                <td style="font-weight: 600; color: #374151;">${entry.item_count}</td>
-                <td>
-                    <span class="history-status ${statusClass}">
-                        <i class="bx ${statusIcon}"></i>
-                        ${entry.status}
-                    </span>
-                </td>
-                <td style="font-family: 'SF Mono', monospace;">${entry.duration}s</td>
-            </tr>
-        `;
-    }).join('');
+    const lastPush = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - lastPush;
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) {
+        lastPushElement.textContent = 'Just now';
+    } else if (diffMins < 60) {
+        lastPushElement.textContent = `${diffMins}m ago`;
+    } else {
+        const diffHours = Math.floor(diffMins / 60);
+        lastPushElement.textContent = `${diffHours}h ago`;
+    }
 }
 
 // Refresh history function
@@ -1466,42 +1655,9 @@ function refreshHistory() {
     showNotification('History refreshed', 'info');
 }
 
-// Update last push time
-function updateLastPushTime() {
-    const historyList = JSON.parse(localStorage.getItem('push_history') || '[]');
-    const lastPushElement = document.getElementById('last-push-time');
-    
-    if (historyList.length > 0) {
-        const lastPush = new Date(historyList[0].timestamp);
-        const now = new Date();
-        const diffMs = now - lastPush;
-        const diffMins = Math.floor(diffMs / 60000);
-        
-        if (diffMins < 1) {
-            lastPushElement.textContent = 'Just now';
-        } else if (diffMins < 60) {
-            lastPushElement.textContent = `${diffMins}m ago`;
-        } else {
-            const diffHours = Math.floor(diffMins / 60);
-            lastPushElement.textContent = `${diffHours}h ago`;
-        }
-    } else {
-        lastPushElement.textContent = 'Never';
-    }
-}
-
-// Update active connections count
-function updateActiveConnections() {
-    const configuredOutlets = document.querySelectorAll('.store-id-input').length;
-    const filledOutlets = Array.from(document.querySelectorAll('.store-id-input')).filter(input => input.value.trim()).length;
-    document.getElementById('active-connections').textContent = filledOutlets;
-}
-
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
     displayHistory();
-    updateLastPushTime();
-    updateActiveConnections();
     
     // Update last push time every minute
     setInterval(updateLastPushTime, 60000);
