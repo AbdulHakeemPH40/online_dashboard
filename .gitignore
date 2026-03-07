@@ -20,10 +20,11 @@ data_export.json
 data_export.zip
 # middleware_dashboard/settings.py
 
-# Documentation (for AI agents - uncomment when needed)
+# Documentation
+# Allow docs but keep them clean of secrets
 docs/
-
-# Kiro specs and configuration (for AI agents - uncomment when needed)
+docs/digita_ocean.md
+# Kiro specs and configuration
 .kiro/
 
 # Backup directories (local backups only)
@@ -43,17 +44,24 @@ media/temp_cleaning/
 .DS_Store
 Thumbs.db
 
-# Environment variables
+# Environment variables & Secrets
 .env
 *.env
-
-# Secrets
 secrets.json
-
-# Markdown documentation files
-*.md
+auth_token.txt
 
 # Root level test files
 test_*.py
 *_test.py
 tests.py
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Database
+db.sqlite3
+db.sqlite3-shm
+db.sqlite3-wal

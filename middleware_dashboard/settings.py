@@ -25,20 +25,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# Environment detection: local=SQLite, pythonanywhere=MySQL, digitalocean=SQLite
-ENVIRONMENT = os.environ.get('DJANGO_ENV', 'digitalocean') 
-DEBUG = config('DEBUG', default=False, cast=bool)
+# Environment detection: 'local' or 'digitalocean'
+ENVIRONMENT = config('DJANGO_ENV', default='local') 
 
-ALLOWED_HOSTS = [
-    'localhost', 
-    '127.0.0.1', 
-    '.pythonanywhere.com',
-    '159.89.133.6',  # DigitalOcean IP
-    'erp.pasons.group',  # Production domain
-    '.ngrok-free.app',   # ngrok free tunnels
-    '.ngrok-free.dev',   # ngrok free tunnels (dev)
-    '.ngrok.io',         # ngrok legacy tunnels
-]
+if ENVIRONMENT == 'local':
+    DEBUG = config('DEBUG', default=True, cast=bool)
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.ngrok-free.app', '.ngrok-free.dev', '.ngrok.io']
+else:
+    # Production / DigitalOcean settings
+    DEBUG = config('DEBUG', default=False, cast=bool)
+    ALLOWED_HOSTS = [
+        '159.89.133.6',     # DigitalOcean IP
+        'erp.pasons.group', # Production domain
+        '.pythonanywhere.com',
+    ]
 
 # Allow ngrok HTTPS origins for CSRF
 CSRF_TRUSTED_ORIGINS = [

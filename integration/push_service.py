@@ -70,7 +70,7 @@ class PasonsPushService:
         'product_code': 'item.sku',                    # SKU = unique product identifier for pasons.live
         'selling_price': 'outlet_selling_price',        # Our Selling Price
         'mrp': 'outlet_mrp',                           # Our MRP
-        'stock': 'outlet_stock',                       # Our Stock Quantity
+        'stock': 'is_active_in_outlet',                # Optimized: Push 1/0 based on active status instead of real stock
         'enabled': 'is_active_in_outlet',              # Active status (1=enabled, 0=disabled)
     }
     
@@ -390,18 +390,19 @@ class PasonsPushService:
             logger.info(f"Partial push: Found {len(changed_items)} items with changed prices")
             return base_query.filter(id__in=changed_items)
     
-    def prepare_price_stock_data(self, export_type='full'):
+    def prepare_price_stock_data(self, export_type='full', items=None):
         """
         Prepare PRICE-STOCK data for pushing to pasons.live
         Endpoint: POST /api/v1/bulk-update/price-stock
         
         Args:
             export_type: 'full' or 'partial'
+            items: Optional pre-filtered list/queryset of items. If provided, skips DB query.
             
         Returns:
             list: List of price-stock item dictionaries
         """
-        products = self.get_outlet_products(export_type)
+        products = items if items is not None else self.get_outlet_products(export_type)
         push_data = []
         
         for item_outlet in products:
@@ -449,13 +450,14 @@ class PasonsPushService:
             
         return push_data
     
-    def push_to_pasons_live(self, export_type='full', push_mode='normal'):
+    def push_to_pasons_live(self, export_type='full', push_mode='normal', items=None):
         """
         Push product data to pasons.live API via OAuth2
         
         Args:
             export_type: 'full' or 'partial'
             push_mode: 'normal' for price-stock, 'offer' for promotions
+            items: Optional pre-filtered items list to optimize processing speed
             
         Returns:
             dict: Response with success status, batch_id, and details
@@ -463,11 +465,12 @@ class PasonsPushService:
         try:
             # Prepare data based on push mode
             if push_mode == 'offer':
+                # Offers don't currently support passing precomputed items, fallback to full recalculation
                 push_data = self.prepare_offer_data(export_type)
                 data_type = "offers"
                 endpoint = self.BULK_UPDATE_OFFERS_ENDPOINT
             else:
-                push_data = self.prepare_price_stock_data(export_type)
+                push_data = self.prepare_price_stock_data(export_type, items=items)
                 data_type = "price-stock"
                 endpoint = self.BULK_UPDATE_PRICE_STOCK_ENDPOINT
             

@@ -376,8 +376,8 @@ class ExportProcessor:
                 f"(last export: {last_export_timestamp} UTC)"
             )
             
-            # Get ALL active items and compare current vs exported values
-            all_items = base_query.select_related('item')
+            # Get ALL active items and compare current vs exported values (ORDER REDUCES SORT NEEDED LATER)
+            all_items = base_query.select_related('item').order_by('item__sku')
             
             changed_items = []
             for io in all_items:
@@ -399,21 +399,16 @@ class ExportProcessor:
                         f"price: {exported_price} → {current_price}, "
                         f"status: {exported_status} → {current_stock_status}"
                     )
-                    changed_items.append(io.id)
+                    # OPTIMIZATION: Append the evaluated python object directly to the list
+                    changed_items.append(io)
             
-            # Return only changed items
-            if changed_items:
-                base_query = base_query.filter(id__in=changed_items)
-                logger.info(f"Delta export: {len(changed_items)} items have changes")
-            else:
-                # No changes found, return empty
-                logger.info("Delta export: No items with changes found")
-                base_query = base_query.none()
+            # Return only changed items mapped directly
+            logger.info(f"Delta export: {len(changed_items)} items have changes")
+            return changed_items
         else:
             # Full export: all active items
             logger.info("Full export: no timestamp filter (exporting all items)")
-        
-        return base_query.order_by('item__sku')
+            return base_query.order_by('item__sku')
     
     def build_export_data(
         self,
@@ -557,8 +552,9 @@ class ExportService:
     def export(
         self,
         user=None,
-        manual_export_type: Optional[str] = None
-    ) -> Tuple[Optional[List[Dict]], Optional[ExportHistory]]:
+        manual_export_type: Optional[str] = None,
+        update_tracking: bool = True
+    ) -> Tuple[Optional[List[Dict]], Optional[ExportHistory], List[ItemOutlet]]:
         """
         Execute complete export with validation and history tracking.
         
@@ -572,13 +568,15 @@ class ExportService:
             user: User requesting export (for audit trail)
             manual_export_type: Override export type ('full' or 'partial')
                 If None, automatically determined based on history
+            update_tracking: If True, updates ItemOutlet tracking fields (delta reset)
         
         Returns:
-            (export_data, export_history) tuple
+            (export_data, export_history, valid_items) tuple
             - export_data: List of dicts [{'sku': ..., 'selling_price': ..., 'stock_status': ...}]
             - export_history: ExportHistory instance (saved to DB)
+            - valid_items: List of ItemOutlet objects that were exported
             
-            On error: Returns (None, None)
+            On error: Returns (None, None, [])
         """
         try:
             # STEP 1: Validate outlet
@@ -657,25 +655,30 @@ class ExportService:
                 
                 # STEP 7: Update tracking fields for delta export detection
                 # Store current selling_price and stock_status for next delta export
-                for io in valid_items:
-                    current_selling_price = io.outlet_selling_price or io.item.selling_price or Decimal('0')
-                    current_stock_status = self.processor.calculate_stock_status(io.outlet_stock, io.item, io.is_active_in_outlet)
+                if update_tracking:
+                    for io in valid_items:
+                        current_selling_price = io.outlet_selling_price or io.item.selling_price or Decimal('0')
+                        current_stock_status = self.processor.calculate_stock_status(io.outlet_stock, io.item, io.is_active_in_outlet)
+                        
+                        # Update tracking fields
+                        io.export_selling_price = current_selling_price
+                        io.export_stock_status = current_stock_status
+                        io.save(update_fields=['export_selling_price', 'export_stock_status'])
                     
-                    # Update tracking fields
-                    io.export_selling_price = current_selling_price
-                    io.export_stock_status = current_stock_status
-                    io.save(update_fields=['export_selling_price', 'export_stock_status'])
-                
-                logger.info(
-                    f"Updated delta export tracking for {len(valid_items)} items"
-                )
+                    logger.info(
+                        f"Updated delta export tracking for {len(valid_items)} items"
+                    )
+                else:
+                    logger.info(
+                        f"Deferred delta export tracking update for {len(valid_items)} items"
+                    )
             
             logger.info(
                 f"Export completed successfully: {export_type.upper()} export "
                 f"for {self.outlet.name} - {len(export_data)} items"
             )
             
-            return export_data, export_history
+            return export_data, export_history, valid_items
         
         except Exception as e:
             logger.exception(f"Export failed with exception: {str(e)}")
@@ -690,4 +693,4 @@ class ExportService:
                 validation_errors=[str(e)],
                 created_by=user
             )
-            return None, export_history
+            return None, export_history, []

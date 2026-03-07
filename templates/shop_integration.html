@@ -959,7 +959,13 @@
                                 <tr>
                                     <td class="file-name-cell">
                                         <i class="bx bx-file"></i>
-                                        {% if export.file_name %}{{ export.file_name }}{% else %}<span style="color: #9ca3af;">-</span>{% endif %}
+                                        {% if export.file_name %}
+                                            {{ export.file_name }}
+                                        {% elif export.status == 'success' %}
+                                            <span style="color: #6b7280; font-style: italic;">API Push - Direct Sync</span>
+                                        {% else %}
+                                            <span style="color: #9ca3af;">-</span>
+                                        {% endif %}
                                     </td>
                                     <td>{{ export.export_timestamp|date:"M d, Y H:i" }}</td>
                                     <td>{{ export.outlet.name }}</td>
@@ -1162,7 +1168,13 @@
                                 <tr>
                                     <td class="file-name-cell">
                                         <i class="bx bx-file"></i>
-                                        {% if export.file_name %}{{ export.file_name }}{% else %}<span style="color: #9ca3af;">-</span>{% endif %}
+                                        {% if export.file_name %}
+                                            {{ export.file_name }}
+                                        {% elif export.status == 'success' %}
+                                            <span style="color: #6b7280; font-style: italic;">API Push - Direct Sync</span>
+                                        {% else %}
+                                            <span style="color: #9ca3af;">-</span>
+                                        {% endif %}
                                     </td>
                                     <td>{{ export.export_timestamp|date:"M d, Y H:i" }}</td>
                                     <td>{{ export.outlet.name }}</td>
@@ -1596,16 +1608,8 @@ function showPushModal(options) {
         buttonsHtml = `<button onclick="closePushModal()" style="padding: 10px 24px; border: none; background: ${type === 'success' ? '#10b981' : '#ef4444'}; border-radius: 8px; cursor: pointer; font-weight: 600; color: white;">OK</button>`;
     }
     
-    // Add download button if CSV filename provided
+    // Removed download button from modal as per user request
     let downloadButtonHtml = '';
-    if (csvFilename) {
-        downloadButtonHtml = `
-            <a href="/integration/api/download-export/${csvFilename}" 
-               style="display: inline-block; margin-top: 16px; padding: 10px 20px; background: #1976D2; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">
-                <i class="bx bx-download"></i> Download CSV
-            </a>
-        `;
-    }
     
     overlay.innerHTML = `
         <div style="background: white; border-radius: 16px; padding: 32px; max-width: 500px; width: 90%; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: slideUp 0.3s ease;">
@@ -1773,18 +1777,17 @@ function executePushToPasons(platform, outletId, outletName, pushType) {
                 exportHistoryId: data.export_history_id
             });
             
-            // Refresh export history table
-            loadExportHistory('pasons');
-            
             // Add to history
-            addToHistory({
-                outlet_id: outletId,
-                platform: 'pasons',
-                mode: pushType,
-                item_count: data.item_count || 0,
-                status: data.failed_count > 0 ? 'partial' : 'success',
-                duration: duration
-            });
+            if (typeof addToHistory === 'function') {
+                addToHistory({
+                    outlet_id: outletId,
+                    platform: 'pasons',
+                    mode: pushType,
+                    item_count: data.item_count || 0,
+                    status: data.failed_count > 0 ? 'partial' : 'success',
+                    duration: duration
+                });
+            }
         } else {
             showPushModal({
                 type: 'error',

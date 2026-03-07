@@ -3341,9 +3341,11 @@ def push_data_api(request):
         # Use ExportService to get the data
         from .export_service import ExportService
         export_service = ExportService(outlet, 'pasons')
-        export_data, export_history = export_service.export(
+        # DEFER tracking update so PasonsPushService can see the changes
+        export_data, export_history, valid_items = export_service.export(
             user=request.user if request.user.is_authenticated else None,
-            manual_export_type=push_type
+            manual_export_type=push_type,
+            update_tracking=False
         )
         
         csv_filename = None
@@ -3380,7 +3382,8 @@ def push_data_api(request):
             export_history.save(update_fields=['file_name'])
         
         # SECOND: Push data to Pasons API
-        result = push_service.push_to_pasons_live(push_type, push_mode)
+        # OPTIMIZATION: Pass valid_items directly to skip duplicate O(N) loop and massive SQL IN query
+        result = push_service.push_to_pasons_live(push_type, push_mode, items=valid_items)
         
         # Update push history with result
         if result.get('success'):
@@ -3392,6 +3395,24 @@ def push_data_api(request):
                 error_message=result.get('message'),
                 batch_id=result.get('batch_id')
             )
+            
+            # THIRD: Now that push succeeded, update the tracking fields (Reset Delta)
+            if valid_items:
+                from .export_service import ExportProcessor
+                processor = ExportProcessor(outlet, 'pasons')
+                from decimal import Decimal
+                
+                for io in valid_items:
+                    current_selling_price = io.outlet_selling_price or io.item.selling_price or Decimal('0')
+                    current_stock_status = processor.calculate_stock_status(io.outlet_stock, io.item, io.is_active_in_outlet)
+                    
+                    io.export_selling_price = current_selling_price
+                    io.export_stock_status = current_stock_status
+                    
+                # OPTIMIZATION: Use bulk_update to perform 1 SQL query instead of thousands!
+                ItemOutlet.objects.bulk_update(valid_items, ['export_selling_price', 'export_stock_status'], batch_size=1000)
+                
+                logger.info(f"Successfully updated delta tracking for {len(valid_items)} items after API push via bulk_update")
         else:
             push_history.mark_completed(
                 status='error',
@@ -3993,7 +4014,7 @@ def export_feed_api(request):
         manual_export_type = export_type_param if export_type_param in ('full', 'partial') else None
         
         # Execute export - always include all items (no promotion filtering)
-        export_data, export_history = export_service.export(
+        export_data, export_history, valid_items = export_service.export(
             user=request.user if request.user.is_authenticated else None,
             manual_export_type=manual_export_type
         )
@@ -4792,7 +4813,7 @@ def report_data_api(request):
                 })
             
             headers = [
-                '#', 'Item Code', 'Description', 'Units', 'SKU', 'Barcode', 'Wrap',
+                '#', 'Item Code', 'Description', 'Pack Description', 'Units', 'SKU', 'Barcode', 'Wrap',
                 'WDF', 'OCQ', 'Min Qty', 'Platform', 'Outlet MRP', 'Outlet Selling Price',
                 'Outlet Stock', 'Outlet Cost', 'Converted Cost', 'Active in Outlet'
             ]
@@ -4822,6 +4843,7 @@ def report_data_api(request):
                     idx,
                     item.item_code,
                     item.description[:50] + '...' if len(item.description) > 50 else item.description,
+                    item.pack_description or '-',
                     item.units,
                     item.sku,
                     item.barcode or '-',
@@ -4858,7 +4880,7 @@ def report_data_api(request):
                 })
             
             headers = [
-                '#', 'Item Code', 'Description', 'Units', 'SKU', 'Barcode', 'Wrap',
+                '#', 'Item Code', 'Description', 'Pack Description', 'Units', 'SKU', 'Barcode', 'Wrap',
                 'WDF', 'OCQ', 'Min Qty', 'Platform', 'Status'
             ]
             
@@ -4882,6 +4904,7 @@ def report_data_api(request):
                     idx,
                     item.item_code,
                     item.description[:50] + '...' if len(item.description) > 50 else item.description,
+                    item.pack_description or '-',
                     item.units,
                     item.sku,
                     item.barcode or '-',
@@ -5621,9 +5644,9 @@ def data_cleaning(request):
         temp_dir = Path(settings.MEDIA_ROOT) / 'temp_cleaning'
         temp_dir.mkdir(parents=True, exist_ok=True)
         
-        # Use first file name for output base
+        # Use first file name for output base, sanitized for URLs
         first_file = files[0]
-        output_basename = os.path.splitext(first_file.name)[0]
+        output_basename = os.path.splitext(first_file.name)[0].replace(' ', '_')
         timestamp = datetime.now().strftime('%d%m%Y%H%M')
         
         input_path = temp_dir / f"merged_{uuid.uuid4()}.xlsx"
