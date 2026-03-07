@@ -70,16 +70,13 @@ class PasonsPushService:
         'product_code': 'item.sku',                    # SKU = unique product identifier for pasons.live
         'selling_price': 'outlet_selling_price',        # Our Selling Price
         'mrp': 'outlet_mrp',                           # Our MRP
-        'stock': 'is_effectively_active',              # Optimized: Push 1/0 based on effective status (account for locks)
-        'enabled': 'is_effectively_active',            # Active status (1=enabled, 0=disabled)
+        # Custom handling for stock/enabled via ExportService calculation
     }
     
-    # Field mapping configuration for OFFER updates (POST /api/v1/bulk-update/offers)
     OFFER_MAPPING = {
         'product_code': 'item.sku',                    # SKU = unique product identifier for pasons.live
         'offer_price': 'converted_promo',               # Our Promotional Price (after conversion)
-        'stock': 'is_effectively_active',              # Added: Push status with offers
-        'enabled': 'is_effectively_active',            # Added: Push status with offers
+        # Custom handling for stock/enabled via ExportService calculation
     }
     
     def __init__(self, outlet):
@@ -292,17 +289,24 @@ class PasonsPushService:
         for pasons_field, our_field_path in self.PRICE_STOCK_MAPPING.items():
             value = self.get_field_value(item_outlet, our_field_path)
             
-            # Special handling for specific fields
-            if pasons_field == 'enabled':
-                # API expects integer 1/0
-                value = 1 if value else 0
-            elif pasons_field in ('selling_price', 'mrp'):
-                # Ensure decimal formatting
+            # Ensure decimal formatting for prices
+            if pasons_field in ('selling_price', 'mrp', 'offer_price'):
                 value = float(value) if value else 0.0
-            elif pasons_field == 'stock':
-                value = int(value) if value else 0
                 
             data[pasons_field] = value
+            
+        # CALCULATE STOCK AND ENABLED STATUS using the centralized export logic
+        from .export_service import ExportProcessor
+        processor = ExportProcessor(self.outlet, 'pasons')
+        stock_status = processor.calculate_stock_status(
+            outlet_stock=item_outlet.outlet_stock,
+            item=item_outlet.item,
+            is_active_in_outlet=item_outlet.is_effectively_active
+        )
+        
+        # Pasons API requires both stock and enabled to be 1 or 0
+        data['stock'] = stock_status
+        data['enabled'] = stock_status
             
         return data
     
@@ -322,17 +326,24 @@ class PasonsPushService:
         for pasons_field, our_field_path in self.OFFER_MAPPING.items():
             value = self.get_field_value(item_outlet, our_field_path)
             
-            # Special handling for specific fields
-            if pasons_field == 'enabled':
-                # API expects integer 1/0
-                value = 1 if value else 0
-            elif pasons_field in ('selling_price', 'mrp', 'offer_price'):
-                # Ensure decimal formatting
+            # Ensure decimal formatting
+            if pasons_field in ('selling_price', 'mrp', 'offer_price'):
                 value = float(value) if value else 0.0
-            elif pasons_field == 'stock':
-                value = int(value) if value else 0
                 
             data[pasons_field] = value
+            
+        # CALCULATE STOCK AND ENABLED STATUS using the centralized export logic
+        from .export_service import ExportProcessor
+        processor = ExportProcessor(self.outlet, 'pasons')
+        stock_status = processor.calculate_stock_status(
+            outlet_stock=item_outlet.outlet_stock,
+            item=item_outlet.item,
+            is_active_in_outlet=item_outlet.is_effectively_active
+        )
+        
+        # Pasons API requires both stock and enabled to be 1 or 0
+        data['stock'] = stock_status
+        data['enabled'] = stock_status
             
         return data
     

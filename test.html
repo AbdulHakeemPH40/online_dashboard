@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Mermaid Diagram</title>
+    <script type="module">
+      import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+      mermaid.initialize({ startOnLoad: true });
+    </script>
+  </head>
+  <body>
+    <div class="mermaid">
+graph TD
+    %% Base Data Layer
+    DB[(Database\nItemOutlet)]
+    
+    %% User Action
+    UI([Dashboard UI])
+    UI_Action{User Action}
+    
+    %% Views Layer
+    V_Export[views.py\nexport_data]
+    V_Push[views.py\npush_data_api]
+    
+    %% Export Service Layer (The Brain)
+    ES[export_service.py\nExportProcessor]
+    ES_Calc[calculate_stock_status]
+    ES_Delta[Compare Last Export]
+    
+    %% Outputs
+    CSV[CSV File]
+    PS[push_service.py]
+    API([Pasons.live API])
+    
+    %% Data Flow
+    UI --> UI_Action
+    
+    %% Action: Export CSV
+    UI_Action -- "Click: Generate Export" --> V_Export
+    V_Export --> ES
+    
+    %% Action: Push API
+    UI_Action -- "Click: Push Data" --> V_Push
+    V_Push -- "1. Generate Data First" --> ES
+    
+    %% Export Logic
+    ES -- "Fetch Raw Base Data" --> DB
+    ES --> ES_Calc
+    
+    subgraph Calculation & Filtering Layer
+        ES_Calc -- "Applies Rules:\n1. Is Effectively Active?\n2. Meets Minimum Qty?\n3. Wrap 9900/10000 Math" --> StatusResult[Final Status: 1 or 0]
+        
+        StatusResult --> IsPartial{Full or Partial?}
+        
+        IsPartial -- Full --> ValidItems[All Active Items]
+        
+        IsPartial -- Partial --> ES_Delta
+        ES_Delta -- "Compare Status & Price\nto Last Successful Sync" --> HasChanged{Changed?}
+        HasChanged -- Yes --> ValidItems
+        HasChanged -- No --> Ignored[Ignored / Removed]
+    end
+    
+    %% Returning Data
+    ValidItems -- "Build Export Data" --> ES_Output((Filtered Data))
+    
+    %% Routing Output File
+    ES_Output -- "If CSV Export" --> CSV
+    
+    %% Routing Output API
+    ES_Output -- "2. Pass Filtered Data" --> PS
+    
+    subgraph API Formatting
+        PS -- "Convert Price & Stock" --> PS_PS[price-stock endpoint]
+        PS -- "Convert Offers" --> PS_Offer[offers endpoint]
+    end
+    
+    PS_PS --> API
+    PS_Offer --> API
+    
+    %% Update Tracker
+    API -- "Success Response" --> Tracker[Update Last Export Tracking\nin Database]
+    Tracker --> DB
+
+    classDef calc fill:#d4edda,stroke:#28a745,color:#155724;
+    classDef action fill:#cce5ff,stroke:#007bff,color:#004085;
+    classDef warning fill:#fff3cd,stroke:#ffc107,color:#856404;
+    
+    class Calculation & Filtering Layer calc;
+    class UI_Action action;
+    class Ignored warning;
+    </div>
+  </body>
+</html>

@@ -248,12 +248,8 @@ class ExportProcessor:
         Returns:
             0 or 1
         """
-        # PLATFORM SPECIFIC: Pasons.live uses status-based sync
-        if self.platform == 'pasons':
-            return 1 if is_active_in_outlet else 0
-
-        # DEFAULT (TALABAT/GLOBAL): Complex stock-based sync
-        # CHECK 1: If item is disabled in outlet (BLS status locked), always return 0
+        # ALL PLATFORMS: Use complex stock-based sync (including minimum_qty)
+        # CHECK 1: If item is disabled in outlet (BLS status locked or inactive), always return 0
         if not is_active_in_outlet:
             return 0
         
@@ -369,8 +365,8 @@ class ExportProcessor:
             
             changed_items = []
             for io in all_items:
-                # Calculate current stock_status (respects is_active_in_outlet)
-                current_stock_status = self.calculate_stock_status(io.outlet_stock, io.item, io.is_active_in_outlet)
+                # Calculate current stock_status (respects effective active status/locks)
+                current_stock_status = self.calculate_stock_status(io.outlet_stock, io.item, io.is_effectively_active)
                 
                 # Compare with last exported values
                 current_price = io.outlet_selling_price or Decimal('0')
@@ -429,8 +425,8 @@ class ExportProcessor:
             # Get selling price (with fallback) - handle NULL values safely
             selling_price = io.outlet_selling_price if io.outlet_selling_price is not None else (item.selling_price if item.selling_price is not None else Decimal('0'))
             
-            # Calculate stock_status
-            stock_status = self.calculate_stock_status(io.outlet_stock, item, io.is_active_in_outlet)
+            # Calculate stock_status (respects effective active status/locks)
+            stock_status = self.calculate_stock_status(io.outlet_stock, item, io.is_effectively_active)
             
             # Validate stock_status is 0 or 1
             if stock_status not in (0, 1):
