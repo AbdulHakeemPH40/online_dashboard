@@ -223,8 +223,8 @@ class ExportProcessor:
         self.outlet = outlet
         self.platform = platform
     
-    @staticmethod
     def calculate_stock_status(
+        self,
         outlet_stock: int,
         item: Item,
         is_active_in_outlet: bool = True
@@ -233,25 +233,26 @@ class ExportProcessor:
         Calculate stock_status (0 or 1) for an item at an outlet.
         
         RULES:
-        - If is_active_in_outlet=False (BLS status locked/disabled) → ALWAYS return 0
-        - wrap='9900' (units): status = 1 if stock >= minimum_qty AND stock > 0
-          * outlet_stock is already converted: outlet_stock = csv_stock_kg × weight_division_factor
-          * No further conversion needed
-        - wrap='10000' (cases): status = 1 if (stock / outer_case_qty) >= minimum_qty AND stock > 0
-        
-        VALIDATION FOR WRAP=9900:
-        - Requires: minimum_qty > 0 (must be explicitly set)
-        - Requires: weight_division_factor > 0 (must be set at item creation)
-        - Requires: outlet_stock > 0 (comes from CSV stock × WDF)
+        - For Pasons.live: Status is strictly based on the Active/Inactive flag (is_active_in_outlet).
+          * This matches the PRICE_STOCK_MAPPING: stock=is_active_in_outlet, enabled=is_active_in_outlet
+        - For others (Talabat, Global): Uses complex stock rules:
+          * If is_active_in_outlet=False (BLS status locked/disabled) → ALWAYS return 0
+          * wrap='9900' (units): status = 1 if stock >= minimum_qty AND stock > 0
+          * wrap='10000' (cases): status = 1 if (stock / outer_case_qty) >= minimum_qty AND stock > 0
         
         Args:
-            outlet_stock: Stock quantity from ItemOutlet (already converted for wrap=9900)
+            outlet_stock: Stock quantity from ItemOutlet
             item: Item instance with wrap and minimum_qty
             is_active_in_outlet: Whether item is active in outlet (BLS status)
         
         Returns:
             0 or 1
         """
+        # PLATFORM SPECIFIC: Pasons.live uses status-based sync
+        if self.platform == 'pasons':
+            return 1 if is_active_in_outlet else 0
+
+        # DEFAULT (TALABAT/GLOBAL): Complex stock-based sync
         # CHECK 1: If item is disabled in outlet (BLS status locked), always return 0
         if not is_active_in_outlet:
             return 0
@@ -265,27 +266,14 @@ class ExportProcessor:
         # WRAP-SPECIFIC LOGIC
         if wrap == '10000':
             # Wrap=10000: outlet_stock is ALREADY in cases (divided by OCQ during stock update)
-            # No further division needed - compare directly with minimum_qty
             min_qty = item.minimum_qty if item.minimum_qty is not None else 1
             return 1 if outlet_stock > float(min_qty) else 0  # GREATER than (not equal)
         else:
-            # Wrap=9900: Direct comparison (outlet_stock already converted)
-            # VALIDATION: minimum_qty must be set for wrap=9900
+            # Wrap=9900: Direct comparison
             min_qty = item.minimum_qty
             if min_qty is None:
-                logger.warning(
-                    f"Item {item.item_code} (wrap=9900): minimum_qty not set. "
-                    f"Defaulting to 1. Recommend setting minimum_qty during item creation."
-                )
+                logger.warning(f"Item {item.item_code} (wrap=9900): minimum_qty not set, defaulting to 1.")
                 min_qty = 1
-            
-            # VALIDATION: weight_division_factor must be set for wrap=9900
-            wdf = item.weight_division_factor
-            if wdf is None or wdf <= 0:
-                logger.warning(
-                    f"Item {item.item_code} (wrap=9900): weight_division_factor not set or invalid. "
-                    f"Stock conversion may be incorrect. Recommend setting WDF during item creation."
-                )
             
             return 1 if outlet_stock > float(min_qty) else 0  # GREATER than (not equal)
     

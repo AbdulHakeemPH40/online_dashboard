@@ -3404,7 +3404,8 @@ def push_data_api(request):
                 
                 for io in valid_items:
                     current_selling_price = io.outlet_selling_price or io.item.selling_price or Decimal('0')
-                    current_stock_status = processor.calculate_stock_status(io.outlet_stock, io.item, io.is_active_in_outlet)
+                    # ALIGNMENT: Pasons sync uses the effective active status (account for locks)
+                    current_stock_status = 1 if io.is_effectively_active else 0
                     
                     io.export_selling_price = current_selling_price
                     io.export_stock_status = current_stock_status

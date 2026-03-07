@@ -70,14 +70,16 @@ class PasonsPushService:
         'product_code': 'item.sku',                    # SKU = unique product identifier for pasons.live
         'selling_price': 'outlet_selling_price',        # Our Selling Price
         'mrp': 'outlet_mrp',                           # Our MRP
-        'stock': 'is_active_in_outlet',                # Optimized: Push 1/0 based on active status instead of real stock
-        'enabled': 'is_active_in_outlet',              # Active status (1=enabled, 0=disabled)
+        'stock': 'is_effectively_active',              # Optimized: Push 1/0 based on effective status (account for locks)
+        'enabled': 'is_effectively_active',            # Active status (1=enabled, 0=disabled)
     }
     
     # Field mapping configuration for OFFER updates (POST /api/v1/bulk-update/offers)
     OFFER_MAPPING = {
         'product_code': 'item.sku',                    # SKU = unique product identifier for pasons.live
         'offer_price': 'converted_promo',               # Our Promotional Price (after conversion)
+        'stock': 'is_effectively_active',              # Added: Push status with offers
+        'enabled': 'is_effectively_active',            # Added: Push status with offers
     }
     
     def __init__(self, outlet):
@@ -321,9 +323,14 @@ class PasonsPushService:
             value = self.get_field_value(item_outlet, our_field_path)
             
             # Special handling for specific fields
-            if pasons_field == 'offer_price':
+            if pasons_field == 'enabled':
+                # API expects integer 1/0
+                value = 1 if value else 0
+            elif pasons_field in ('selling_price', 'mrp', 'offer_price'):
                 # Ensure decimal formatting
                 value = float(value) if value else 0.0
+            elif pasons_field == 'stock':
+                value = int(value) if value else 0
                 
             data[pasons_field] = value
             
@@ -373,6 +380,7 @@ class PasonsPushService:
                 )
             
             # Compare current values vs last exported values
+            # ALIGNMENT: Pasons maps stock/enabled to is_active_in_outlet, so we must track changes in that flag.
             all_items = base_query.filter(outlet_selling_price__isnull=False)
             
             changed_items = []
@@ -380,14 +388,21 @@ class PasonsPushService:
                 current_price = io.outlet_selling_price or Decimal('0')
                 exported_price = io.export_selling_price or Decimal('0')
                 
-                # Check if price changed or was never exported
+                # Check price change
                 price_changed = current_price != exported_price
-                never_exported = io.export_selling_price is None
                 
-                if price_changed or never_exported:
+                # Check status change (Stock/Enabled mapping)
+                current_status = 1 if io.is_effectively_active else 0
+                exported_status = io.export_stock_status if io.export_stock_status is not None else -1
+                status_changed = current_status != exported_status
+                
+                # Never exported if either tracking field is NULL
+                never_exported = io.export_selling_price is None or io.export_stock_status is None
+                
+                if price_changed or status_changed or never_exported:
                     changed_items.append(io.id)
             
-            logger.info(f"Partial push: Found {len(changed_items)} items with changed prices")
+            logger.info(f"Partial push: Found {len(changed_items)} items with changes (price or status)")
             return base_query.filter(id__in=changed_items)
     
     def prepare_price_stock_data(self, export_type='full', items=None):
@@ -416,10 +431,10 @@ class PasonsPushService:
                 logger.warning(f"Skipping outlet {self.outlet.name}: No store ID configured")
                 continue
                 
-            # Only include items with normal prices (not on promotion)
-            if not item_outlet.is_on_promotion:
-                product_data = self.convert_price_stock_data(item_outlet)
-                push_data.append(product_data)
+            # Always include items if they have a SKU and price
+            # Removing the promotion skip ensures that promotion items ALSO have their status/price updated in the main sync.
+            product_data = self.convert_price_stock_data(item_outlet)
+            push_data.append(product_data)
             
         return push_data
     
